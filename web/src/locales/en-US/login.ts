@@ -1,0 +1,22 @@
+// login module messages (extracted from the corresponding page)
+export default {
+  brandHeadline1: 'Let system governance',
+  brandHeadline2: 'run quietly',
+  brandSub: 'Users, roles, permissions, and menus — all in one place.',
+  formTitle: 'Welcome back',
+  formSub: 'Sign in with your admin account to continue',
+  username: 'Username',
+  password: 'Password',
+  captcha: 'Captcha',
+  usernameRequired: 'Please enter your username',
+  passwordRequired: 'Please enter your password',
+  captchaRequired: 'Please enter the captcha',
+  captchaClickRefresh: 'Click to refresh',
+  remember: 'Remember me',
+  loginButton: 'Sign In',
+  captchaLoadFailed: 'Failed to load the captcha, please click to refresh',
+  loginSuccess: 'Signed in successfully',
+  loginFailed: 'Sign-in failed',
+  captchaError: 'Incorrect captcha, please try again',
+  sessionExpired: 'Your session has expired, please sign in again',
+}

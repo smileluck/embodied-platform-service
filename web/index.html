@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmileX Admin</title>
+    <!-- 首次加载全屏动画：必须纯静态（bundle 加载前无任何外部资源可用）。
+         色值与 src/styles/tokens.css 同源（--sx-ink #151E2B / --sx-accent-bright #8FC5E8），
+         改主题两处同步调整。main.ts 在首次导航就绪后挂载应用，并给本层加 .is-done 淡出移除。 -->
+    <style>
+      #app-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        /* 深藏蓝底 + 中央微光，与登录页 PulseWave 的深底语言一致 */
+        background: radial-gradient(ellipse at 50% 42%, #1b2839 0%, #151e2b 68%);
+        transition: opacity 0.35s ease;
+      }
+      #app-loading.is-done {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .bl-wave {
+        width: min(160px, 44vw);
+        height: auto;
+        display: block;
+      }
+      /* 圆环轨道：低透明度静态描边，光点绕其巡游 */
+      .bl-ring {
+        fill: none;
+        stroke: #8fc5e8;
+        stroke-width: 1.5;
+        opacity: 0.25;
+      }
+      /* 单波形描线循环（180 ≥ 全线长约 168） */
+      .bl-line {
+        fill: none;
+        stroke: #8fc5e8;
+        stroke-width: 2;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+        stroke-dasharray: 180;
+        stroke-dashoffset: 180;
+        animation: boot-trace 2.8s linear infinite;
+      }
+      @keyframes boot-trace {
+        0%   { stroke-dashoffset: 180; opacity: 0; }
+        10%  { opacity: 0.9; }
+        55%  { stroke-dashoffset: 0; opacity: 0.9; }
+        82%  { stroke-dashoffset: 0; opacity: 0.9; }
+        94%  { stroke-dashoffset: 0; opacity: 0; }
+        100% { stroke-dashoffset: 180; opacity: 0; }
+      }
+      /* 光点：CSS 旋转绕圆环巡游（SMIL animateMotion 的时钟受文档 load 时机影响，
+         会出现光点迟到才巡游的问题，故用 CSS 旋转替代） */
+      .bl-orbit {
+        transform-origin: 80px 80px;
+        animation: boot-orbit 2.4s linear infinite;
+      }
+      @keyframes boot-orbit {
+        to { transform: rotate(360deg); }
+      }
+      .bl-dot {
+        fill: #cfe7f8;
+        filter: drop-shadow(0 0 5px rgba(143, 197, 232, 0.9));
+      }
+      .bl-brand {
+        margin: 0;
+        font: 500 12px/1 -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+        letter-spacing: 0.32em;
+        text-indent: 0.32em; /* 抵消末字符 letter-spacing，视觉居中 */
+        color: #8fa3bc;
+        opacity: 0;
+        animation: boot-brand 0.9s ease 0.5s forwards;
+      }
+      @keyframes boot-brand {
+        from { opacity: 0; transform: translateY(4px); }
+        to   { opacity: 1; transform: none; }
+      }
+      /* 降级：tokens.css 的全局减弱动效规则此时尚未加载到，本层自带一份 */
+      @media (prefers-reduced-motion: reduce) {
+        .bl-line {
+          animation: none;
+          stroke-dashoffset: 0; /* 静态满波形 */
+        }
+        .bl-dot { display: none; }
+        .bl-brand { animation: none; opacity: 1; transform: none; }
+      }
+      .bl-noscript {
+        margin: 0;
+        color: #8fa3bc;
+        font: 400 13px/1.6 -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="app-loading" role="status" aria-label="加载中">
+      <svg class="bl-wave" viewBox="0 0 160 160" aria-hidden="true">
+        <!-- 圆环轨道：半径 58，顶部为起点；path 形式便于 mpath 引用 -->
+        <path class="bl-ring" id="bl-ring-path" d="M80 22 A58 58 0 1 1 79.9 22 Z" />
+        <!-- 圆内单波形（全线长约 168） -->
+        <path class="bl-line" d="M32 80 H52 L62 64 L72 96 L82 80 H104 L114 64 L124 96 L128 80" />
+        <g class="bl-orbit">
+          <circle class="bl-dot" cx="80" cy="22" r="3.2" />
+        </g>
+      </svg>
+      <p class="bl-brand">SmileX Admin</p>
+      <noscript><p class="bl-noscript">需要启用 JavaScript 才能使用 SmileX Admin</p></noscript>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

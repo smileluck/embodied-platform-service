@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "github.com/smilex/smilex-admin-gin/api/auth/v1;authv1";
+
+// 认证服务契约。首期 Gin 手写实现与之对应；
+// 切换 Kratos 时用本文件生成 HTTP/gRPC 代码，service 层签名已与其对齐。
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+  string device_type = 3; // 设备端：web（默认）/ app；同端互斥、异端并存
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+}
+
+message TokenPair {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_at = 3; // unix 秒
+}
+
+message Subject {
+  uint32 user_id = 1;
+  string username = 2;
+  repeated string roles = 3;
+  string session_id = 4; // 会话 ID：token 仅在对应会话存活期间有效
+}
+
+message LogoutRequest {}
+message LogoutReply {}
+
+service AuthService {
+  rpc Login(LoginRequest) returns (TokenPair);
+  rpc Refresh(RefreshRequest) returns (TokenPair);
+  rpc Logout(LogoutRequest) returns (LogoutReply); // 登出：吊销当前会话
+}

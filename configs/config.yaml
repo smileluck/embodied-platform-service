@@ -1,0 +1,103 @@
+server:
+  port: 8080
+  mode: debug # debug | release
+
+db:
+  driver: mysql # mysql | postgres | sqlite
+  autoMigrate: true # 启动时自动建表 + 种子数据
+  mysql:
+    host: 127.0.0.1
+    port: 3306
+    user: root
+    password: "123456"
+    dbname: smilex_admin
+    charset: utf8mb4
+    maxOpenConns: 20
+    maxIdleConns: 10
+  postgres:
+    host: 127.0.0.1
+    port: 5432
+    user: postgres
+    password: "123456"
+    dbname: smilex_admin
+    sslmode: disable
+    maxOpenConns: 20
+    maxIdleConns: 10
+  sqlite:
+    path: ./data/smilex.db
+
+jwt:
+  secret: CVU7ynyz7C9PR6txNu1NF+oFGWPJ/WyyXXOkmR0hNPU= # 32 字节强随机（openssl rand -base64 32）；更换后所有已签发 token 失效，需重新登录
+  issuer: smilex-admin
+  expireHours: 2 # access token 有效期
+  refreshHours: 168 # refresh token 有效期，同时为会话生命周期（TTL 到期即下线）
+
+redis:
+  addr: 127.0.0.1:6379
+  password: ""
+  db: 0
+
+auth:
+  captchaEnabled: false # 登录验证码开关；本地调试暂时关闭，生产必须改回 true
+
+cache:
+  l2Enabled: true # 二级缓存（Redis）开关；false 时 RBAC 等读缓存仅用进程内一级缓存（多实例间不共享）
+
+openapi: # 开放 API（商户 HMAC 签名）验签配置
+  signSkewSeconds: 300 # 请求时间戳允许的最大偏差（秒），超出即拒绝
+  nonceTtlSeconds: 600 # nonce 防重放去重的 Redis 键 TTL（秒），应不小于 signSkewSeconds
+
+log:
+  retentionDays: 90 # 登录/操作日志保留天数，超期每日自动清理；0 表示永久保留
+  # 应用运行日志：按日期滚动落盘（dir/filename-2006-01-02.log）
+  dir: ./logs # 日志文件目录；置空则只输出控制台
+  filename: app # 文件名前缀
+  level: "" # 最低级别 debug|info|warn|error；空则 debug 模式=debug，release 模式=info
+  maxAgeDays: 30 # 日志文件保留天数，超期自动清理；0 永久保留
+  console: false # 是否同时输出到控制台（debug 模式无论此项都会输出控制台）
+
+export:
+  maxSizeMB: 50 # 单个导出文件大小上限（MB），超出截断并在记录上标记 truncated
+  maxRows: 100000 # 单个导出文件最大数据行数，超出截断
+  retentionDays: 7 # 导出记录与产物文件保留天数，超期每日自动清理；0 表示永久保留
+  queueSize: 64 # 导出任务队列容量，满则新任务返回 429
+  # 导出字段脱敏：导出列 key -> 脱敏规则；可用规则 phone / email / idcard / bankcard / name / ip / none
+  # 未配置的列按原值导出；规则 none 表示显式不脱敏
+  mask:
+    phone: phone
+    email: email
+
+storage:
+  driver: local # 当前写入的存储后端：local | oss | cos | tos | minio
+  # 切换 driver 只影响新上传；读/删按文件记录落库时的后端解析，升级后端后旧文件仍可访问（旧后端配置需保留）
+  maxSizeMB: 20 # 单文件上传大小上限
+  signExpireMinutes: 15 # 云存储预签名下载 URL 有效期（分钟）
+  denyExts: [] # 禁止上传的扩展名（如 ["exe","sh"]），空则用内置黑名单
+  local:
+    dir: ./data/uploads # 本地存储根目录
+  oss: # 阿里云 OSS
+    endpoint: "" # 如 oss-cn-hangzhou.aliyuncs.com
+    bucket: ""
+    accessKeyId: ""
+    accessKeySecret: ""
+    prefix: "" # 对象 key 前缀，如 uploads/
+  cos: # 腾讯云 COS
+    region: "" # 如 ap-guangzhou
+    bucket: "" # 形如 example-1250000000
+    secretId: ""
+    secretKey: ""
+    prefix: ""
+  tos: # 火山引擎 TOS
+    endpoint: "" # 如 tos-cn-beijing.volces.com
+    region: "" # 如 cn-beijing
+    bucket: ""
+    accessKey: ""
+    secretKey: ""
+    prefix: ""
+  minio: # 自定义 S3 兼容存储（如 JuiceFS + MinIO）
+    endpoint: "" # 不含 scheme，如 127.0.0.1:9000
+    bucket: ""
+    accessKey: ""
+    secretKey: ""
+    useSSL: false
+    prefix: ""

@@ -1,0 +1,21 @@
+// online 模块文案（由对应页面抽取填充）
+export default {
+  username: '用户名',
+  device: '设备端',
+  nickname: '昵称',
+  deviceInfo: '设备信息',
+  loginTime: '登录时间',
+  lastActive: '最近活跃',
+  currentSession: '当前会话',
+  web: '网页端',
+  app: '移动端',
+  kick: '下线',
+  kickAll: '全部下线',
+  kickTitle: '下线确认',
+  kickConfirm: '确定下线「{username}」的{device}会话吗？{self}',
+  kickSelfNote: '（这是你当前登录的会话，下线后需重新登录）',
+  kickUserTitle: '全部下线确认',
+  kickUserConfirm: '确定将「{username}」的全部在线端（含网页端、移动端）一并下线吗？',
+  kicked: '已下线',
+  allKicked: '已全部下线',
+}

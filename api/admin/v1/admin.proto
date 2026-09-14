@@ -1,0 +1,325 @@
+syntax = "proto3";
+
+package admin.v1;
+
+option go_package = "github.com/smilex/smilex-admin-gin/api/admin/v1;adminv1";
+
+// 用户/角色/权限管理契约。首期 Gin 手写实现与之对应，
+// 切换 Kratos 时生成代码后 service 层可平移。
+
+// ---- 用户 ----
+
+message User {
+  uint32 id = 1;
+  string username = 2;
+  string nickname = 3;
+  string email = 4;
+  int32 status = 5; // 1 启用 0 禁用
+  repeated uint32 role_ids = 6;
+  string created_at = 7;
+}
+
+message CreateUserRequest {
+  string username = 1;
+  string password = 2;
+  string nickname = 3;
+  string email = 4;
+  repeated uint32 role_ids = 5;
+}
+
+message UpdateUserRequest {
+  uint32 id = 1;
+  string nickname = 2;
+  string email = 3;
+  optional int32 status = 4;
+}
+
+message SetUserRolesRequest {
+  uint32 id = 1;
+  repeated uint32 role_ids = 2;
+}
+
+message ResetPasswordRequest {
+  uint32 id = 1;
+  string password = 2;
+}
+
+message ListUsersRequest {
+  string username = 1;
+  optional int32 status = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListUsersReply {
+  repeated User list = 1;
+  int64 total = 2;
+}
+
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (User);
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+  rpc DeleteUser(DeleteRequest) returns (Empty);
+  rpc GetUser(IDRequest) returns (User);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersReply);
+  rpc SetUserRoles(SetUserRolesRequest) returns (Empty);
+  rpc ResetPassword(ResetPasswordRequest) returns (Empty);
+}
+
+// ---- 角色 ----
+
+message Role {
+  uint32 id = 1;
+  string name = 2;
+  string code = 3;
+  string remark = 4;
+  repeated uint32 permission_ids = 5;
+}
+
+message CreateRoleRequest {
+  string name = 1;
+  string code = 2;
+  string remark = 3;
+}
+
+message SetRolePermissionsRequest {
+  uint32 id = 1;
+  repeated uint32 permission_ids = 2;
+}
+
+service RoleService {
+  rpc CreateRole(CreateRoleRequest) returns (Role);
+  rpc DeleteRole(DeleteRequest) returns (Empty);
+  rpc GetRole(IDRequest) returns (Role);
+  rpc ListRoles(ListRequest) returns (ListRolesReply);
+  rpc SetRolePermissions(SetRolePermissionsRequest) returns (Empty);
+}
+
+// ---- 权限 ----
+
+message Permission {
+  uint32 id = 1;
+  string name = 2;
+  string code = 3;
+  string type = 4; // api | menu
+  string method = 5;
+  string path = 6;
+  uint32 parent_id = 7;
+}
+
+service PermissionService {
+  rpc CreatePermission(Permission) returns (Permission);
+  rpc DeletePermission(DeleteRequest) returns (Empty);
+  rpc ListPermissions(ListRequest) returns (ListPermissionsReply);
+}
+
+// ---- 在线用户（会话管理） ----
+
+message OnlineSession {
+  string sid = 1;          // 会话 ID（JWT sid）
+  uint32 user_id = 2;
+  string username = 3;
+  string nickname = 4;
+  string device = 5;       // web | app
+  string ip = 6;
+  string user_agent = 7;
+  int64 login_at = 8;      // unix 秒
+  int64 last_active_at = 9; // unix 秒
+  bool is_current = 10;    // 是否当前操作者自己的会话
+}
+
+message ListOnlineSessionsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string username = 3; // 模糊过滤
+  string device = 4;   // 精确过滤：web | app
+}
+
+message ListOnlineSessionsReply {
+  repeated OnlineSession list = 1;
+  int64 total = 2;
+}
+
+message SIDRequest { string sid = 1; }
+
+service OnlineSessionService {
+  rpc ListOnlineSessions(ListOnlineSessionsRequest) returns (ListOnlineSessionsReply);
+  rpc KickSession(SIDRequest) returns (Empty);              // 踢单个会话（某端下线）
+  rpc KickUserSessions(IDRequest) returns (Empty);          // 踢某用户全部端下线
+}
+
+// ---- 公共 ----
+
+message Empty {}
+
+message IDRequest { uint32 id = 1; }
+
+message DeleteRequest { uint32 id = 1; }
+
+message ListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message ListRolesReply {
+  repeated Role list = 1;
+  int64 total = 2;
+}
+
+message ListPermissionsReply {
+  repeated Permission list = 1;
+  int64 total = 2;
+}
+
+// ---- 租户 ----
+
+message Tenant {
+  uint32 id = 1;
+  string name = 2;
+  string code = 3;           // 租户编码（创建后不可改）
+  string contact_name = 4;
+  string contact_phone = 5;
+  string remark = 6;
+  int32 status = 7;          // 1 启用 0 禁用
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+message CreateTenantRequest {
+  string name = 1;
+  string code = 2;
+  string contact_name = 3;
+  string contact_phone = 4;
+  string remark = 5;
+}
+
+message UpdateTenantRequest {
+  uint32 id = 1;
+  string name = 2;
+  string contact_name = 3;
+  string contact_phone = 4;
+  string remark = 5;
+}
+
+message ListTenantsRequest {
+  string name = 1;           // 模糊过滤
+  string code = 2;           // 模糊过滤
+  optional int32 status = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message ListTenantsReply {
+  repeated Tenant list = 1;
+  int64 total = 2;
+}
+
+// 删除租户在存在关联应用用户时被拒绝（ErrTenantInUse）
+service TenantService {
+  rpc CreateTenant(CreateTenantRequest) returns (Tenant);
+  rpc UpdateTenant(UpdateTenantRequest) returns (Tenant);
+  rpc DeleteTenant(DeleteRequest) returns (Empty);
+  rpc GetTenant(IDRequest) returns (Tenant);
+  rpc ListTenants(ListTenantsRequest) returns (ListTenantsReply);
+  rpc SetTenantStatus(SetStatusRequest) returns (Empty);
+}
+
+// ---- 应用用户（多租户终端用户，独立于后台账号体系） ----
+
+message AppUser {
+  uint32 id = 1;
+  string username = 2;       // 创建后不可改
+  string nickname = 3;
+  string phone = 4;
+  string email = 5;
+  int32 status = 6;          // 1 启用 0 禁用
+  repeated uint32 tenant_ids = 7;
+  repeated string tenant_names = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message CreateAppUserRequest {
+  string username = 1;
+  string password = 2;
+  string nickname = 3;
+  string phone = 4;
+  string email = 5;
+  repeated uint32 tenant_ids = 6;
+}
+
+// 更新应用用户（tenant_ids 全量替换租户关联）
+message UpdateAppUserRequest {
+  uint32 id = 1;
+  string nickname = 2;
+  string phone = 3;
+  string email = 4;
+  optional int32 status = 5;
+  repeated uint32 tenant_ids = 6;
+}
+
+message ListAppUsersRequest {
+  string keyword = 1;        // 模糊匹配用户名/昵称
+  string phone = 2;          // 精确匹配
+  optional int32 status = 3;
+  optional uint32 tenant_id = 4; // 按租户筛选（关联表子查询）
+  int32 page = 5;
+  int32 page_size = 6;
+}
+
+message ListAppUsersReply {
+  repeated AppUser list = 1;
+  int64 total = 2;
+}
+
+message SetStatusRequest {
+  uint32 id = 1;
+  int32 status = 2;          // 1 启用 0 禁用
+}
+
+service AppUserService {
+  rpc CreateAppUser(CreateAppUserRequest) returns (AppUser);
+  rpc UpdateAppUser(UpdateAppUserRequest) returns (AppUser);
+  rpc DeleteAppUser(DeleteRequest) returns (Empty);
+  rpc GetAppUser(IDRequest) returns (AppUser);
+  rpc ListAppUsers(ListAppUsersRequest) returns (ListAppUsersReply);
+  rpc ResetAppUserPassword(ResetPasswordRequest) returns (Empty);
+}
+
+// ---- 应用用户独立认证（app-auth，与后台账号 token 以 typ 隔离） ----
+// 对应 HTTP 路由：POST /api/v1/app-auth/login、POST /api/v1/app-auth/refresh（公开），
+// GET /api/v1/app-auth/profile、PUT /api/v1/app-auth/password（AppJWT 认证，无 RBAC/会话）。
+
+message AppLoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message AppTokenPair {
+  string access_token = 1;
+  string refresh_token = 2;
+  string expires_at = 3;
+}
+
+message AppLoginReply {
+  string access_token = 1;
+  string refresh_token = 2;
+  string expires_at = 3;
+  AppUser user = 4;
+}
+
+message AppRefreshRequest {
+  string refresh_token = 1;
+}
+
+message AppChangePasswordRequest {
+  string old_password = 1;
+  string new_password = 2;
+}
+
+service AppAuthService {
+  rpc Login(AppLoginRequest) returns (AppLoginReply);
+  rpc Refresh(AppRefreshRequest) returns (AppTokenPair);
+  rpc Profile(Empty) returns (AppUser);
+  rpc ChangePassword(AppChangePasswordRequest) returns (Empty);
+}

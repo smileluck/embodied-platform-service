@@ -1,0 +1,20 @@
+# air 后端热加载配置（https://github.com/air-verse/air）
+# 用法: make dev 或 air
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o bin/server ./cmd/server"
+bin = "bin/server"
+args = ["-conf", "configs/config.yaml"]
+include_ext = ["go", "yaml", "yml", "tpl", "sql"]
+exclude_dir = ["assets", "tmp", "vendor", "testdata", "web", "bin", "data", "logs", "docs"]
+exclude_regex = ["_test\\.go"]
+delay = 1000 # ms
+stop_on_error = true
+
+[log]
+time = true
+
+[misc]
+clean_on_exit = true

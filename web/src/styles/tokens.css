@@ -1,0 +1,66 @@
+/* ============================================================
+   SmileX Admin 设计规范（Design Tokens）
+   所有自定义样式与 Naive UI themeOverrides 均从本文件取值。
+   修改主题只改这里。
+   ============================================================ */
+
+:root {
+  /* 色板 */
+  --sx-ink: #151E2B;          /* 藏蓝黑：品牌面板底色、主文字 */
+  --sx-ink-soft: #212C3E;     /* 蓝黑浅一档：面板内层次 */
+  --sx-bg: #F5F7FA;           /* 冷灰白：全局底 */
+  --sx-surface: #FFFFFF;      /* 纯净面：卡片、表格 */
+  --sx-accent: #3F75AB;       /* 清水蓝：主色、链接、主按钮 */
+  --sx-accent-hover: #518CC8; /* 主色 hover */
+  --sx-accent-pressed: #315E8C;
+  --sx-accent-soft: #E4EDF6;  /* 浅蓝衬底：选中态、标签 */
+  --sx-accent-bright: #8FC5E8;      /* 浅清水蓝：深底（品牌面板）上的高亮 */
+  --sx-accent-bright-rgb: 143, 197, 232; /* 同色 RGB 三元组：canvas/rgba 场景 */
+  --sx-line: #E3E8EF;         /* 分隔线、描边 */
+  --sx-muted: #6B7787;        /* 次级文字 */
+  --sx-danger: #C2453A;       /* 危险操作 */
+
+  /* 字体 */
+  --sx-font-body: -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
+  --sx-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* 圆角与投影 */
+  --sx-radius: 8px;
+  --sx-radius-lg: 14px;
+  --sx-shadow: 0 1px 3px rgba(21, 30, 43, 0.06), 0 8px 24px rgba(21, 30, 43, 0.05);
+}
+
+/* 全局基础 */
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  font-family: var(--sx-font-body);
+  color: var(--sx-ink);
+  background: var(--sx-bg);
+}
+
+/* 等宽数字/功能标签通用 */
+.sx-mono {
+  font-family: var(--sx-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sx-muted);
+}
+
+/* 减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

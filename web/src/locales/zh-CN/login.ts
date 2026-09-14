@@ -1,0 +1,22 @@
+// login 模块文案（由对应页面抽取填充）
+export default {
+  brandHeadline1: '让系统治理',
+  brandHeadline2: '安静地运转',
+  brandSub: '用户、角色、权限、菜单——一处掌控。',
+  formTitle: '欢迎回来',
+  formSub: '使用你的管理员账号继续',
+  username: '用户名',
+  password: '密码',
+  captcha: '验证码',
+  usernameRequired: '请输入用户名',
+  passwordRequired: '请输入密码',
+  captchaRequired: '请输入验证码',
+  captchaClickRefresh: '点击刷新',
+  remember: '记住密码',
+  loginButton: '登 录',
+  captchaLoadFailed: '验证码加载失败，请点击刷新',
+  loginSuccess: '登录成功',
+  loginFailed: '登录失败',
+  captchaError: '验证码错误，请重新输入',
+  sessionExpired: '登录已失效，请重新登录',
+}

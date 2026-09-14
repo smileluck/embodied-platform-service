@@ -1,0 +1,579 @@
+{
+  "generatedAt": "2026-08-25T02:19:32.830Z",
+  "commits": [
+    {
+      "hash": "c3c574d",
+      "date": "2026-08-25",
+      "type": "feat",
+      "scope": "",
+      "message": "add tenant and app user management modules"
+    },
+    {
+      "hash": "2984c2b",
+      "date": "2026-08-24",
+      "type": "refactor",
+      "scope": "merchant",
+      "message": "拆分商户搜索关键词为多字段独立匹配"
+    },
+    {
+      "hash": "9515292",
+      "date": "2026-08-24",
+      "type": "feat",
+      "scope": "",
+      "message": "新增开放API商户管理与验签能力"
+    },
+    {
+      "hash": "bf91b57",
+      "date": "2026-08-24",
+      "type": "refactor",
+      "scope": "login",
+      "message": "重构登录页布局并优化语言切换组件"
+    },
+    {
+      "hash": "38325c0",
+      "date": "2026-08-24",
+      "type": "feat",
+      "scope": "cache&middleware",
+      "message": "add singleflight cache & optimize rbac middleware"
+    },
+    {
+      "hash": "36aa8b4",
+      "date": "2026-08-24",
+      "type": "feat",
+      "scope": "",
+      "message": "新增二级缓存、会话节流刷新，优化验证码与权限缓存"
+    },
+    {
+      "hash": "413a99e",
+      "date": "2026-08-24",
+      "type": "refactor",
+      "scope": "",
+      "message": "封装通用分页hook，简化各页面分页代码"
+    },
+    {
+      "hash": "f81fcd7",
+      "date": "2026-08-24",
+      "type": "feat",
+      "scope": "",
+      "message": "新增登录自动封禁功能，完善黑名单管理"
+    },
+    {
+      "hash": "8909f1d",
+      "date": "2026-08-24",
+      "type": "feat",
+      "scope": "",
+      "message": "新增IP黑名单管理功能，完善日志系统"
+    },
+    {
+      "hash": "6b40f47",
+      "date": "2026-08-23",
+      "type": "feat",
+      "scope": "",
+      "message": "新增IP黑名单管理功能"
+    },
+    {
+      "hash": "083090a",
+      "date": "2026-08-23",
+      "type": "feat",
+      "scope": "about",
+      "message": "左卡由技术栈罗列改为系统简介与核心特性（对齐 README）"
+    },
+    {
+      "hash": "5db8cc7",
+      "date": "2026-08-23",
+      "type": "feat",
+      "scope": "login",
+      "message": "登录页欢迎区右侧新增语言切换"
+    },
+    {
+      "hash": "f99dcdf",
+      "date": "2026-08-23",
+      "type": "fix",
+      "scope": "admin-layout",
+      "message": "面包屑/浏览器标题随语言即时切换，搜索面板支持点击遮罩关闭"
+    },
+    {
+      "hash": "1862701",
+      "date": "2026-08-23",
+      "type": "feat",
+      "scope": "",
+      "message": "引入多语言国际化支持，完成前后端i18n基础搭建"
+    },
+    {
+      "hash": "14a6ea6",
+      "date": "2026-08-23",
+      "type": "feat",
+      "scope": "",
+      "message": "实现异步导出功能，支持用户/登录/操作日志导出"
+    },
+    {
+      "hash": "a3dd57f",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "admin-layout",
+      "message": "优化侧边菜单展开逻辑与菜单key生成"
+    },
+    {
+      "hash": "70d6ec2",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "permission,web",
+      "message": "实现三级权限目录模型，新增目录类型并重构权限树"
+    },
+    {
+      "hash": "1b8a8cf",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "server,web",
+      "message": "add file management module"
+    },
+    {
+      "hash": "fc493f9",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "server,web",
+      "message": "日志清理按钮改为按保留期清理，与自动策略一致"
+    },
+    {
+      "hash": "5ca94b1",
+      "date": "2026-08-22",
+      "type": "fix",
+      "scope": "web",
+      "message": "token 过期白屏根因修复——refresh 401 自等待死锁"
+    },
+    {
+      "hash": "e87a2bd",
+      "date": "2026-08-22",
+      "type": "chore",
+      "scope": "web",
+      "message": "刷新 changelog 与构建缓存"
+    },
+    {
+      "hash": "044148e",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "web",
+      "message": "新增登录日志/操作日志页面"
+    },
+    {
+      "hash": "2c112f6",
+      "date": "2026-08-22",
+      "type": "refactor",
+      "scope": "web",
+      "message": "搜索栏抽为独立可折叠 SearchCard 卡片"
+    },
+    {
+      "hash": "eadfe79",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "server",
+      "message": "新增日志管理与登录 IP 黑名单"
+    },
+    {
+      "hash": "6f08316",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "system",
+      "message": "密码长度统一为 6-20 位，改密弹窗 label 加宽 20px"
+    },
+    {
+      "hash": "357d6b1",
+      "date": "2026-08-22",
+      "type": "fix",
+      "scope": "web",
+      "message": "顶栏固定，滚动仅发生在内容区域"
+    },
+    {
+      "hash": "82a2e7f",
+      "date": "2026-08-22",
+      "type": "fix",
+      "scope": "web",
+      "message": "关于我们内容溢出——naive 卡片内容类名修正"
+    },
+    {
+      "hash": "46909bf",
+      "date": "2026-08-22",
+      "type": "fix",
+      "scope": "web",
+      "message": "关于我们改为视口确定性高度，修复整页滚动"
+    },
+    {
+      "hash": "6614e45",
+      "date": "2026-08-22",
+      "type": "style",
+      "scope": "web",
+      "message": "关于我们左右卡片 4:6、去提交索引、撑满内容区高度"
+    },
+    {
+      "hash": "1af1d78",
+      "date": "2026-08-22",
+      "type": "style",
+      "scope": "web",
+      "message": "关于我们改为固定左右布局，任何窗口宽度不堆叠"
+    },
+    {
+      "hash": "6293467",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "web",
+      "message": "vite dev server 监听 0.0.0.0，局域网设备可访问"
+    },
+    {
+      "hash": "f2f815e",
+      "date": "2026-08-22",
+      "type": "chore",
+      "scope": "config",
+      "message": "更换强随机 JWT secret，消除弱密钥告警"
+    },
+    {
+      "hash": "e84004d",
+      "date": "2026-08-22",
+      "type": "fix",
+      "scope": "web",
+      "message": "关于我们/个人中心左右布局断点从 m(1024) 降到 s(640)"
+    },
+    {
+      "hash": "fee032b",
+      "date": "2026-08-22",
+      "type": "chore",
+      "scope": "",
+      "message": "更新gitignore和生成changelog日志"
+    },
+    {
+      "hash": "eda5c95",
+      "date": "2026-08-22",
+      "type": "chore",
+      "scope": "",
+      "message": "更新 .gitignore 新增AI相关忽略规则"
+    },
+    {
+      "hash": "536f8c8",
+      "date": "2026-08-22",
+      "type": "fix",
+      "scope": "web",
+      "message": "登录防重复提交——同端互斥下双击登录会自踢首次会话致跳转失败"
+    },
+    {
+      "hash": "2b21f0a",
+      "date": "2026-08-22",
+      "type": "chore",
+      "scope": "web",
+      "message": "刷新 changelog 与构建缓存"
+    },
+    {
+      "hash": "e4ff5a2",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "web",
+      "message": "命令面板改为接口搜索：空态打开，输入后防抖调接口"
+    },
+    {
+      "hash": "e1c224a",
+      "date": "2026-08-22",
+      "type": "chore",
+      "scope": "web",
+      "message": "刷新 changelog 与构建缓存"
+    },
+    {
+      "hash": "47bd308",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "web",
+      "message": "在线用户页面与会话失效体验"
+    },
+    {
+      "hash": "3b78f3f",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "system",
+      "message": "幂等菜单补齐机制与「在线用户/关于我们」种子"
+    },
+    {
+      "hash": "b3450d3",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "auth",
+      "message": "认证接入会话：JWT 携带 sid，中间件校验存活"
+    },
+    {
+      "hash": "31dc13d",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "session",
+      "message": "会话领域与 Redis 基础设施"
+    },
+    {
+      "hash": "e996e6d",
+      "date": "2026-08-22",
+      "type": "fix",
+      "scope": "",
+      "message": ".gitignore 的 data/ 规则锚定到根目录"
+    },
+    {
+      "hash": "e7e2c63",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "web",
+      "message": "全局搜索升级为命令面板样式"
+    },
+    {
+      "hash": "60908eb",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "web",
+      "message": "关于我们页面：左产品信息卡 + 右更新记录（git 日志构建时生成）"
+    },
+    {
+      "hash": "88e63cb",
+      "date": "2026-08-22",
+      "type": "fix",
+      "scope": "web",
+      "message": "侧边栏折叠动画顺滑化，消除瞬时跳变"
+    },
+    {
+      "hash": "b01042b",
+      "date": "2026-08-22",
+      "type": "chore",
+      "scope": "web",
+      "message": "更新 tsconfig.tsbuildinfo 构建缓存"
+    },
+    {
+      "hash": "556c1f8",
+      "date": "2026-08-22",
+      "type": "style",
+      "scope": "system",
+      "message": "搜索栏独立成行，与操作按钮分区"
+    },
+    {
+      "hash": "3e82c2d",
+      "date": "2026-08-22",
+      "type": "refactor",
+      "scope": "web",
+      "message": "顶栏搜索改为图标唤起弹窗"
+    },
+    {
+      "hash": "d0b6dd7",
+      "date": "2026-08-22",
+      "type": "feat",
+      "scope": "",
+      "message": "安全防护加固 + 个人中心/修改密码 + 顶栏全局搜索"
+    },
+    {
+      "hash": "f0492a9",
+      "date": "2026-08-21",
+      "type": "fix",
+      "scope": "system",
+      "message": "权限列表支持 page_size=0 全量返回，树目录不再被分页截断"
+    },
+    {
+      "hash": "8f2457d",
+      "date": "2026-08-21",
+      "type": "fix",
+      "scope": "web",
+      "message": "刷新保持当前路由；收起态侧栏图标水平居中"
+    },
+    {
+      "hash": "0017f0d",
+      "date": "2026-08-21",
+      "type": "feat",
+      "scope": "system",
+      "message": "菜单树受控展开、角色去编码、超管锁定与输入长度校验"
+    },
+    {
+      "hash": "0d9acdd",
+      "date": "2026-08-21",
+      "type": "refactor",
+      "scope": "system",
+      "message": "统一表格操作列渲染逻辑并优化侧边栏样式"
+    },
+    {
+      "hash": "ac68cc2",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "login",
+      "message": "波形高亮色对齐清水蓝主题并收编为 token"
+    },
+    {
+      "hash": "f39879c",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "login",
+      "message": "初始描线扫过转折点时也触发高亮"
+    },
+    {
+      "hash": "2cf762c",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "login",
+      "message": "光束改为初始描线完成后再逐条发射"
+    },
+    {
+      "hash": "8c33544",
+      "date": "2026-08-21",
+      "type": "feat",
+      "scope": "login",
+      "message": "波形抽为 PulseWave 组件，光束粒子速度/出现时机随机化"
+    },
+    {
+      "hash": "56cdd53",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "login",
+      "message": "光束粒子减速并改为等距队列连续发送"
+    },
+    {
+      "hash": "bb5b5f2",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "login",
+      "message": "波形改为画一次常驻，光束粒子循环扫过"
+    },
+    {
+      "hash": "59fdd61",
+      "date": "2026-08-21",
+      "type": "feat",
+      "scope": "",
+      "message": "完成主题色更换与验证码功能重构"
+    },
+    {
+      "hash": "ed822e0",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "login",
+      "message": "波形转折点改为触及时闪亮后熄灭，不再常亮"
+    },
+    {
+      "hash": "6928a51",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "login",
+      "message": "心电波形波峰波谷增加高亮点"
+    },
+    {
+      "hash": "fe57844",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "login",
+      "message": "移除表单底部 authorized personnel only 文案"
+    },
+    {
+      "hash": "559acf7",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "login",
+      "message": "登录表单标题改为「欢迎回来」"
+    },
+    {
+      "hash": "cb6da21",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "login",
+      "message": "地图动效标签 geo sync 简化为 sync"
+    },
+    {
+      "hash": "004a069",
+      "date": "2026-08-21",
+      "type": "feat",
+      "scope": "login",
+      "message": "右上动效替换为伪3D地图发射效果"
+    },
+    {
+      "hash": "328a686",
+      "date": "2026-08-21",
+      "type": "feat",
+      "scope": "login",
+      "message": "品牌面板右上新增加点数据流拓扑动效"
+    },
+    {
+      "hash": "4b25a3d",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "login",
+      "message": "修复验证码图片在Safari中的拖拽问题"
+    },
+    {
+      "hash": "5b44527",
+      "date": "2026-08-21",
+      "type": "feat",
+      "scope": "",
+      "message": "新增图形验证码功能与侧边栏折叠记忆，优化登录流程"
+    },
+    {
+      "hash": "a31f74d",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "login",
+      "message": "adjust login page flex layout and min width"
+    },
+    {
+      "hash": "55c52e5",
+      "date": "2026-08-21",
+      "type": "feat",
+      "scope": "",
+      "message": "系统管理全接口接入RBAC权限点并幂等落库"
+    },
+    {
+      "hash": "ac98b9e",
+      "date": "2026-08-21",
+      "type": "style",
+      "scope": "AdminLayout",
+      "message": "调整布局内容区域内边距为8px"
+    },
+    {
+      "hash": "67dd435",
+      "date": "2026-08-21",
+      "type": "refactor",
+      "scope": "",
+      "message": "完成权限与菜单底层合并，整合按钮权限到菜单体系"
+    },
+    {
+      "hash": "8ad4fbd",
+      "date": "2026-08-21",
+      "type": "feat",
+      "scope": "",
+      "message": "实现侧边栏图标支持本地ionicons5和网络图片，优化权限菜单管理"
+    },
+    {
+      "hash": "e903dec",
+      "date": "2026-08-21",
+      "type": "refactor",
+      "scope": "web",
+      "message": "重构前端主题与UI风格，统一设计系统"
+    },
+    {
+      "hash": "a2071f2",
+      "date": "2026-08-21",
+      "type": "refactor",
+      "scope": "admin layout & router",
+      "message": "simplify route view handling and remove fade transition"
+    },
+    {
+      "hash": "9b1b7ce",
+      "date": "2026-08-21",
+      "type": "refactor",
+      "scope": "web,backend",
+      "message": "完成五项改进计划落地"
+    },
+    {
+      "hash": "534e708",
+      "date": "2026-08-21",
+      "type": "chore",
+      "scope": "",
+      "message": "新增一键前后端热更新开发流程"
+    },
+    {
+      "hash": "cf0355c",
+      "date": "2026-08-20",
+      "type": "chore",
+      "scope": "",
+      "message": "remove node_modules and build artifacts from tracking (now gitignored)"
+    },
+    {
+      "hash": "449bf7a",
+      "date": "2026-08-20",
+      "type": "project",
+      "scope": "",
+      "message": "init"
+    }
+  ]
+}

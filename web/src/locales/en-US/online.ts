@@ -1,0 +1,21 @@
+// online module texts (extracted from the corresponding page)
+export default {
+  username: 'Username',
+  device: 'Device',
+  nickname: 'Nickname',
+  deviceInfo: 'Device Info',
+  loginTime: 'Login Time',
+  lastActive: 'Last Active',
+  currentSession: 'Current Session',
+  web: 'Web',
+  app: 'Mobile',
+  kick: 'Kick',
+  kickAll: 'Kick All',
+  kickTitle: 'Kick Confirmation',
+  kickConfirm: 'Kick the {device} session of "{username}"? {self}',
+  kickSelfNote: '(This is your current session; you will need to log in again)',
+  kickUserTitle: 'Kick All Confirmation',
+  kickUserConfirm: 'Kick all online sessions (web and mobile) of "{username}"?',
+  kicked: 'Kicked',
+  allKicked: 'All sessions kicked',
+}

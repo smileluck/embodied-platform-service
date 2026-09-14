@@ -1,0 +1,54 @@
+# ---- AI ----
+gui-test-screenshots/
+.zcode/plans/
+
+# ---- Go ----
+bin/
+tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.out
+coverage.html
+
+# ---- 前端 ----
+web/node_modules/
+web/dist/
+web/dist-ssr/
+web/*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# ---- IDE / 编辑器 ----
+.idea/
+.vscode/
+*.swp
+*.swo
+*.code-workspace
+.DS_Store
+
+# ---- 运行时产物 ----
+/data/
+*.db
+*.sqlite
+*.log
+logs/
+
+# ---- 环境与密钥（按需保留模板）----
+.env
+.env.*
+!.env.example
+configs/config.local.yaml
+
+# ---- 依赖注入生成（可选：提交 wire_gen.go 则删除此行）----
+# cmd/server/wire_gen.go
+
+
+
