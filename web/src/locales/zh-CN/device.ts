@@ -24,6 +24,7 @@ export default {
   sn: 'SN',
   snPlaceholder: '设备序列号（全局唯一）',
   snRequired: '请输入 SN',
+  name: '设备名称',
   nameRequired: '请输入设备名称',
   listFailed: '查询设备失败',
   shadow: '设备影子',

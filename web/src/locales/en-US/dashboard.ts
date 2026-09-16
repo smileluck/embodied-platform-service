@@ -1,10 +1,18 @@
-// dashboard 模块文案（由对应页面抽取填充）
+// dashboard 模块文案（设备运营总览页）
 export default {
-  userCount: 'Users',
-  roleCount: 'Roles',
-  permCount: 'Permissions',
-  myPermCodes: 'My Permission Codes',
-  welcome: 'Welcome',
-  greeting: '{name}, welcome to SmileX Admin.',
-  techLine: 'DDD + Gin + GORM backend · Vue3 + Naive UI frontend · Multi-database (MySQL/PostgreSQL/SQLite)',
+  greeting: 'Welcome back, {name}',
+  subtitle: 'Your device fleet at a glance',
+  systemNormal: 'All systems go',
+  statDevices: 'Total Devices',
+  statOnline: 'Online',
+  statActive: 'Activated',
+  inactiveHint: '{n} inactive',
+  statModelTenant: 'Models / Tenants',
+  breakdown: 'Status Breakdown',
+  sysOverview: 'System Overview',
+  admissionUsers: 'Admitted Users',
+  roles: 'Roles',
+  permCodes: 'Permission Codes',
+  recentDevices: 'Recent Devices',
+  viewAll: 'View All',
 }

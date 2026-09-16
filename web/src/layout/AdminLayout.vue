@@ -9,13 +9,14 @@
         </div>
       </div>
       <n-menu class="sider-menu" :collapsed="collapsed" :collapsed-width="64" :root-indent="16" :indent="20"
+        :theme-overrides="menuOverrides"
         :options="menuOptions" :value="activeKey" :expanded-keys="expandedKeys"
         @update:expanded-keys="expandedKeys = $event" @update:value="onMenuSelect" />
       <div class="sider-foot mono" :class="{ 'foot-collapsed': collapsed }">v1.0<span class="foot-ext"> · internal</span></div>
     </n-layout-sider>
 
     <n-layout class="main">
-      <n-layout-header bordered class="header">
+      <n-layout-header class="header">
         <div class="header-left">
           <n-button class="sider-trigger" quaternary circle :focusable="false" :aria-label="t('layout.toggleSider')"
             @click="toggleCollapsed">
@@ -199,6 +200,32 @@ const router = useRouter()
 const userStore = useUserStore()
 const message = useMessage()
 const { t } = useI18n()
+
+// 深壳菜单配色：石墨底上的琥珀高亮（色值与 tokens.css 的深壳/琥珀 token 同源）
+const menuOverrides = {
+  itemTextColor: 'rgba(233, 231, 226, 0.68)',
+  itemTextColorHover: '#F2F0EB',
+  itemTextColorActive: '#FFB224',
+  itemTextColorActiveHover: '#FFB224',
+  itemTextColorChildActive: '#FFB224',
+  itemTextColorChildActiveHover: '#FFB224',
+  itemIconColor: 'rgba(233, 231, 226, 0.55)',
+  itemIconColorHover: '#F2F0EB',
+  itemIconColorActive: '#FFB224',
+  itemIconColorActiveHover: '#FFB224',
+  itemIconColorChildActive: '#FFB224',
+  itemIconColorChildActiveHover: '#FFB224',
+  itemColorHover: 'rgba(255, 255, 255, 0.05)',
+  itemColorActive: 'rgba(255, 178, 36, 0.12)',
+  itemColorActiveHover: 'rgba(255, 178, 36, 0.16)',
+  itemColorActiveCollapsed: 'rgba(255, 178, 36, 0.12)',
+  arrowColor: 'rgba(233, 231, 226, 0.4)',
+  arrowColorHover: 'rgba(233, 231, 226, 0.8)',
+  arrowColorActive: '#FFB224',
+  arrowColorChildActive: '#FFB224',
+  arrowColorChildActiveHover: '#FFB224',
+  groupTextColor: 'rgba(233, 231, 226, 0.38)',
+}
 
 // 折叠状态持久化到 localStorage，刷新后保持
 const COLLAPSED_KEY = 'sider_collapsed'
@@ -568,9 +595,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 侧边栏：浅色线框式，安静克制 */
+/* 侧边栏：石墨深色仪表外壳（菜单配色见上方 menuOverrides） */
 .sider {
-  background: var(--sx-surface) !important;
+  background: var(--sx-ink) !important;
 }
 /* flex 作用到 naive 原生滚动容器，保证 logo/菜单/脚注三段式撑满整列 */
 .sider :deep(.n-layout-sider-scroll-container) {
@@ -587,7 +614,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 0 16px;
-  border-bottom: 1px solid var(--sx-line);
+  border-bottom: 1px solid var(--sx-shell-line);
   margin-bottom: 4px;
   transition: padding .3s cubic-bezier(.4, 0, .2, 1), gap .3s cubic-bezier(.4, 0, .2, 1);
 }
@@ -602,8 +629,8 @@ onUnmounted(() => {
   font-family: var(--sx-font-mono);
   font-weight: 700;
   font-size: 17px;
-  color: #fff;
-  background: var(--sx-accent);
+  color: var(--sx-ink);
+  background: var(--sx-accent-bright);
 }
 /* 文字固定宽度，收起时宽度过渡收缩（v-if 瞬时移除会让宽度动画跳变） */
 .logo-text {
@@ -619,10 +646,11 @@ onUnmounted(() => {
 .logo-name {
   font-weight: 700;
   font-size: 15px;
-  color: var(--sx-ink);
+  color: var(--sx-shell-text);
 }
 .logo-sub {
   font-size: 10px;
+  color: var(--sx-shell-muted);
 }
 
 .sider-menu {
@@ -669,8 +697,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-top: 1px solid var(--sx-line);
+  border-top: 1px solid var(--sx-shell-line);
   font-size: 10px;
+  color: var(--sx-shell-muted);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -717,8 +746,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  background: var(--sx-surface);
-  box-shadow: var(--sx-shadow);
+  background: var(--sx-ink-soft);
+  border-bottom: 1px solid var(--sx-shell-line);
   position: relative;
   z-index: 1;
 }
@@ -737,11 +766,12 @@ onUnmounted(() => {
 }
 .crumb-eyebrow {
   font-size: 10px;
+  color: var(--sx-shell-muted);
 }
 .crumb-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--sx-ink);
+  color: var(--sx-shell-text);
 }
 
 /* 顶栏右侧：语言切换 + 搜索图标 + 用户区 */
@@ -754,7 +784,7 @@ onUnmounted(() => {
 .search-trigger,
 .export-trigger {
   flex-shrink: 0;
-  color: var(--sx-muted);
+  color: var(--sx-shell-muted);
 }
 
 /* 导出记录悬浮框：行式列表 + 底部入口，风格对齐命令面板 */
@@ -817,14 +847,14 @@ onUnmounted(() => {
   gap: 9px;
   padding: 5px 14px 5px 6px;
   border-radius: 999px;
-  border: 1px solid var(--sx-line);
-  background: var(--sx-surface);
+  border: 1px solid var(--sx-shell-line);
+  background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
   transition: border-color 0.2s ease, background 0.2s ease;
 }
 .user-chip:hover {
-  border-color: var(--sx-accent);
-  background: var(--sx-accent-soft);
+  border-color: rgba(255, 178, 36, 0.55);
+  background: rgba(255, 178, 36, 0.1);
 }
 .avatar {
   width: 30px;
@@ -833,14 +863,14 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: #fff;
+  color: var(--sx-ink);
   font-weight: 700;
   font-size: 13px;
-  background: var(--sx-accent);
+  background: var(--sx-accent-bright);
 }
 .user-name {
   font-size: 13px;
-  color: var(--sx-ink);
+  color: var(--sx-shell-text);
 }
 
 /* 内容区 */

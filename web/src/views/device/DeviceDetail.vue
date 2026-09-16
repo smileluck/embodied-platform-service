@@ -3,15 +3,24 @@
     <template #header>
       <div class="head">
         <n-button quaternary size="small" @click="router.back()">← {{ t('common.back') }}</n-button>
-        <span class="title">{{ device?.name || `#${id}` }}</span>
-        <n-tag v-if="device" :type="device.online ? 'success' : 'default'" size="small">{{ device.online ? t('device.online') : t('device.offline') }}</n-tag>
-        <n-tag v-if="device" type="info" size="small">{{ device.status }}</n-tag>
+        <!-- 机身铭牌：SN mono 眉标 + 名称 + 在线/状态灯语 + 传输方式章 -->
+        <div class="unit-plate">
+          <p class="sx-mono unit-code">unit · sn {{ device?.sn || `#${id}` }}</p>
+          <div class="unit-row">
+            <span class="unit-name">{{ device?.name || `#${id}` }}</span>
+            <span v-if="device" class="sx-led" :class="device.online ? 'sx-led--ok sx-led--live' : 'sx-led--off'">
+              <i></i>{{ device.online ? t('device.online') : t('device.offline') }}
+            </span>
+            <span v-if="device" class="sx-led" :class="statusLed(device.status)"><i></i>{{ device.status }}</span>
+            <n-tag v-if="device" size="small" :bordered="false">{{ device.transport || t('device.transportDefault') }}</n-tag>
+          </div>
+        </div>
       </div>
     </template>
 
     <n-descriptions v-if="device" :column="3" label-placement="left" size="small" bordered>
       <n-descriptions-item label="ID">{{ device.id }}</n-descriptions-item>
-      <n-descriptions-item :label="t('device.sn')">{{ device.sn }}</n-descriptions-item>
+      <n-descriptions-item :label="t('device.sn')"><span class="mono-cell">{{ device.sn }}</span></n-descriptions-item>
       <n-descriptions-item :label="t('device.model')">#{{ device.model_id }}</n-descriptions-item>
       <n-descriptions-item :label="t('device.tenantId')">{{ device.tenant_id }}</n-descriptions-item>
       <n-descriptions-item :label="t('device.transportCol')">{{ device.transport || t('device.transportDefault') }}</n-descriptions-item>
@@ -125,10 +134,15 @@ const cmdForm = reactive({ command_type: null as string | null, priority: 3 })
 const statusTagType = (s: string) =>
   s === 'succeeded' ? 'success' : s === 'failed' || s === 'timeout' ? 'error' : s === 'acked' || s === 'dispatched' ? 'info' : 'warning'
 
+// 设备生命周期状态 → 灯语色种
+const statusLed = (s: string) =>
+  s === 'active' ? 'sx-led--ok' : s === 'inactive' ? 'sx-led--warn' : s === 'disabled' ? 'sx-led--danger' : 'sx-led--off'
+
 const cmdColumns: DataTableColumns<DeviceCommand> = [
   { title: 'ID', key: 'id', width: 80, render: (row) => h(NButton, { text: true, type: 'info', onClick: () => refreshCommand(row.id) }, { default: () => `#${row.id}` }) },
   { title: t('device.cmdType'), key: 'command_type', width: 200, ellipsis: { tooltip: true } },
-  { title: t('device.priority'), key: 'priority', width: 70 },
+  // 命令等级章：P0 急停=实心急停红、P1 运维=琥珀描边、P2/P3 中性
+  { title: t('device.priority'), key: 'priority', width: 70, render: (row) => h('span', { class: ['prio-chip', `prio-${row.priority}`] }, `P${row.priority}`) },
   { title: t('device.cmdStatus'), key: 'status', width: 100, render: (row) => h(NTag, { type: statusTagType(row.status), size: 'small', bordered: false }, { default: () => row.status }) },
   { title: t('device.caller'), key: 'caller', width: 150 },
   { title: t('common.createTime'), key: 'created_at', width: 160 },
@@ -263,10 +277,60 @@ onMounted(() => {
 .head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
-.title {
+/* 机身铭牌：左侧琥珀刻度 + mono SN 眉标 */
+.unit-plate {
+  padding-left: 12px;
+  border-left: 3px solid var(--sx-accent);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.unit-code {
+  margin: 0;
+  font-size: 10px;
+}
+.unit-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.unit-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--sx-ink);
+}
+.mono-cell {
+  font-family: var(--sx-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+/* 命令等级章 */
+.prio-chip {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--sx-font-mono);
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 1px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--sx-line);
+  color: var(--sx-muted);
+  background: var(--sx-surface);
+}
+.prio-0 {
+  color: #fff;
+  background: var(--sx-danger);
+  border-color: var(--sx-danger);
+}
+.prio-1 {
+  color: #B8620A;
+  border-color: rgba(232, 150, 12, 0.55);
+  background: var(--sx-accent-soft);
 }
 .json-grid {
   display: grid;

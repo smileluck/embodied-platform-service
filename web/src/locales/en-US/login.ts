@@ -1,8 +1,8 @@
 // login module messages (sign-in goes directly to embodied-platform, token dual-use)
 export default {
-  brandHeadline1: 'Let system governance',
-  brandHeadline2: 'run quietly',
-  brandSub: 'Identity from the platform, admission starts here.',
+  brandHeadline1: 'Your device fleet,',
+  brandHeadline2: 'quietly in motion.',
+  brandSub: 'Onboard robots and ego devices — access, admission and operations start here.',
   formTitle: 'Welcome back',
   formSub: 'Sign in with your platform account (works on both the platform and this console)',
   username: 'Username',

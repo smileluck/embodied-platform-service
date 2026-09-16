@@ -24,6 +24,7 @@ export default {
   sn: 'SN',
   snPlaceholder: 'Serial number (globally unique)',
   snRequired: 'Please enter the SN',
+  name: 'Device Name',
   nameRequired: 'Please enter the device name',
   listFailed: 'Failed to load devices',
   shadow: 'Device Shadow',

@@ -64,32 +64,37 @@ func (uc *Usecase) IsBootstrap(username string) bool {
 
 // EnsureBootstrap 为引导账号建投影：已存在则直接返回（并确保已开启+绑超管角色）；
 // 不存在则创建并绑定超管角色。冷启动时让配置内的平台管理员能进入本系统完成初始化。
+// 注意 repo 契约：未建投影返回 (nil, nil)（非错误），须先判 nil 再解引用。
 func (uc *Usecase) EnsureBootstrap(ctx context.Context, platformUserID uint, username string) (*Projection, error) {
-	if p, err := uc.repo.FindByPlatformUserID(ctx, platformUserID); err == nil {
-		if !p.Enabled || !containsRole(p.RoleIDs, SuperRoleID) {
-			p.Enabled = true
-			roles := append(p.RoleIDs, SuperRoleID)
-			if err := uc.repo.Update(ctx, p); err != nil {
-				return nil, err
-			}
-			if err := uc.repo.SetRoles(ctx, p.ID, unique(roles)); err != nil {
-				return nil, err
-			}
-			uc.flushDecisions(ctx)
-		}
-		return p, nil
-	}
-	p := &Projection{
-		PlatformUserID: platformUserID,
-		Username:       username,
-		Nickname:       username,
-		Enabled:        true,
-		RoleIDs:        []uint{SuperRoleID},
-	}
-	if err := uc.repo.Create(ctx, p); err != nil {
+	p, err := uc.repo.FindByPlatformUserID(ctx, platformUserID)
+	if err != nil {
 		return nil, err
 	}
-	uc.flushDecisions(ctx)
+	if p == nil {
+		np := &Projection{
+			PlatformUserID: platformUserID,
+			Username:       username,
+			Nickname:       username,
+			Enabled:        true,
+			RoleIDs:        []uint{SuperRoleID},
+		}
+		if err := uc.repo.Create(ctx, np); err != nil {
+			return nil, err
+		}
+		uc.flushDecisions(ctx)
+		return np, nil
+	}
+	if !p.Enabled || !containsRole(p.RoleIDs, SuperRoleID) {
+		p.Enabled = true
+		roles := append(p.RoleIDs, SuperRoleID)
+		if err := uc.repo.Update(ctx, p); err != nil {
+			return nil, err
+		}
+		if err := uc.repo.SetRoles(ctx, p.ID, unique(roles)); err != nil {
+			return nil, err
+		}
+		uc.flushDecisions(ctx)
+	}
 	return p, nil
 }
 

@@ -1,11 +1,11 @@
 <template>
   <div class="login-page">
-    <!-- 品牌面板：签名元素「系统脉搏」 -->
+    <!-- 品牌面板：签名元素「具身单元」 -->
     <aside class="brand-panel">
-      <!-- 伪3D地图数据流：右偏上留白区的动态点缀 -->
-      <div class="geo-flow" aria-hidden="true">
-        <div class="geo-flow-label">sync</div>
-        <MapFlow3D />
+      <!-- 标注版 AMR 机器人示意：右偏上留白区的动态点缀 -->
+      <div class="unit-flow" aria-hidden="true">
+        <div class="geo-flow-label">unit-01 · patrol</div>
+        <EgoUnit />
       </div>
 
       <div class="brand-top">
@@ -14,18 +14,18 @@
       </div>
 
       <div class="brand-copy">
-        <p class="mono-label">system console</p>
+        <p class="mono-label">embodied console</p>
         <h1 class="headline">{{ t('login.brandHeadline1') }}<br />{{ t('login.brandHeadline2') }}</h1>
         <p class="sub">{{ t('login.brandSub') }}</p>
       </div>
 
-      <!-- 系统脉搏波形 -->
+      <!-- 遥测脉搏 -->
       <div class="pulse">
-        <div class="pulse-head mono-label">system pulse</div>
+        <div class="pulse-head mono-label">telemetry pulse</div>
         <PulseWave />
         <div class="pulse-meta mono">
-          <span>uptime 99.98%</span>
-          <span>region cn-east</span>
+          <span>bat 78% · charging</span>
+          <span>link mqtt · 12ms</span>
           <span class="live"><i></i>operational</span>
         </div>
       </div>
@@ -94,9 +94,8 @@ import { LanguageOutline } from '@vicons/ionicons5'
 import { platformCaptcha } from '../../api/platform'
 import { useUserStore } from '../../stores/user'
 import { getLocale, setLocale, type AppLocale } from '../../locales'
-import MapFlow3D from './MapFlow3D.vue'
+import EgoUnit from './EgoUnit.vue'
 import PulseWave from './PulseWave.vue'
-
 const REMEMBER_KEY = 'remember_account'
 
 const router = useRouter()
@@ -235,7 +234,7 @@ onMounted(() => {
   justify-content: space-between;
   padding: 40px 48px;
   background: var(--sx-ink);
-  color: #EDF2F8;
+  color: var(--sx-shell-text);
   overflow: hidden;
 }
 /* 面板内的工程网格 */
@@ -251,13 +250,12 @@ onMounted(() => {
   pointer-events: none;
 }
 
-/* 伪3D地图数据流：右偏上，绝对定位不参与纵向弹性分布 */
-.geo-flow {
+/* 具身单元示意：右偏上，绝对定位不参与纵向弹性分布 */
+.unit-flow {
   position: absolute;
-  top: 96px;
+  top: 84px;
   right: 0;
-  width: min(44vw, 500px);
-  height: min(36vh, 300px);
+  width: min(44vw, 520px);
   display: flex;
   flex-direction: column;
   pointer-events: none;
@@ -268,7 +266,7 @@ onMounted(() => {
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(237, 242, 248, 0.4);
+  color: rgba(233, 231, 226, 0.4);
 }
 
 .brand-top {
@@ -294,7 +292,7 @@ onMounted(() => {
   font-family: var(--sx-font-mono);
   font-size: 14px;
   letter-spacing: 0.06em;
-  color: rgba(237, 242, 248, 0.85);
+  color: rgba(233, 231, 226, 0.85);
 }
 
 .brand-copy {
@@ -318,7 +316,7 @@ onMounted(() => {
 .sub {
   margin: 0;
   font-size: 15px;
-  color: rgba(237, 242, 248, 0.6);
+  color: rgba(233, 231, 226, 0.6);
 }
 
 /* 系统脉搏 */
@@ -327,7 +325,7 @@ onMounted(() => {
   margin-top: 48px;
 }
 .pulse-head {
-  color: rgba(237, 242, 248, 0.5);
+  color: rgba(233, 231, 226, 0.5);
   margin-bottom: 10px;
 }
 /* 波形本体（描线/光束/转折点）见 PulseWave.vue */
@@ -337,19 +335,19 @@ onMounted(() => {
   margin-top: 12px;
   font-family: var(--sx-font-mono);
   font-size: 11px;
-  color: rgba(237, 242, 248, 0.45);
+  color: rgba(233, 231, 226, 0.45);
 }
 .live {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--sx-accent-bright);
+  color: var(--sx-ok-bright);
 }
 .live i {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--sx-accent-bright);
+  background: var(--sx-ok-bright);
   animation: blink 2.4s ease-in-out infinite;
 }
 @keyframes blink {
@@ -360,7 +358,7 @@ onMounted(() => {
 .brand-foot {
   position: relative;
   font-size: 11px;
-  color: rgba(237, 242, 248, 0.3);
+  color: rgba(233, 231, 226, 0.3);
 }
 
 /* ---- 表单面板（克制、安静）---- */
@@ -461,9 +459,9 @@ onMounted(() => {
   margin: 2px 0 10px;
 }
 
-/* 中等屏：右上留白不足时收起数据流 */
+/* 中等屏：右上留白不足时收起具身单元 */
 @media (max-width: 1180px) {
-  .geo-flow {
+  .unit-flow {
     display: none;
   }
 }

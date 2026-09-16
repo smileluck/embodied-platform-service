@@ -88,12 +88,13 @@ const { pagination } = usePagination(query, () => load())
 
 const columns: DataTableColumns<Device> = [
   { title: 'ID', key: 'id', width: 70 },
-  { title: t('device.sn'), key: 'sn', width: 160, ellipsis: { tooltip: true } },
+  { title: t('device.sn'), key: 'sn', width: 160, ellipsis: { tooltip: true }, render: (row) => h('span', { class: 'mono-cell' }, row.sn) },
   { title: t('device.name'), key: 'name', minWidth: 120, ellipsis: { tooltip: true } },
   { title: t('device.model'), key: 'model_id', width: 80, render: (row) => `#${row.model_id}` },
   {
-    title: t('device.online'), key: 'online', width: 80,
-    render: (row) => h(NTag, { type: row.online ? 'success' : 'default', size: 'small', bordered: false }, { default: () => (row.online ? t('device.online') : t('device.offline')) }),
+    title: t('device.online'), key: 'online', width: 110,
+    // 状态灯语（.sx-led 定义于 tokens.css）：在线=信号绿、离线=空心点
+    render: (row) => h('span', { class: ['sx-led', row.online ? 'sx-led--ok' : 'sx-led--off'] }, [h('i'), row.online ? t('device.online') : t('device.offline')]),
   },
   {
     title: t('device.status'), key: 'status', width: 90,
@@ -201,5 +202,11 @@ onMounted(async () => {
   width: 100%;
   display: flex;
   justify-content: flex-end;
+}
+.mono-cell {
+  font-family: var(--sx-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 </style>

@@ -1,8 +1,8 @@
 // login 模块文案（登录直调 embodied-platform，token 双用）
 export default {
-  brandHeadline1: '让系统治理',
+  brandHeadline1: '让设备编队',
   brandHeadline2: '安静地运转',
-  brandSub: '身份来自平台，准入始于这里。',
+  brandSub: '机器人与 ego 设备的接入、准入与运营，从这里开始。',
   formTitle: '欢迎回来',
   formSub: '使用你的平台账号继续（同一账号可登录平台与本系统）',
   username: '用户名',

@@ -52,8 +52,8 @@ cache:
 #   5. NTP 校时（HMAC 时间戳偏差 ≤ 300s）
 platform:
   baseUrl: http://localhost:27080 # 平台主服务（/api/v1 与 /open-api/v1 同源）
-  appKey: "" # 商户 AppKey（平台商户管理创建）
-  appSecret: "" # 商户 AppSecret 明文（仅创建时返回一次，妥善保管）
+  appKey: "mk_0e94e71768252d89" # 商户 AppKey（平台商户管理创建）
+  appSecret: "51e2f6710de945c50fd3d0f92731ef746d00d5080a5c4c0b9349e0d5a7eea48c" # 商户 AppSecret 明文（仅创建时返回一次，妥善保管）
   admin: # 管理面服务账号（租户同步/型号管理/平台用户列表）
     username: ""
     password: ""

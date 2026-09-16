@@ -61,6 +61,10 @@ function toggle() {
 .search-toggle-title {
   font-size: 13px;
   color: var(--sx-muted);
+  /* 铭牌刻度：与全站 .sx-plate 卡头语言一致 */
+  padding-left: 10px;
+  border-left: 3px solid var(--sx-accent);
+  line-height: 1.2;
 }
 /* 箭头随状态旋转：收起朝下（可展开）、展开朝上（可收起） */
 .chevron {

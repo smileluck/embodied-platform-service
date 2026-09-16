@@ -1,24 +1,38 @@
 /* ============================================================
    SmileX Admin 设计规范（Design Tokens）
+   具身领域风格：石墨深色仪表外壳 + 暖白工作面 + 工业琥珀主色。
+   签名元素「状态灯语」(.sx-led) 与「铭牌卡头」(.sx-plate) 定义于此。
    所有自定义样式与 Naive UI themeOverrides 均从本文件取值。
-   修改主题只改这里。
+   修改主题只改这里（App.vue / index.html 两处同步色值）。
    ============================================================ */
 
 :root {
-  /* 色板 */
-  --sx-ink: #151E2B;          /* 藏蓝黑：品牌面板底色、主文字 */
-  --sx-ink-soft: #212C3E;     /* 蓝黑浅一档：面板内层次 */
-  --sx-bg: #F5F7FA;           /* 冷灰白：全局底 */
+  /* 色板 · 深壳（侧栏/顶栏/登录品牌面板） */
+  --sx-ink: #17191E;          /* 石墨黑：深壳底色、浅底主文字 */
+  --sx-ink-soft: #20242C;     /* 石墨浅一档：顶栏等深壳层次 */
+  --sx-shell-line: rgba(255, 255, 255, 0.08);       /* 深壳内分隔线 */
+  --sx-shell-text: #E9E7E2;   /* 深壳主文字（暖白） */
+  --sx-shell-muted: rgba(233, 231, 226, 0.52);      /* 深壳次级文字 */
+
+  /* 色板 · 浅芯（内容区） */
+  --sx-bg: #F4F4F2;           /* 暖瓷白：全局底 */
   --sx-surface: #FFFFFF;      /* 纯净面：卡片、表格 */
-  --sx-accent: #3F75AB;       /* 清水蓝：主色、链接、主按钮 */
-  --sx-accent-hover: #518CC8; /* 主色 hover */
-  --sx-accent-pressed: #315E8C;
-  --sx-accent-soft: #E4EDF6;  /* 浅蓝衬底：选中态、标签 */
-  --sx-accent-bright: #8FC5E8;      /* 浅清水蓝：深底（品牌面板）上的高亮 */
-  --sx-accent-bright-rgb: 143, 197, 232; /* 同色 RGB 三元组：canvas/rgba 场景 */
-  --sx-line: #E3E8EF;         /* 分隔线、描边 */
-  --sx-muted: #6B7787;        /* 次级文字 */
-  --sx-danger: #C2453A;       /* 危险操作 */
+  --sx-line: #E5E3DE;         /* 分隔线、描边（暖发丝线） */
+  --sx-muted: #6E7681;        /* 次级文字（中性灰，去蓝调） */
+
+  /* 色板 · 工业琥珀（品牌主色） */
+  --sx-accent: #D97706;       /* 深琥珀：主按钮、链接、铭牌刻度线 */
+  --sx-accent-hover: #E8960C; /* 主色 hover */
+  --sx-accent-pressed: #B8620A;
+  --sx-accent-soft: #FBEED7;  /* 浅琥珀衬底：选中态、标签 */
+  --sx-accent-bright: #FFB224;            /* 高亮琥珀：深底（深壳/品牌面板）上的高亮 */
+  --sx-accent-bright-rgb: 255, 178, 36;   /* 同色 RGB 三元组：canvas/rgba 场景 */
+
+  /* 色板 · 状态灯语 */
+  --sx-ok: #16A34A;           /* 信号绿：在线、运行、成功 */
+  --sx-ok-bright: #34D399;    /* 磷光绿：深底上的在线/正常 */
+  --sx-warn: #E8960C;         /* 警示琥珀：未激活、进行中 */
+  --sx-danger: #DC2626;       /* 急停红：禁用、失败、P0 急停 */
 
   /* 字体 */
   --sx-font-body: -apple-system, BlinkMacSystemFont, "PingFang SC",
@@ -29,7 +43,7 @@
   /* 圆角与投影 */
   --sx-radius: 8px;
   --sx-radius-lg: 14px;
-  --sx-shadow: 0 1px 3px rgba(21, 30, 43, 0.06), 0 8px 24px rgba(21, 30, 43, 0.05);
+  --sx-shadow: 0 1px 3px rgba(23, 25, 30, 0.06), 0 8px 24px rgba(23, 25, 30, 0.05);
 }
 
 /* 全局基础 */
@@ -50,6 +64,93 @@ body {
   font-family: var(--sx-font-mono);
   font-size: 11px;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sx-muted);
+}
+
+/* ---- 状态灯语（签名元素）----
+   用法：<span class="sx-led sx-led--ok"><i></i>ONLINE</span>
+   色种：--ok 在线/运行 · --warn 未激活/进行中 · --danger 禁用/急停
+         --off 离线/退役（空心点）· --live 叠加呼吸光（运行中的活性态） */
+.sx-led {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--sx-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sx-muted);
+  white-space: nowrap;
+  line-height: 1;
+}
+.sx-led i {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--sx-muted);
+  position: relative;
+}
+.sx-led--ok {
+  color: var(--sx-ok);
+}
+.sx-led--ok i {
+  background: var(--sx-ok);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14), 0 0 6px rgba(22, 163, 74, 0.45);
+}
+.sx-led--warn {
+  color: var(--sx-warn);
+}
+.sx-led--warn i {
+  background: var(--sx-warn);
+  box-shadow: 0 0 0 3px rgba(232, 150, 12, 0.14), 0 0 6px rgba(232, 150, 12, 0.45);
+}
+.sx-led--danger {
+  color: var(--sx-danger);
+}
+.sx-led--danger i {
+  background: var(--sx-danger);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14), 0 0 6px rgba(220, 38, 38, 0.45);
+}
+/* 离线/退役：空心点，无光晕 */
+.sx-led--off i {
+  background: transparent;
+  border: 2px solid var(--sx-muted);
+  width: 7px;
+  height: 7px;
+}
+/* 活性呼吸光：仅光晕脉动，点的本体不闪（读数稳定、活性可感） */
+.sx-led--live i::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0;
+  animation: sx-led-breathe 2.4s ease-out infinite;
+}
+@keyframes sx-led-breathe {
+  0% { transform: scale(0.6); opacity: 0.7; }
+  70% { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* ---- 铭牌卡头 ----
+   卡片标题左侧的琥珀刻度线 + 可选 mono eyebrow，仿设备出厂铭牌。
+   用法：<div class="sx-plate"><span class="sx-plate-eyebrow">MOD-DEVICE</span><b>设备管理</b></div> */
+.sx-plate {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-left: 10px;
+  border-left: 3px solid var(--sx-accent);
+  line-height: 1.25;
+}
+.sx-plate-eyebrow {
+  font-family: var(--sx-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--sx-muted);
 }
