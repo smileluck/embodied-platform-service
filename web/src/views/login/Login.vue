@@ -195,8 +195,15 @@ async function onLogin() {
     // （若本系统准入未开启，守卫会捕获 403 并回登录页提示「未准入」）
     router.push('/')
   } catch (e: any) {
+    // 平台直调 fetch 失败（平台未启动/CORS 拒绝）：无 response 且 message 为浏览器原生 fetch 报错，
+    // 显示本地化的可行动提示而非 "Failed to fetch" 原文
+    const networkFailed = !e?.response && /fetch/i.test(e?.message || '')
     const msg: string = e?.response?.data?.msg || e?.message || t('login.loginFailed')
-    message.error(/captcha|验证码/i.test(msg) ? t('login.captchaError') : msg)
+    if (networkFailed) {
+      message.error(t('login.platformUnreachable'))
+    } else {
+      message.error(/captcha|验证码/i.test(msg) ? t('login.captchaError') : msg)
+    }
     // 验证码一次性，登录失败（无论原因）后必须换新
     loadCaptcha()
   } finally {

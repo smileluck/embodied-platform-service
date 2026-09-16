@@ -17,6 +17,7 @@ export default {
   captchaLoadFailed: '验证码加载失败，请点击刷新',
   loginSuccess: '登录成功',
   loginFailed: '登录失败（请确认平台服务可达且账号有效）',
+  platformUnreachable: '无法连接平台服务，请确认平台已启动、且用 localhost 访问本页面后重试',
   captchaError: '验证码错误，请重新输入',
   sessionExpired: '登录已失效，请重新登录',
   notAdmitted: '账号尚未获准进入本系统，请联系管理员开启准入',

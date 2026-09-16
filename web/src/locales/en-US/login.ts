@@ -17,6 +17,7 @@ export default {
   captchaLoadFailed: 'Failed to load the captcha, please click to refresh',
   loginSuccess: 'Signed in successfully',
   loginFailed: 'Sign-in failed (check platform availability and account)',
+  platformUnreachable: 'Cannot reach the platform service — make sure it is running and open this page via localhost, then retry',
   captchaError: 'Incorrect captcha, please try again',
   sessionExpired: 'Your session has expired, please sign in again',
   notAdmitted: 'Your account has not been admitted to this console yet, contact an administrator',
