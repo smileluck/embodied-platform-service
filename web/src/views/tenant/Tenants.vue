@@ -48,7 +48,7 @@ import { NCard, NInput, NButton, NDataTable, NModal, NForm, NFormItem, NSelect, 
 import { renderActions, type TableAction } from '../../utils/tableActions'
 import SearchCard from '../../components/SearchCard.vue'
 import { useI18n } from 'vue-i18n'
-import { createTenant, deleteTenant, listTenants, setTenantStatus, updateTenant } from '../../api'
+import { createTenant, deleteTenant, listTenants, setTenantStatus, syncTenant, updateTenant } from '../../api'
 import { usePagination } from '../../utils/pagination'
 import { useUserStore } from '../../stores/user'
 import type { Tenant } from '../../api/types'
@@ -169,6 +169,17 @@ async function toggleStatus(row: Tenant) {
   }
 }
 
+// 存量补链：未同步的租户在平台创建/绑定并回填 platform_id
+async function doSync(row: Tenant) {
+  try {
+    await syncTenant(row.id)
+    message.success(t('tenant.syncDone'))
+    load()
+  } catch (e: any) {
+    message.error(e?.response?.data?.msg || t('tenant.syncFailed'))
+  }
+}
+
 function confirmDelete(row: Tenant) {
   dialog.warning({
     title: t('tenant.deleteConfirmTitle'),
@@ -191,20 +202,30 @@ function confirmDelete(row: Tenant) {
 const columns = computed<DataTableColumns<Tenant>>(() => [
   { title: 'ID', key: 'id', width: 60 },
   { title: t('tenant.name'), key: 'name' },
-  { title: t('tenant.code'), key: 'code', width: 140 },
-  { title: t('tenant.contactName'), key: 'contact_name', width: 120, render: (row) => row.contact_name || '—' },
-  { title: t('tenant.contactPhone'), key: 'contact_phone', width: 140, render: (row) => row.contact_phone || '—' },
+  { title: t('tenant.code'), key: 'code', width: 130 },
+  {
+    // 平台同步状态：platform_id 非零 = 已同步至 embodied-platform（设备注册可用）
+    title: t('tenant.platformSync'), key: 'platform_id', width: 100,
+    render: (row) =>
+      h(NTag, { type: row.platform_id > 0 ? 'success' : 'warning', size: 'small', bordered: false },
+        { default: () => (row.platform_id > 0 ? t('tenant.synced') : t('tenant.unsynced')) }),
+  },
+  { title: t('tenant.contactName'), key: 'contact_name', width: 110, render: (row) => row.contact_name || '—' },
+  { title: t('tenant.contactPhone'), key: 'contact_phone', width: 130, render: (row) => row.contact_phone || '—' },
   {
     title: t('common.status'), key: 'status', width: 80,
     render: (row) => h(NTag, { type: row.status === 1 ? 'success' : 'error', size: 'small' }, { default: () => (row.status === 1 ? t('common.enabled') : t('common.disabled')) }),
   },
-  { title: t('common.createTime'), key: 'created_at', width: 170 },
+  { title: t('common.createTime'), key: 'created_at', width: 160 },
   {
-    title: t('common.operation'), key: 'actions', width: 200,
+    title: t('common.operation'), key: 'actions', width: 250,
     render(row) {
       const actions: TableAction[] = []
       if (userStore.has('tenant:update')) {
         actions.push({ label: t('common.edit'), accent: true, onClick: () => openEdit(row) })
+      }
+      if (row.platform_id === 0 && userStore.has('tenant:sync')) {
+        actions.push({ label: t('tenant.syncToPlatform'), onClick: () => doSync(row) })
       }
       if (userStore.has('tenant:update')) {
         actions.push({ label: row.status === 1 ? t('common.disable') : t('common.enable'), onClick: () => toggleStatus(row) })

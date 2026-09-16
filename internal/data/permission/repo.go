@@ -102,13 +102,14 @@ func (r *repo) List(ctx context.Context, q bizperm.Query, page, pageSize int) ([
 	return out, total, nil
 }
 
-// FindByUserID users -> user_roles -> role_permissions -> permissions 联查
+// FindByUserID platform_users(准入投影) -> platform_user_roles -> role_permissions -> permissions 联查。
+// userID 为平台用户 ID（平台是唯一身份源，本地无独立用户表）
 func (r *repo) FindByUserID(ctx context.Context, userID uint) ([]*bizperm.Permission, error) {
 	var pos []model.PermissionPO
 	err := r.data.DB.WithContext(ctx).
 		Joins("JOIN role_permissions rp ON rp.permission_id = permissions.id").
-		Joins("JOIN user_roles ur ON ur.role_id = rp.role_id").
-		Where("ur.user_id = ?", userID).
+		Joins("JOIN platform_user_roles pur ON pur.role_id = rp.role_id").
+		Where("pur.platform_user_id = ?", userID).
 		Find(&pos).Error
 	if err != nil {
 		return nil, err

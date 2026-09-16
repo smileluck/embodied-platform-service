@@ -5,34 +5,40 @@ package model
 import (
 	"time"
 
+	"github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
 	"github.com/smilex/smilex-admin-gin/internal/biz/export"
 	"github.com/smilex/smilex-admin-gin/internal/biz/file"
 	"github.com/smilex/smilex-admin-gin/internal/biz/log"
-	"github.com/smilex/smilex-admin-gin/internal/biz/merchant"
 	"github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/role"
 	"github.com/smilex/smilex-admin-gin/internal/biz/tenant"
-	"github.com/smilex/smilex-admin-gin/internal/biz/user"
 	"gorm.io/gorm"
 )
 
-// UserPO 用户表
-type UserPO struct {
-	ID        uint   `gorm:"primaryKey"`
-	Username  string `gorm:"size:64;uniqueIndex"`
-	Password  string `gorm:"size:128"`
-	Nickname  string `gorm:"size:64"`
-	Phone     string `gorm:"size:32"`
-	Email     string `gorm:"size:128"`
-	Status    int
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+// PlatformUserPO 平台用户准入投影表（平台是唯一身份源：账号/密码/会话都在
+// embodied-platform，本地仅存准入开关与角色绑定；删除投影=移出本系统，物理删除）
+type PlatformUserPO struct {
+	ID             uint   `gorm:"primaryKey"`
+	PlatformUserID uint   `gorm:"uniqueIndex"`         // 平台用户 ID
+	Username       string `gorm:"size:64;uniqueIndex"` // 平台用户名快照
+	Nickname       string `gorm:"size:64"`
+	Email          string `gorm:"size:128"`
+	Enabled        bool   `gorm:"not null;default:false"` // 准入开关
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
-func (UserPO) TableName() string { return "users" }
+func (PlatformUserPO) TableName() string { return "platform_users" }
+
+// PlatformUserRolePO 准入投影-角色关联（主键为平台用户 ID，与投影一对一联动）
+type PlatformUserRolePO struct {
+	PlatformUserID uint `gorm:"primaryKey"`
+	RoleID         uint `gorm:"primaryKey"`
+}
+
+func (PlatformUserRolePO) TableName() string { return "platform_user_roles" }
 
 // RolePO 角色表
 type RolePO struct {
@@ -64,14 +70,6 @@ type PermissionPO struct {
 
 func (PermissionPO) TableName() string { return "permissions" }
 
-// UserRolePO 用户-角色关联
-type UserRolePO struct {
-	UserID uint `gorm:"primaryKey"`
-	RoleID uint `gorm:"primaryKey"`
-}
-
-func (UserRolePO) TableName() string { return "user_roles" }
-
 // RolePermissionPO 角色-权限关联
 type RolePermissionPO struct {
 	RoleID       uint `gorm:"primaryKey"`
@@ -80,29 +78,15 @@ type RolePermissionPO struct {
 
 func (RolePermissionPO) TableName() string { return "role_permissions" }
 
-// LoginLogPO 登录日志表（追加型流水：无软删，清空/保留期清理均为物理删除）
-type LoginLogPO struct {
-	ID        uint      `gorm:"primaryKey"`
-	Username  string    `gorm:"size:64;index"` // 尝试登录的用户名（可能不存在）
-	IP        string    `gorm:"size:64;index"`
-	UserAgent string    `gorm:"size:255"`
-	Device    string    `gorm:"size:16"`  // web / app
-	Status    int       `gorm:"index"`    // 1 成功 0 失败
-	Msg       string    `gorm:"size:255"` // 失败原因（成功为空）
-	CreatedAt time.Time `gorm:"index"`    // 登录时间
-}
-
-func (LoginLogPO) TableName() string { return "login_logs" }
-
 // OperationLogPO 操作日志表（写请求审计流水：无软删，清空/保留期清理均为物理删除）
 type OperationLogPO struct {
 	ID         uint      `gorm:"primaryKey"`
-	UserID     uint      `gorm:"index"`  // 操作人（JWT 校验失败被拒时为 0）
+	UserID     uint      `gorm:"index"`         // 操作人（平台用户 ID；认证被拒时为 0）
 	Username   string    `gorm:"size:64;index"` // 操作人用户名快照
 	Method     string    `gorm:"size:8;index"`
-	Path       string    `gorm:"size:255"` // 实际请求路径（含资源 ID 与 query）
-	Route      string    `gorm:"size:128"` // 路由模板（如 /api/v1/users/:id）
-	Action     string    `gorm:"size:64"`  // 中文动作名（如「新增用户」）
+	Path       string    `gorm:"size:255"`  // 实际请求路径（含资源 ID 与 query）
+	Route      string    `gorm:"size:128"`  // 路由模板（如 /api/v1/users/:id）
+	Action     string    `gorm:"size:64"`   // 中文动作名（如「新增用户」）
 	Params     string    `gorm:"type:text"` // 请求参数摘要（敏感字段脱敏、超长截断）
 	IP         string    `gorm:"size:64"`
 	UserAgent  string    `gorm:"size:255"`
@@ -113,16 +97,18 @@ type OperationLogPO struct {
 
 func (OperationLogPO) TableName() string { return "operation_logs" }
 
-// FilePO 文件元数据表（对象本体在 driver 对应的存储后端；driver 落库保证后端升级后旧文件仍可访问）
+// FilePO 文件元数据表（对象本体在平台 storage-gateway；本地仅登记 bucket/key，
+// 下载经网关预签名 URL 302）
 type FilePO struct {
 	ID           uint   `gorm:"primaryKey"`
-	Driver       string `gorm:"size:16;index"`   // local | oss | cos | tos | minio
-	ObjectKey    string `gorm:"size:512;uniqueIndex"` // 服务端生成的对象 key
-	Name         string `gorm:"size:255"`        // 原始文件名
-	Ext          string `gorm:"size:16;index"`   // 扩展名（小写，不含点）
+	Driver       string `gorm:"size:16;index"`                 // 恒为 platform（历史记录可能为 local 等旧驱动）
+	Bucket       string `gorm:"size:64;index:idx_bucket_key"`  // 平台存储桶
+	ObjectKey    string `gorm:"size:512;index:idx_bucket_key"` // 服务端生成的对象 key
+	Name         string `gorm:"size:255"`                      // 原始文件名
+	Ext          string `gorm:"size:16;index"`                 // 扩展名（小写，不含点）
 	Size         int64
 	ContentType  string `gorm:"size:128"`
-	UploaderID   uint   `gorm:"index"`
+	UploaderID   uint   `gorm:"index"` // 上传者（平台用户 ID）
 	UploaderName string `gorm:"size:64"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
@@ -131,15 +117,15 @@ type FilePO struct {
 
 func (FilePO) TableName() string { return "files" }
 
-// IPBlacklistPO IP 黑名单表（手工持久化封禁 + 登录失败自动临时封禁；软删即解封留痕）
+// IPBlacklistPO IP 黑名单表（手工持久化封禁；软删即解封留痕）
 type IPBlacklistPO struct {
 	ID          uint       `gorm:"primaryKey"`
 	IP          string     `gorm:"size:64;uniqueIndex"`    // 仅单个 IP（不支持 CIDR），归一化后存储
 	Reason      string     `gorm:"size:255"`               // 封禁原因（选填）
-	Source      string     `gorm:"size:16;default:manual"` // manual | auto（登录连续失败自动封禁）
+	Source      string     `gorm:"size:16;default:manual"` // manual
 	ExpireAt    *time.Time // 过期时间（NULL 为永久封禁，到期惰性放行）
-	CreatorID   uint       // 操作人（自动封禁为 0）
-	CreatorName string     `gorm:"size:64"` // 操作人用户名快照（自动封禁为 system）
+	CreatorID   uint       // 操作人
+	CreatorName string     `gorm:"size:64"` // 操作人用户名快照
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
@@ -147,16 +133,16 @@ type IPBlacklistPO struct {
 
 func (IPBlacklistPO) TableName() string { return "ip_blacklist" }
 
-// ExportRecordPO 异步导出任务记录表（产物本体在 driver 对应的存储后端；
-// 追加型流水：无软删，保留期清理与手动删除均为物理删除）
+// ExportRecordPO 异步导出任务记录表（产物落平台存储；追加型流水：无软删，
+// 保留期清理与手动删除均为物理删除）
 type ExportRecordPO struct {
 	ID         uint       `gorm:"primaryKey"`
-	UserID     uint       `gorm:"index"` // 任务归属用户
-	Biz        string     `gorm:"size:32"` // 业务类型（user / login_log / op_log）
-	Name       string     `gorm:"size:255"` // 展示名（兼作下载文件名）
+	UserID     uint       `gorm:"index"`     // 任务归属用户（平台用户 ID）
+	Biz        string     `gorm:"size:32"`   // 业务类型（user / op_log）
+	Name       string     `gorm:"size:255"`  // 展示名（兼作下载文件名）
 	Params     string     `gorm:"type:text"` // 查询条件快照（JSON）
-	Driver     string     `gorm:"size:16"` // 产物落库时的存储后端
-	ObjectKey  string     `gorm:"size:512"` // 产物对象 key
+	Driver     string     `gorm:"size:16"`   // 产物落库时的存储后端
+	ObjectKey  string     `gorm:"size:512"`  // 产物对象 key
 	Size       int64      // 产物字节数（含 BOM）
 	Rows       int        // 已导出数据行数（不含表头）
 	Status     string     `gorm:"size:16;index"` // pending | running | done | failed
@@ -168,44 +154,11 @@ type ExportRecordPO struct {
 
 func (ExportRecordPO) TableName() string { return "export_records" }
 
-// MerchantPO 商户表（开放 API 授权；code/app_key 唯一，软删留痕；app_secret 只存哈希）
-type MerchantPO struct {
-	ID            uint   `gorm:"primaryKey"`
-	Name          string `gorm:"size:64"`
-	Code          string `gorm:"size:64;uniqueIndex"`
-	AppKey        string `gorm:"size:64;uniqueIndex"`
-	AppSecretHash string `gorm:"size:128"` // SHA-256(AppKey + ":" + secret) 的 hex，永不输出
-	ContactName   string `gorm:"size:64"`
-	ContactPhone  string `gorm:"size:32"`
-	ContactEmail  string `gorm:"size:128"`
-	Status        int    // 1 启用 2 禁用
-	Remark        string `gorm:"size:255"`
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	DeletedAt     gorm.DeletedAt `gorm:"index"`
-}
-
-func (MerchantPO) TableName() string { return "merchants" }
-
-// MerchantAPILogPO 开放 API 调用日志表（追加型流水：无软删，保留期清理为物理删除）
-type MerchantAPILogPO struct {
-	ID         uint      `gorm:"primaryKey"`
-	MerchantID uint      `gorm:"index"`           // 商户（鉴权失败且商户未知时为 0）
-	AppKey     string    `gorm:"size:64;index"`   // 请求头携带的 appKey（原样记录）
-	Method     string    `gorm:"size:8"`
-	Path       string    `gorm:"size:255"`        // 请求路径（不含 query）
-	IP         string    `gorm:"size:64"`
-	StatusCode int                                // 响应状态码
-	LatencyMs  int                                // 耗时（毫秒）
-	Msg        string    `gorm:"size:255"`        // 失败原因摘要（成功为空）
-	CreatedAt  time.Time `gorm:"index"`           // 调用时间
-}
-
-func (MerchantAPILogPO) TableName() string { return "merchant_api_logs" }
-
-// TenantPO 租户表（name/code 均唯一，软删留痕；存在关联应用用户时禁止删除）
+// TenantPO 租户表（name/code 均唯一，软删留痕；platform_id 为 embodied-platform
+// 侧租户 ID——创建/更新/删除与平台强一致同步，绑入商户租户集后开放面设备注册才可用）
 type TenantPO struct {
 	ID           uint   `gorm:"primaryKey"`
+	PlatformID   uint   `gorm:"index"` // 平台租户 ID（0=尚未同步）
 	Name         string `gorm:"size:64;uniqueIndex"`
 	Code         string `gorm:"size:64;uniqueIndex"`
 	ContactName  string `gorm:"size:64"`
@@ -248,18 +201,18 @@ func (AppUserTenantPO) TableName() string { return "app_user_tenants" }
 
 // ---- 转换器 ----
 
-func UserToPO(u *user.User) *UserPO {
-	return &UserPO{
-		ID: u.ID, Username: u.Username, Password: string(u.Password),
-		Nickname: u.Nickname, Phone: u.Phone, Email: u.Email, Status: int(u.Status),
+func PlatformUserToPO(p *admission.Projection) *PlatformUserPO {
+	return &PlatformUserPO{
+		ID: p.ID, PlatformUserID: p.PlatformUserID, Username: p.Username,
+		Nickname: p.Nickname, Email: p.Email, Enabled: p.Enabled,
 	}
 }
 
-func UserFromPO(p *UserPO) *user.User {
-	return &user.User{
-		ID: p.ID, Username: p.Username, Password: user.Password(p.Password),
-		Nickname: p.Nickname, Phone: p.Phone, Email: p.Email, Status: user.Status(p.Status),
-		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+func PlatformUserFromPO(po *PlatformUserPO) *admission.Projection {
+	return &admission.Projection{
+		ID: po.ID, PlatformUserID: po.PlatformUserID, Username: po.Username,
+		Nickname: po.Nickname, Email: po.Email, Enabled: po.Enabled,
+		CreatedAt: po.CreatedAt, UpdatedAt: po.UpdatedAt,
 	}
 }
 
@@ -288,20 +241,6 @@ func PermissionFromPO(p *PermissionPO) *permission.Permission {
 	}
 }
 
-func LoginLogToPO(l *log.LoginLog) *LoginLogPO {
-	return &LoginLogPO{
-		ID: l.ID, Username: l.Username, IP: l.IP, UserAgent: l.UserAgent,
-		Device: l.Device, Status: l.Status, Msg: l.Msg, CreatedAt: l.CreatedAt,
-	}
-}
-
-func LoginLogFromPO(p *LoginLogPO) *log.LoginLog {
-	return &log.LoginLog{
-		ID: p.ID, Username: p.Username, IP: p.IP, UserAgent: p.UserAgent,
-		Device: p.Device, Status: p.Status, Msg: p.Msg, CreatedAt: p.CreatedAt,
-	}
-}
-
 func OperationLogToPO(o *log.OperationLog) *OperationLogPO {
 	return &OperationLogPO{
 		ID: o.ID, UserID: o.UserID, Username: o.Username, Method: o.Method,
@@ -322,7 +261,7 @@ func OperationLogFromPO(p *OperationLogPO) *log.OperationLog {
 
 func FileToPO(f *file.File) *FilePO {
 	return &FilePO{
-		ID: f.ID, Driver: f.Driver, ObjectKey: f.ObjectKey, Name: f.Name,
+		ID: f.ID, Driver: f.Driver, Bucket: f.Bucket, ObjectKey: f.ObjectKey, Name: f.Name,
 		Ext: f.Ext, Size: f.Size, ContentType: f.ContentType,
 		UploaderID: f.UploaderID, UploaderName: f.UploaderName,
 	}
@@ -330,7 +269,7 @@ func FileToPO(f *file.File) *FilePO {
 
 func FileFromPO(p *FilePO) *file.File {
 	return &file.File{
-		ID: p.ID, Driver: p.Driver, ObjectKey: p.ObjectKey, Name: p.Name,
+		ID: p.ID, Driver: p.Driver, Bucket: p.Bucket, ObjectKey: p.ObjectKey, Name: p.Name,
 		Ext: p.Ext, Size: p.Size, ContentType: p.ContentType,
 		UploaderID: p.UploaderID, UploaderName: p.UploaderName,
 		CreatedAt: p.CreatedAt,
@@ -370,44 +309,9 @@ func IPBlacklistFromPO(p *IPBlacklistPO) *blacklist.IPBlacklist {
 	}
 }
 
-func MerchantToPO(m *merchant.Merchant) *MerchantPO {
-	return &MerchantPO{
-		ID: m.ID, Name: m.Name, Code: m.Code, AppKey: m.AppKey,
-		AppSecretHash: m.AppSecretHash, ContactName: m.ContactName,
-		ContactPhone: m.ContactPhone, ContactEmail: m.ContactEmail,
-		Status: int(m.Status), Remark: m.Remark,
-	}
-}
-
-func MerchantFromPO(p *MerchantPO) *merchant.Merchant {
-	return &merchant.Merchant{
-		ID: p.ID, Name: p.Name, Code: p.Code, AppKey: p.AppKey,
-		AppSecretHash: p.AppSecretHash, ContactName: p.ContactName,
-		ContactPhone: p.ContactPhone, ContactEmail: p.ContactEmail,
-		Status: merchant.Status(p.Status), Remark: p.Remark,
-		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
-	}
-}
-
-func MerchantAPILogToPO(l *merchant.APILog) *MerchantAPILogPO {
-	return &MerchantAPILogPO{
-		ID: l.ID, MerchantID: l.MerchantID, AppKey: l.AppKey, Method: l.Method,
-		Path: l.Path, IP: l.IP, StatusCode: l.StatusCode, LatencyMs: l.LatencyMs,
-		Msg: l.Msg, CreatedAt: l.CreatedAt,
-	}
-}
-
-func MerchantAPILogFromPO(p *MerchantAPILogPO) *merchant.APILog {
-	return &merchant.APILog{
-		ID: p.ID, MerchantID: p.MerchantID, AppKey: p.AppKey, Method: p.Method,
-		Path: p.Path, IP: p.IP, StatusCode: p.StatusCode, LatencyMs: p.LatencyMs,
-		Msg: p.Msg, CreatedAt: p.CreatedAt,
-	}
-}
-
 func TenantToPO(t *tenant.Tenant) *TenantPO {
 	return &TenantPO{
-		ID: t.ID, Name: t.Name, Code: t.Code,
+		ID: t.ID, PlatformID: t.PlatformID, Name: t.Name, Code: t.Code,
 		ContactName: t.ContactName, ContactPhone: t.ContactPhone,
 		Remark: t.Remark, Status: int(t.Status),
 	}
@@ -415,7 +319,7 @@ func TenantToPO(t *tenant.Tenant) *TenantPO {
 
 func TenantFromPO(p *TenantPO) *tenant.Tenant {
 	return &tenant.Tenant{
-		ID: p.ID, Name: p.Name, Code: p.Code,
+		ID: p.ID, PlatformID: p.PlatformID, Name: p.Name, Code: p.Code,
 		ContactName: p.ContactName, ContactPhone: p.ContactPhone,
 		Remark: p.Remark, Status: tenant.Status(p.Status),
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,

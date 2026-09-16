@@ -10,24 +10,13 @@ export interface TokenPair {
   expires_at: string
 }
 
-export interface CaptchaInfo {
-  captcha_id: string
-  // PNG 的 dataURL（data:image/png;base64,...），可直接作 <img src>
-  captcha_image: string
-  // false 表示服务端已停用验证码（本地调试），前端隐藏验证码表单
-  enabled?: boolean
-}
-
+// 个人信息（平台身份 + 本系统准入状态；账号体系在平台上，本地只做准入投影）
 export interface UserInfo {
-  id: number
+  id: number // 平台用户 ID
   username: string
   nickname: string
-  phone: string
   email: string
-  status: number
-  role_ids: number[] | null
-  created_at: string
-  // 个人中心 profile 接口额外返回的角色名列表
+  admitted: boolean // 本系统准入状态
   role_names?: string[]
 }
 
@@ -77,30 +66,17 @@ export interface PageResult<T> {
   page: { page: number; page_size: number; total: number }
 }
 
-// 在线会话（一行 = 一个「用户 × 设备端」会话）
-export interface OnlineSession {
-  sid: string
-  user_id: number
+// 用户准入投影（平台用户在本系统的准入记录）
+export interface AdmissionUser {
+  id: number
+  platform_user_id: number
   username: string
   nickname: string
-  device: 'web' | 'app' // web 网页端 | app 移动端
-  ip: string
-  user_agent: string
-  login_at: string
-  last_active_at: string
-  is_current: boolean // 是否当前登录者自己的会话
-}
-
-// 登录日志（一次登录尝试 = 一条）
-export interface LoginLogInfo {
-  id: number
-  username: string // 尝试登录的用户名（可能不存在）
-  ip: string
-  user_agent: string
-  device: string // web | app
-  status: number // 1 成功 0 失败
-  msg: string // 失败原因（成功为空）
+  email: string
+  enabled: boolean // 准入开关
+  role_ids: number[] | null
   created_at: string
+  updated_at: string
 }
 
 // 操作日志（一条写请求审计）
@@ -130,7 +106,7 @@ export interface LogPageResult<T> {
 // 异步导出记录（一行 = 一次导出任务；仅本人可见）
 export interface ExportRecord {
   id: number
-  biz: 'user' | 'login_log' | 'op_log'
+  biz: 'user' | 'op_log'
   name: string
   status: 'pending' | 'running' | 'done' | 'failed'
   size: number
@@ -146,44 +122,16 @@ export interface BlacklistItem {
   id: number
   ip: string
   reason: string
-  source: string // manual | auto（登录连续失败自动封禁）
+  source: string // manual | auto
   expire_at: string | null // 为空字符串或 null 表示永久
   creator_name: string
   created_at: string
 }
 
-// 商户（开放平台接入方；app_secret 不下发，仅创建/重置时明文返回一次）
-export interface Merchant {
-  id: number
-  name: string
-  code: string
-  app_key: string
-  contact_name: string // 后端已脱敏
-  contact_phone: string // 后端已脱敏
-  contact_email: string // 后端已脱敏
-  status: number // 1 启用 2 禁用
-  remark: string
-  created_at: string
-  updated_at: string
-}
-
-// 商户 API 调用日志（ip 后端已脱敏）
-export interface MerchantAPILog {
-  id: number
-  merchant_id: number
-  app_key: string
-  method: string
-  path: string
-  ip: string
-  status_code: number
-  latency_ms: number
-  msg: string
-  created_at: string
-}
-
-// 租户（status: 1 启用 0 禁用；code 创建后不可修改）
+// 租户（platform_id 非零 = 已同步至 embodied-platform；status: 1 启用 0 禁用；code 创建后不可修改）
 export interface Tenant {
   id: number
+  platform_id: number
   name: string
   code: string
   contact_name: string
@@ -208,15 +156,108 @@ export interface AppUser {
   updated_at: string
 }
 
-// 文件元数据（后端 files 表；object_key 不下发）
+// 文件元数据（object_key 不下发；driver: platform | local 历史存量）
 export interface FileInfo {
   id: number
-  driver: string // 落库时的存储后端：local | oss | cos | tos | minio
+  driver: string
   name: string
   ext: string
   size: number
   content_type: string
   uploader_id: number
   uploader_name: string
+  created_at: string
+}
+
+// ---- 设备（平台开放面契约镜像，字段与平台 SDK types.go 一致） ----
+
+export interface Device {
+  id: number
+  sn: string
+  name: string
+  model_id: number
+  tenant_id: number
+  status: string // inactive/active/disabled/retired
+  online: boolean
+  transport: string // ''跟随平台默认 | socket | mqtt
+  firmware_version?: string
+  hardware_version?: string
+  service_versions?: Record<string, string>
+  last_seen_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DeviceShadow {
+  device_id: number
+  desired: string // JSON 文本
+  reported: string // JSON 文本
+  updated_at: string
+}
+
+export interface DeviceCommand {
+  id: number
+  device_id: number
+  command_type: string
+  params: string
+  priority: number // 0 急停（最高危）/1 运维 /2 Agent /3 业务
+  status: string // pending/dispatched/acked/succeeded/failed/cancelling/cancelled/preempted/timeout
+  caller: string
+  idempotency_key?: string
+  result?: string
+  trace_id?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DataEvent {
+  id: number
+  device_id: number
+  event_type: string
+  payload: string
+  source_topic: string
+  occurred_at: string
+}
+
+export interface TelemetryHistory {
+  items: { metric: string; value: number; str_value?: string; ts: string }[]
+  next_marker?: string
+}
+
+// ---- 设备型号（平台管理面契约镜像） ----
+
+export interface DeviceModel {
+  id: number
+  code: string
+  name: string
+  tm_node_id: number
+  tm_version_id: number
+  tm_node_name?: string
+  tm_version_no?: number
+  status: number // 1 启用 2 禁用
+  manufacturer: string
+  description: string
+  transport: string
+  created_at: string
+  updated_at: string
+}
+
+// 物模型节点（只读选择器；layer: base/category/model/instance）
+export interface TMNode {
+  id: number
+  layer: string
+  parent_id: number
+  code: string
+  name: string
+  status: number
+}
+
+// 物模型版本（型号绑定仅允许 published）
+export interface TMVersion {
+  id: number
+  node_id: number
+  version: number
+  status: 'draft' | 'published'
+  published_at: string
   created_at: string
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/smilex/smilex-admin-gin/internal/conf"
+	"github.com/smilex/smilex-admin-gin/internal/data/platform"
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"go.uber.org/zap"
 )
@@ -49,6 +50,11 @@ func main() {
 	}
 	defer cleanup()
 
+	// 平台连通性自检（异步、不阻断启动：失败仅告警，具体同步/代理操作会报明确错误）
+	if cfg.Platform.Enabled() {
+		go checkPlatform(cfg)
+	}
+
 	go func() {
 		logger.Info("http server listening", zap.Int("port", cfg.Server.Port))
 		if err := app.Start(); err != nil {
@@ -66,4 +72,38 @@ func main() {
 		logger.Error("server shutdown", zap.Error(err))
 	}
 	logger.Info("server stopped")
+}
+
+// checkPlatform 三类凭证连通性自检：管理面服务账号 / 开放面商户 HMAC / storage-gateway
+func checkPlatform(cfg *conf.Bootstrap) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if cfg.Platform.Admin.Username != "" {
+		if err := platform.NewAdminClient(cfg).Ping(ctx); err != nil {
+			logger.Warn("platform admin api unreachable（租户同步/型号管理/用户同步将失败）", zap.Error(err))
+		} else {
+			logger.Info("platform admin api ok（租户同步/型号管理/用户同步可用）")
+		}
+	} else {
+		logger.Warn("platform.admin 未配置：租户同步/型号管理/用户同步不可用")
+	}
+
+	if cfg.Platform.AppKey != "" {
+		if _, err := platform.NewOpenAPIClient(cfg).Ping(ctx); err != nil {
+			logger.Warn("platform open-api（商户 HMAC）验签失败或不可达（设备管理将失败）", zap.Error(err))
+		} else {
+			logger.Info("platform open-api ok（设备管理可用）")
+		}
+	} else {
+		logger.Warn("platform.appKey 未配置：设备管理不可用")
+	}
+
+	if sc := cfg.Platform.Storage; sc.BaseURL != "" && sc.APIKeyID != "" {
+		if err := platform.NewStorageClient(cfg).Ping(ctx); err != nil {
+			logger.Warn("platform storage-gateway 不可达（文件上传将失败）", zap.Error(err))
+		} else {
+			logger.Info("platform storage-gateway ok（文件存储可用）")
+		}
+	}
 }

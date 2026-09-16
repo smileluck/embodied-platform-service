@@ -13,15 +13,13 @@ const viewModules: Record<string, () => Promise<any>> = {
   'menu:user': () => import('../views/system/Users.vue'),
   'menu:role': () => import('../views/system/Roles.vue'),
   'menu:menu': () => import('../views/system/Menus.vue'),
-  'menu:online': () => import('../views/system/Online.vue'),
-  'menu:loginLog': () => import('../views/log/LoginLogs.vue'),
   'menu:opLog': () => import('../views/log/OperationLogs.vue'),
   'menu:file': () => import('../views/file/Files.vue'),
   'menu:blacklist': () => import('../views/system/Blacklist.vue'),
-  'menu:merchant': () => import('../views/openapi/Merchants.vue'),
+  'menu:device': () => import('../views/device/Devices.vue'),
+  'menu:deviceModel': () => import('../views/device/DeviceModels.vue'),
   'menu:tenant': () => import('../views/tenant/Tenants.vue'),
   'menu:appUser': () => import('../views/tenant/AppUsers.vue'),
-  'menu:merchantLog': () => import('../views/openapi/ApiLogs.vue'),
   'menu:about': () => import('../views/about/About.vue'),
 }
 
@@ -58,6 +56,15 @@ export async function setupDynamicRoutes(): Promise<string> {
   const dynamic = menuToRoutes(userStore.menus)
   for (const r of dynamic) {
     router.addRoute('layout-root', r)
+  }
+  // 隐藏路由：设备详情（不在菜单树中，设备列表跳转进入）
+  if (!router.hasRoute('device-detail')) {
+    router.addRoute('layout-root', {
+      path: '/device/devices/:id',
+      name: 'device-detail',
+      component: () => import('../views/device/DeviceDetail.vue'),
+      meta: { titleKey: 'menu.device' },
+    })
   }
   // 隐藏路由：个人中心（不在菜单树中，不在侧栏/全局搜索显示）
   if (!router.hasRoute('profile')) {

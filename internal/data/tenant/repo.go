@@ -59,11 +59,11 @@ func (r *repo) Create(ctx context.Context, t *biztenant.Tenant) error {
 
 func (r *repo) Update(ctx context.Context, t *biztenant.Tenant) error {
 	po := model.TenantToPO(t)
-	// code 创建后不可改，仅更新基础资料与状态
+	// code 创建后不可改，仅更新基础资料、平台映射与状态
 	res := r.data.DB.WithContext(ctx).Model(&model.TenantPO{}).Where("id = ?", t.ID).
 		Updates(map[string]interface{}{
 			"name": po.Name, "contact_name": po.ContactName, "contact_phone": po.ContactPhone,
-			"remark": po.Remark, "status": po.Status,
+			"remark": po.Remark, "status": po.Status, "platform_id": po.PlatformID,
 		})
 	if res.Error != nil {
 		return mapErr(res.Error)
@@ -127,4 +127,18 @@ func (r *repo) List(ctx context.Context, q biztenant.Query, page, pageSize int) 
 		out = append(out, model.TenantFromPO(&pos[i]))
 	}
 	return out, total, nil
+}
+
+// ListUnsynced 列出尚未与平台同步（platform_id=0）的租户（存量补链用）
+func (r *repo) ListUnsynced(ctx context.Context) ([]*biztenant.Tenant, error) {
+	var pos []model.TenantPO
+	if err := r.data.DB.WithContext(ctx).
+		Where("platform_id = 0").Order("id").Find(&pos).Error; err != nil {
+		return nil, err
+	}
+	out := make([]*biztenant.Tenant, 0, len(pos))
+	for i := range pos {
+		out = append(out, model.TenantFromPO(&pos[i]))
+	}
+	return out, nil
 }

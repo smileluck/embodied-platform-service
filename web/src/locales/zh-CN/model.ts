@@ -1,0 +1,23 @@
+// model 模块文案（型号管理：平台管理面代理；物模型为只读选择器）
+export default {
+  kwPlaceholder: '编码 / 名称',
+  newModel: '新增型号',
+  editModel: '编辑型号',
+  code: '型号编码',
+  codePlaceholder: '唯一编码，创建后不可修改',
+  codeRequired: '请输入型号编码',
+  name: '型号名称',
+  nameRequired: '请输入型号名称',
+  tmBinding: '物模型绑定',
+  tmNode: '物模型节点',
+  tmNodePlaceholder: '选择 model 层节点',
+  tmNodeRequired: '请选择物模型节点',
+  tmVersion: '物模型版本',
+  tmVersionPlaceholder: '选择已发布版本',
+  tmVersionRequired: '请选择物模型版本',
+  manufacturer: '厂商',
+  publishedAt: '发布于',
+  listFailed: '查询型号失败',
+  deleteConfirmTitle: '删除确认',
+  deleteConfirmContent: '确定删除型号「{name}」吗？将同时删除平台侧型号，该操作不可恢复。',
+}

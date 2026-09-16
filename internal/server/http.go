@@ -4,7 +4,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -18,32 +17,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
-	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
-	bizmerchant "github.com/smilex/smilex-admin-gin/internal/biz/merchant"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/role"
-	bizsession "github.com/smilex/smilex-admin-gin/internal/biz/session"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
-	"github.com/smilex/smilex-admin-gin/internal/biz/user"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
+	"github.com/smilex/smilex-admin-gin/internal/data"
 	"github.com/smilex/smilex-admin-gin/internal/server/middleware"
+	admissionsvc "github.com/smilex/smilex-admin-gin/internal/service/admission"
 	appusersvc "github.com/smilex/smilex-admin-gin/internal/service/appuser"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	blacklistsvc "github.com/smilex/smilex-admin-gin/internal/service/blacklist"
+	devicesvc "github.com/smilex/smilex-admin-gin/internal/service/device"
+	devmodelsvc "github.com/smilex/smilex-admin-gin/internal/service/devmodel"
 	exportsvc "github.com/smilex/smilex-admin-gin/internal/service/export"
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
-	merchantsvc "github.com/smilex/smilex-admin-gin/internal/service/merchant"
 	permsvc "github.com/smilex/smilex-admin-gin/internal/service/permission"
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
-	sessionsvc "github.com/smilex/smilex-admin-gin/internal/service/session"
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
-	usersvc "github.com/smilex/smilex-admin-gin/internal/service/user"
 	"github.com/smilex/smilex-admin-gin/pkg/cache"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
@@ -53,35 +50,36 @@ import (
 
 // HTTPServer 聚合全部应用服务
 type HTTPServer struct {
-	cfg        *conf.Bootstrap
-	auth       *authsvc.Service
-	user       *usersvc.Service
-	role       *rolesvc.Service
-	perm       *permsvc.Service
-	session    *sessionsvc.Service
-	log        *logsvc.Service
-	file       *filesvc.Service
-	export     *exportsvc.Service
-	blacklist  *blacklistsvc.Service
-	merchant   *merchantsvc.Service
-	merchantUC *bizmerchant.Usecase // 开放 API 验签中间件直连领域用例
-	tenant     *tenantsvc.Service
-	appuser    *appusersvc.Service
-	appuserUC  *bizappuser.Usecase    // AppJWT 中间件直连领域用例（校验用户启用状态）
-	appIssuer  bizappuser.TokenIssuer // AppJWT 中间件解析 app-access token
-	rbacCache  *cache.TwoLevel
-	rdb        *redis.Client // nonce 防重放（开放 API 验签）
-	engine     *gin.Engine
-	srv        *http.Server
+	cfg           *conf.Bootstrap
+	auth          *authsvc.Service
+	admission     *admissionsvc.Service
+	admissionUC   *bizadmission.Usecase // PlatformAuth 中间件直连领域用例（首登引导/准入判定）
+	role          *rolesvc.Service
+	perm          *permsvc.Service
+	log           *logsvc.Service
+	file          *filesvc.Service
+	export        *exportsvc.Service
+	blacklist     *blacklistsvc.Service
+	tenant        *tenantsvc.Service
+	appuser       *appusersvc.Service
+	appuserUC     *bizappuser.Usecase    // AppJWT 中间件直连领域用例（校验用户启用状态）
+	appIssuer     bizappuser.TokenIssuer // AppJWT 中间件解析 app-access token
+	device        *devicesvc.Service
+	devmodel      *devmodelsvc.Service
+	rbacCache     *cache.TwoLevel
+	identityCache *cache.TwoLevel
+	engine        *gin.Engine
+	srv           *http.Server
 }
 
-// NewHTTPServer 构造并注册路由
-func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, user *usersvc.Service,
-	role *rolesvc.Service, perm *permsvc.Service, session *sessionsvc.Service, log *logsvc.Service,
+// NewHTTPServer 构造并注册路由。
+// rbacCache 为 wire 单例（与 admission/role 用例共享：准入/角色/权限变更时 Flush 即时生效）。
+func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admissionsvc.Service,
+	admissionUC *bizadmission.Usecase, role *rolesvc.Service, perm *permsvc.Service, log *logsvc.Service,
 	file *filesvc.Service, export *exportsvc.Service, blacklist *blacklistsvc.Service,
-	merchant *merchantsvc.Service, merchantUC *bizmerchant.Usecase,
 	tenant *tenantsvc.Service, appuser *appusersvc.Service, appuserUC *bizappuser.Usecase,
-	appIssuer bizappuser.TokenIssuer, rdb *redis.Client) *HTTPServer {
+	appIssuer bizappuser.TokenIssuer, device *devicesvc.Service, devmodel *devmodelsvc.Service,
+	rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
 	gin.SetMode(cfg.Server.Mode)
 	e := gin.New()
 	// multipart 表单内存上限保持较小值（超出部分落临时文件）；上传大小由 handler 显式校验
@@ -94,10 +92,18 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, user *usersvc.Ser
 		middleware.SQLInjectionGuard(),
 	)
 
-	// RBAC 权限判定缓存：L1 30s 进程内存 + L2 60s Redis（cache.l2Enabled 可关）
-	rbacCache := cache.NewTwoLevel(rdb, "rbac:", 30*time.Second, 60*time.Second, cfg.Cache.L2Enabled)
+	// 平台身份自省缓存（token 哈希 → 平台身份）：L1 30s + L2 60s，
+	// 平台侧吊销/改密在 TTL 内感知（与平台统一账号决策一致）
+	identityCache := cache.NewTwoLevel(rdb, "pid:", 30*time.Second, 60*time.Second, cfg.Cache.L2Enabled)
 
-	s := &HTTPServer{cfg: cfg, auth: auth, user: user, role: role, perm: perm, session: session, log: log, file: file, export: export, blacklist: blacklist, merchant: merchant, merchantUC: merchantUC, tenant: tenant, appuser: appuser, appuserUC: appuserUC, appIssuer: appIssuer, rbacCache: rbacCache, rdb: rdb, engine: e}
+	s := &HTTPServer{
+		cfg: cfg, auth: auth, admission: admission, admissionUC: admissionUC,
+		role: role, perm: perm, log: log,
+		file: file, export: export, blacklist: blacklist, tenant: tenant,
+		appuser: appuser, appuserUC: appuserUC, appIssuer: appIssuer,
+		device: device, devmodel: devmodel,
+		rbacCache: rbacCache.TwoLevel, identityCache: identityCache, engine: e,
+	}
 	s.registerRoutes()
 	s.registerStatic()
 
@@ -109,75 +115,14 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, user *usersvc.Ser
 }
 
 func (s *HTTPServer) registerRoutes() {
-	// 持久化 IP 黑名单在 JWT 之前拦截全部 /api/ 请求（静态前端资源不经过此组）
+	// 持久化 IP 黑名单在认证之前拦截全部 /api/ 请求（静态前端资源不经过此组）
 	v1 := s.engine.Group("/api/v1", middleware.IPBlacklist(s.blacklist.Checker()))
 
-	// ---- 公开接口 ----
-	authg := v1.Group("/auth")
-	{
-		// 图形验证码：无需鉴权，登录页拉取
-		authg.GET("/captcha", func(c *gin.Context) {
-			vo, err := s.auth.GenerateCaptcha()
-			if err != nil {
-				response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
-				return
-			}
-			response.OK(c, vo)
-		})
-		// 登录接口：IP 临时封禁（连续失败拉黑）→ 频率限制 → 登录，防口令爆破
-		authg.POST("/login", middleware.LoginIPGuard(s.log, s.blacklist.LoginGuard()), middleware.LoginRateLimit(s.blacklist.LoginGuard()), func(c *gin.Context) {
-			var req authsvc.LoginRequest
-			if err := c.ShouldBindJSON(&req); err != nil {
-				response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
-				return
-			}
-			// 登录环境注入（建立会话用；UA 截断防止超长存储）
-			req.IP = c.ClientIP()
-			req.UserAgent = truncate(c.GetHeader("User-Agent"), 255)
-			tp, err := s.auth.Login(c.Request.Context(), req)
-			// 登录尝试（成功/失败）均落登录日志（异步，不影响登录响应）
-			loginStatus := bizlog.LoginStatusSuccess
-			loginMsg := ""
-			if err != nil {
-				loginStatus = bizlog.LoginStatusFail
-				loginMsg = err.Error()
-			}
-			s.log.RecordLogin(c.Request.Context(), &bizlog.LoginLog{
-				Username: req.Username, IP: req.IP, UserAgent: req.UserAgent,
-				Device: bizsession.NormalizeDevice(req.DeviceType),
-				Status: loginStatus, Msg: loginMsg,
-			})
-			if err != nil {
-				// 验证码错误属入参问题，返回 400 便于前端区分提示并自动刷新
-				if errors.Is(err, bizauth.ErrCaptcha) {
-					response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
-					return
-				}
-				response.FailI18n(c, http.StatusUnauthorized, response.CodeUnauthorized, err)
-				return
-			}
-			response.OK(c, tp)
-		})
-		authg.POST("/refresh", func(c *gin.Context) {
-			var req authsvc.RefreshRequest
-			if err := c.ShouldBindJSON(&req); err != nil {
-				response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
-				return
-			}
-			tp, err := s.auth.Refresh(c.Request.Context(), req)
-			if err != nil {
-				response.FailI18n(c, http.StatusUnauthorized, response.CodeUnauthorized, err)
-				return
-			}
-			response.OK(c, tp)
-		})
-	}
-
-	// ---- 应用用户认证（与后台账号体系 typ 隔离；无验证码、无服务端会话） ----
-	// 登录接口挂与后台登录同款的 IP 临时封禁 + 频率限制防护，防口令爆破
+	// ---- 应用用户认证（本地体系，与平台身份 typ 隔离；无验证码、无服务端会话） ----
+	// 登录接口挂 IP 临时封禁 + 频率限制防护，防口令爆破
 	appauthg := v1.Group("/app-auth")
 	{
-		appauthg.POST("/login", middleware.LoginIPGuard(s.log, s.blacklist.LoginGuard()), middleware.LoginRateLimit(s.blacklist.LoginGuard()), s.appLogin)
+		appauthg.POST("/login", middleware.LoginIPGuard(s.blacklist.LoginGuard()), middleware.LoginRateLimit(s.blacklist.LoginGuard()), s.appLogin)
 		appauthg.POST("/refresh", s.appRefresh)
 	}
 
@@ -188,71 +133,50 @@ func (s *HTTPServer) registerRoutes() {
 		appAuth.PUT("/password", s.appChangePassword)
 	}
 
-	// ---- 自身数据接口：仅 JWT 认证，不做 RBAC ----
-	// profile 是本人信息、menus 是已按角色过滤的本人菜单树、logout 无服务端状态，均无越权面；
+	// ---- 自身数据接口：仅平台认证（token 自省 + 本地准入），不做 RBAC ----
+	// 管理端登录不在本服务（前端直调平台 /auth/login，token 双用）；
+	// profile 是本人信息、menus 是已按角色过滤的本人菜单树，均无越权面；
 	// 若纳入默认拒绝的 RBAC，仅绑定了菜单/按钮权限的普通用户登录后即 403 白屏。
-	// OpLog 自动审计写请求（登出/改资料/改密码）。
-	basic := v1.Group("", middleware.JWT(s.auth), middleware.OpLog(s.log))
+	// OpLog 自动审计写请求（改资料/改密码）。
+	basic := v1.Group("", middleware.PlatformAuth(s.auth, s.admissionUC, s.identityCache), middleware.OpLog(s.log))
 	{
-		// 登出：吊销当前会话，token 立即失效
-		basic.POST("/auth/logout", func(c *gin.Context) {
-			if sub := middleware.Subject(c); sub != nil {
-				if err := s.auth.Logout(c.Request.Context(), sub.SessionID); err != nil {
-					logger.Warn("logout revoke session failed", zap.Error(err))
-				}
-			}
-			response.OK(c, nil)
-		})
 		basic.GET("/auth/profile", func(c *gin.Context) {
-			sub := middleware.Subject(c)
-			vo, err := s.auth.Profile(c.Request.Context(), sub.UserID)
+			vo, err := s.auth.Profile(c.Request.Context(), middleware.Subject(c))
 			if err != nil {
 				response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
 				return
 			}
 			response.OK(c, vo)
 		})
-		// 本人更新昵称/邮箱
+		// 本人更新昵称/邮箱：以用户本人平台 token 代理到平台
 		basic.PUT("/auth/profile", func(c *gin.Context) {
-			sub := middleware.Subject(c)
 			var req authsvc.UpdateProfileRequest
 			if err := c.ShouldBindJSON(&req); err != nil {
 				response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
 				return
 			}
-			vo, err := s.auth.UpdateProfile(c.Request.Context(), sub.UserID, req)
-			if err != nil {
-				response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
+			if err := s.auth.UpdateProfile(c.Request.Context(), middleware.Token(c), req); err != nil {
+				s.platformErr(c, err)
 				return
 			}
-			response.OK(c, vo)
+			response.OK(c, nil)
 		})
-		// 本人修改密码（校验旧密码；成功后吊销其他端会话，当前端保持登录）
+		// 本人修改密码：代理到平台（平台侧校验旧密码并吊销其他端会话）
 		basic.PUT("/auth/password", func(c *gin.Context) {
-			sub := middleware.Subject(c)
 			var req authsvc.ChangePasswordRequest
 			if err := c.ShouldBindJSON(&req); err != nil {
 				response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
 				return
 			}
-			sid := ""
-			if sub != nil {
-				sid = sub.SessionID
-			}
-			if err := s.auth.ChangePassword(c.Request.Context(), sub.UserID, req, sid); err != nil {
-				if errors.Is(err, bizauth.ErrInvalidCredentials) {
-					response.BadRequest(c, i18n.T(c.Request.Context(), "profile.wrong_old_password"))
-					return
-				}
-				response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+			if err := s.auth.ChangePassword(c.Request.Context(), middleware.Token(c), req); err != nil {
+				s.platformErr(c, err)
 				return
 			}
 			response.OK(c, nil)
 		})
 		// 当前用户可见菜单树
 		basic.GET("/menus", func(c *gin.Context) {
-			sub := middleware.Subject(c)
-			tree, err := s.perm.UserMenuTree(c.Request.Context(), sub.UserID)
+			tree, err := s.perm.UserMenuTree(c.Request.Context(), middleware.Subject(c).UserID)
 			if err != nil {
 				response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
 				return
@@ -261,9 +185,8 @@ func (s *HTTPServer) registerRoutes() {
 		})
 		// 菜单搜索（顶栏命令面板）：当前用户可见菜单内按关键词模糊匹配
 		basic.GET("/menus/search", func(c *gin.Context) {
-			sub := middleware.Subject(c)
 			kw := strings.TrimSpace(c.Query("kw"))
-			hits, err := s.perm.SearchUserMenus(c.Request.Context(), sub.UserID, kw)
+			hits, err := s.perm.SearchUserMenus(c.Request.Context(), middleware.Subject(c).UserID, kw)
 			if err != nil {
 				response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
 				return
@@ -274,34 +197,34 @@ func (s *HTTPServer) registerRoutes() {
 			response.OK(c, hits)
 		})
 
-		// 异步导出：记录归属当前用户，列表/下载/删除均强制按 sub.UserID 过滤（biz 层校验），
-		// 与 profile/menus 同属自身数据接口，故仅 JWT 不走 RBAC；导出入口（POST */export）在 protected 组按按钮权限点控制
+		// 异步导出：记录归属当前用户，列表/下载/删除均强制按平台用户 ID 过滤（biz 层校验），
+		// 与 profile/menus 同属自身数据接口，故仅认证不走 RBAC；导出入口（POST */export）在 protected 组按按钮权限点控制
 		exports := basic.Group("/exports")
 		{
 			// recent=1 返回近期 5 条（任务浮层轮询）；否则分页返回本人记录
 			exports.GET("", s.listExports)
-			// 下载：云存储 302 到预签名 URL，本地存储后端代理流式输出
+			// 下载：302 到平台存储预签名 URL
 			exports.GET("/:id/download", s.downloadExport)
 			exports.DELETE("/:id", s.deleteExport)
 		}
 	}
 
-	// ---- 受保护接口：JWT -> 操作日志（RBAC 拒绝的尝试也记录）-> RBAC ----
-	protected := v1.Group("", middleware.JWT(s.auth), middleware.OpLog(s.log), middleware.RBAC(s.auth, s.rbacCache))
+	// ---- 受保护接口：平台认证 -> 操作日志（RBAC 拒绝的尝试也记录）-> RBAC ----
+	authmw := middleware.PlatformAuth(s.auth, s.admissionUC, s.identityCache)
+	protected := v1.Group("", authmw, middleware.OpLog(s.log), middleware.RBAC(s.auth, s.rbacCache))
 
+	// 用户（准入管理：平台是唯一身份源，本地只管准入开关与角色）
 	users := protected.Group("/users")
 	{
 		users.GET("", s.listUsers)
-		users.POST("", s.createUser)
 		users.GET("/:id", s.getUser)
-		users.PUT("/:id", s.updateUser)
-		users.DELETE("/:id", s.deleteUser)
+		users.PUT("/:id/admission", s.setUserAdmission)
 		users.PUT("/:id/roles", s.setUserRoles)
-		users.PUT("/:id/password", s.resetUserPassword)
+		users.DELETE("/:id", s.deleteUser)
+		// 从平台拉取用户列表：预建投影（默认停用）/刷新快照
+		users.POST("/sync", s.syncUsersFromPlatform)
 		// 导出用户列表（查询条件透传 query，与列表页一致）
 		users.POST("/export", func(c *gin.Context) { s.submitExport(c, "user") })
-		// 踢某用户全部端下线（挂在 users 资源下，避免与 /online-users/:sid 路由冲突）
-		users.DELETE("/:id/sessions", s.kickUserSessions)
 	}
 
 	roles := protected.Group("/roles")
@@ -323,19 +246,6 @@ func (s *HTTPServer) registerRoutes() {
 		perms.DELETE("/:id", s.deletePerm)
 	}
 
-	onlines := protected.Group("/online-users")
-	{
-		onlines.GET("", s.listOnlineUsers)
-		onlines.DELETE("/:sid", s.kickOnlineSession)
-	}
-
-	loginLogs := protected.Group("/login-logs")
-	{
-		loginLogs.GET("", s.listLoginLogs)
-		loginLogs.DELETE("", s.clearLoginLogs)
-		loginLogs.POST("/export", func(c *gin.Context) { s.submitExport(c, "login_log") })
-	}
-
 	opLogs := protected.Group("/operation-logs")
 	{
 		opLogs.GET("", s.listOperationLogs)
@@ -347,7 +257,7 @@ func (s *HTTPServer) registerRoutes() {
 	{
 		files.GET("", s.listFiles)
 		files.POST("", s.uploadFile)
-		// 下载/预览：云存储 302 到预签名 URL，本地存储后端代理流式输出
+		// 下载/预览：302 到平台存储预签名 URL
 		files.GET("/:id/raw", s.downloadFile)
 		files.DELETE("/:id", s.deleteFile)
 	}
@@ -360,23 +270,6 @@ func (s *HTTPServer) registerRoutes() {
 		ipBlacklist.DELETE("/:id", s.deleteIPBlacklist)
 	}
 
-	merchants := protected.Group("/merchants")
-	{
-		merchants.GET("", s.listMerchants)
-		merchants.POST("", s.createMerchant)
-		merchants.GET("/:id", s.getMerchant)
-		merchants.PUT("/:id", s.updateMerchant)
-		merchants.DELETE("/:id", s.deleteMerchant)
-		// 重置密钥（旧 secret 立即失效，新明文仅此一次返回）
-		merchants.PUT("/:id/secret", s.resetMerchantSecret)
-		merchants.PUT("/:id/status", s.setMerchantStatus)
-	}
-
-	mapiLogs := protected.Group("/merchant-api-logs")
-	{
-		mapiLogs.GET("", s.listMerchantAPILogs)
-	}
-
 	tenants := protected.Group("/tenants")
 	{
 		tenants.GET("", s.listTenants)
@@ -385,6 +278,8 @@ func (s *HTTPServer) registerRoutes() {
 		tenants.PUT("/:id", s.updateTenant)
 		tenants.DELETE("/:id", s.deleteTenant)
 		tenants.PUT("/:id/status", s.setTenantStatus)
+		// 存量补链：把未同步的租户在平台建出/绑定并回填 platform_id
+		tenants.POST("/:id/sync", s.syncTenant)
 	}
 
 	appUsers := protected.Group("/app-users")
@@ -398,16 +293,35 @@ func (s *HTTPServer) registerRoutes() {
 		appUsers.PUT("/:id/password", s.resetAppUserPassword)
 	}
 
-	// ---- 开放 API：IP 黑名单 → 商户 HMAC 验签（时间戳偏差 + nonce 防重放） ----
-	open := s.engine.Group("/open-api/v1",
-		middleware.IPBlacklist(s.blacklist.Checker()),
-		middleware.OpenAPIAuth(s.merchantUC, s.rdb, s.cfg.OpenAPI),
-	)
+	// 设备（纯代理平台开放面；租户范围由平台按商户绑定服务端收敛）
+	devices := protected.Group("/devices")
 	{
-		// 探活/凭证自检：返回当前商户脱敏信息
-		open.GET("/ping", func(c *gin.Context) {
-			response.OK(c, merchantsvc.ToVO(middleware.MerchantFromContext(c)))
-		})
+		devices.GET("", s.listDevices)
+		devices.POST("", s.registerDevice)
+		devices.GET("/:id", s.getDevice)
+		devices.GET("/:id/shadow", s.getDeviceShadow)
+		devices.GET("/:id/commands", s.listDeviceCommands)
+		devices.POST("/:id/commands", s.issueDeviceCommand)
+		devices.GET("/:id/telemetry", s.getDeviceTelemetry)
+		devices.GET("/:id/data-events", s.listDeviceDataEvents)
+		protected.GET("/device-commands/:id", s.getDeviceCommand)
+	}
+
+	// 设备型号（纯代理平台管理面；创建须绑物模型节点+已发布版本）
+	models := protected.Group("/device-models")
+	{
+		models.GET("", s.listDeviceModels)
+		models.POST("", s.createDeviceModel)
+		models.GET("/:id", s.getDeviceModel)
+		models.PUT("/:id", s.updateDeviceModel)
+		models.DELETE("/:id", s.deleteDeviceModel)
+	}
+
+	// 物模型只读选择器（型号创建表单数据源；物模型管理列入后续规划）
+	tms := protected.Group("/thing-models")
+	{
+		tms.GET("", s.listThingModelNodes)
+		tms.GET("/:id/versions", s.listThingModelVersions)
 	}
 }
 
@@ -444,7 +358,7 @@ func (s *HTTPServer) Stop(ctx context.Context) error {
 	return s.srv.Shutdown(ctx)
 }
 
-// ---- 用户 ----
+// ---- 用户（准入管理） ----
 
 type listResult struct {
 	List interface{} `json:"list"`
@@ -453,13 +367,9 @@ type listResult struct {
 
 func (s *HTTPServer) listUsers(c *gin.Context) {
 	page, size := pageParams(c)
-	q := user.Query{Username: c.Query("username")}
-	if v := c.Query("status"); v != "" {
-		if st, err := strconv.Atoi(v); err == nil {
-			q.Status = &st
-		}
-	}
-	users, pg, err := s.user.List(c.Request.Context(), q, page, size)
+	var req admissionsvc.ListRequest
+	_ = c.ShouldBindQuery(&req)
+	users, pg, err := s.admission.List(c.Request.Context(), req, page, size)
 	if err != nil {
 		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
 		return
@@ -467,57 +377,31 @@ func (s *HTTPServer) listUsers(c *gin.Context) {
 	response.OK(c, listResult{List: users, Page: pg})
 }
 
-func (s *HTTPServer) createUser(c *gin.Context) {
-	var req usersvc.CreateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
-		return
-	}
-	vo, err := s.user.Create(c.Request.Context(), req)
-	if err != nil {
-		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
-		return
-	}
-	response.OK(c, vo)
-}
-
 func (s *HTTPServer) getUser(c *gin.Context) {
 	id, ok := idParam(c)
 	if !ok {
 		return
 	}
-	vo, err := s.user.Get(c.Request.Context(), id)
+	vo, err := s.admission.Get(c.Request.Context(), id)
 	if err != nil {
-		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
+		s.admissionErr(c, err)
 		return
 	}
 	response.OK(c, vo)
 }
 
-func (s *HTTPServer) updateUser(c *gin.Context) {
+func (s *HTTPServer) setUserAdmission(c *gin.Context) {
 	id, ok := idParam(c)
 	if !ok {
 		return
 	}
-	var req usersvc.UpdateRequest
+	var req admissionsvc.SetEnabledRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
 		return
 	}
-	if err := s.user.Update(user.WithOperator(c.Request.Context(), middleware.Subject(c).UserID), id, req); err != nil {
-		s.userErr(c, err)
-		return
-	}
-	response.OK(c, nil)
-}
-
-func (s *HTTPServer) deleteUser(c *gin.Context) {
-	id, ok := idParam(c)
-	if !ok {
-		return
-	}
-	if err := s.user.Delete(c.Request.Context(), id); err != nil {
-		s.userErr(c, err)
+	if err := s.admission.SetEnabled(c.Request.Context(), id, *req.Enabled); err != nil {
+		s.admissionErr(c, err)
 		return
 	}
 	response.OK(c, nil)
@@ -528,33 +412,46 @@ func (s *HTTPServer) setUserRoles(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req usersvc.SetRolesRequest
+	var req admissionsvc.SetRolesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
 		return
 	}
-	if err := s.user.SetRoles(user.WithOperator(c.Request.Context(), middleware.Subject(c).UserID), id, req); err != nil {
-		s.userErr(c, err)
+	if err := s.admission.SetRoles(c.Request.Context(), id, req.RoleIDs); err != nil {
+		s.admissionErr(c, err)
 		return
 	}
 	response.OK(c, nil)
 }
 
-func (s *HTTPServer) resetUserPassword(c *gin.Context) {
+func (s *HTTPServer) deleteUser(c *gin.Context) {
 	id, ok := idParam(c)
 	if !ok {
 		return
 	}
-	var req usersvc.ResetPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
-		return
-	}
-	if err := s.user.ResetPassword(user.WithOperator(c.Request.Context(), middleware.Subject(c).UserID), id, req); err != nil {
-		s.userErr(c, err)
+	if err := s.admission.Delete(c.Request.Context(), id); err != nil {
+		s.admissionErr(c, err)
 		return
 	}
 	response.OK(c, nil)
+}
+
+func (s *HTTPServer) syncUsersFromPlatform(c *gin.Context) {
+	created, refreshed, err := s.admission.SyncFromPlatform(c.Request.Context())
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, gin.H{"created": created, "refreshed": refreshed})
+}
+
+// admissionErr 准入操作错误映射：不存在 404，其余 400
+func (s *HTTPServer) admissionErr(c *gin.Context, err error) {
+	if isErr(err, bizadmission.ErrNotFound) {
+		response.FailI18n(c, http.StatusNotFound, response.CodeErr, err)
+		return
+	}
+	response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 }
 
 // ---- 角色 ----
@@ -642,6 +539,15 @@ func (s *HTTPServer) setRolePermissions(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// roleErr 角色操作错误映射：超管角色保护类返回 403，其余返回 400
+func (s *HTTPServer) roleErr(c *gin.Context, err error) {
+	if isErr(err, role.ErrSuperRoleLocked) {
+		response.FailI18n(c, http.StatusForbidden, response.CodeForbidden, err)
+		return
+	}
+	response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
+}
+
 // ---- 权限 ----
 
 func (s *HTTPServer) listPerms(c *gin.Context) {
@@ -715,89 +621,6 @@ func (s *HTTPServer) deletePerm(c *gin.Context) {
 	response.OK(c, nil)
 }
 
-// ---- helpers ----
-
-// ---- 在线用户 ----
-
-func (s *HTTPServer) listOnlineUsers(c *gin.Context) {
-	page, size := pageParams(c)
-	q := bizsession.Query{Username: c.Query("username"), Device: c.Query("device")}
-	currentSid := ""
-	if sub := middleware.Subject(c); sub != nil {
-		currentSid = sub.SessionID
-	}
-	vos, pg, err := s.session.List(c.Request.Context(), q, page, size, currentSid)
-	if err != nil {
-		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
-		return
-	}
-	response.OK(c, listResult{List: vos, Page: pg})
-}
-
-func (s *HTTPServer) kickOnlineSession(c *gin.Context) {
-	sid := c.Param("sid")
-	if sid == "" {
-		response.BadRequest(c, "invalid sid")
-		return
-	}
-	operatorID := uint(0)
-	if sub := middleware.Subject(c); sub != nil {
-		operatorID = sub.UserID
-	}
-	if err := s.session.Kick(c.Request.Context(), sid, operatorID); err != nil {
-		s.sessionErr(c, err)
-		return
-	}
-	response.OK(c, nil)
-}
-
-func (s *HTTPServer) kickUserSessions(c *gin.Context) {
-	id, ok := idParam(c)
-	if !ok {
-		return
-	}
-	operatorID := uint(0)
-	if sub := middleware.Subject(c); sub != nil {
-		operatorID = sub.UserID
-	}
-	if _, err := s.session.KickUser(c.Request.Context(), id, operatorID); err != nil {
-		s.sessionErr(c, err)
-		return
-	}
-	response.OK(c, nil)
-}
-
-// sessionErr 会话操作错误映射：超管保护返回 403，会话不存在返回 404，其余返回 400
-func (s *HTTPServer) sessionErr(c *gin.Context, err error) {
-	if errors.Is(err, user.ErrSuperAdminProtected) {
-		response.FailI18n(c, http.StatusForbidden, response.CodeForbidden, err)
-		return
-	}
-	if errors.Is(err, bizsession.ErrSessionNotFound) {
-		response.NotFound(c, i18n.T(c.Request.Context(), "session.not_found"))
-		return
-	}
-	response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
-}
-
-// userErr 用户操作错误映射：超管保护类返回 403，其余返回 400
-func (s *HTTPServer) userErr(c *gin.Context, err error) {
-	if errors.Is(err, user.ErrSuperAdminProtected) || errors.Is(err, user.ErrDeleteSuperAdmin) {
-		response.FailI18n(c, http.StatusForbidden, response.CodeForbidden, err)
-		return
-	}
-	response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
-}
-
-// roleErr 角色操作错误映射：超管角色保护类返回 403，其余返回 400
-func (s *HTTPServer) roleErr(c *gin.Context, err error) {
-	if errors.Is(err, role.ErrSuperRoleLocked) {
-		response.FailI18n(c, http.StatusForbidden, response.CodeForbidden, err)
-		return
-	}
-	response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
-}
-
 // ---- 日志 ----
 
 // logListResult 日志列表响应（附保留天数，前端展示保留说明用）
@@ -805,37 +628,6 @@ type logListResult struct {
 	List          interface{} `json:"list"`
 	Page          interface{} `json:"page"`
 	RetentionDays int         `json:"retention_days"`
-}
-
-func (s *HTTPServer) listLoginLogs(c *gin.Context) {
-	page, size := pageParams(c)
-	q := bizlog.LoginLogQuery{Username: c.Query("username"), IP: c.Query("ip")}
-	if v := c.Query("status"); v != "" {
-		if st, err := strconv.Atoi(v); err == nil {
-			q.Status = &st
-		}
-	}
-	if t, ok := parseUnixParam(c.Query("start")); ok {
-		q.Start = t
-	}
-	if t, ok := parseUnixParam(c.Query("end")); ok {
-		q.End = t
-	}
-	logs, pg, err := s.log.ListLoginLogs(c.Request.Context(), q, page, size)
-	if err != nil {
-		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
-		return
-	}
-	response.OK(c, logListResult{List: logs, Page: pg, RetentionDays: s.log.RetentionDays()})
-}
-
-func (s *HTTPServer) clearLoginLogs(c *gin.Context) {
-	n, err := s.log.ClearLoginLogs(c.Request.Context())
-	if err != nil {
-		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
-		return
-	}
-	response.OK(c, gin.H{"deleted": n})
 }
 
 func (s *HTTPServer) listOperationLogs(c *gin.Context) {
@@ -911,12 +703,12 @@ func (s *HTTPServer) downloadFile(c *gin.Context) {
 		s.fileErr(c, err)
 		return
 	}
-	// 云存储：鉴权通过后 302 到短时效预签名 URL
+	// 平台存储：鉴权通过后 302 到短时效预签名 URL（云后端原生预签名 / local 后端网关代理 URL）
 	if d.URL != "" {
 		c.Redirect(http.StatusFound, d.URL)
 		return
 	}
-	// 本地存储：后端代理流式输出
+	// 历史本地驱动：后端代理流式输出
 	defer d.Body.Close()
 	disposition := "attachment"
 	if d.Inline && c.Query("download") == "" {
@@ -947,14 +739,14 @@ func (s *HTTPServer) deleteFile(c *gin.Context) {
 // fileErr 文件操作错误映射：不存在 404，入参类 400，存储后端未配置 503，其余 500
 func (s *HTTPServer) fileErr(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, bizfile.ErrFileNotFound):
+	case isErr(err, bizfile.ErrFileNotFound):
 		response.FailI18n(c, http.StatusNotFound, response.CodeErr, err)
-	case errors.Is(err, bizfile.ErrFileTooLarge):
+	case isErr(err, bizfile.ErrFileTooLarge):
 		// 上限参数按当前配置渲染（biz 层只返回哨兵错误）
 		response.BadRequest(c, i18n.T(c.Request.Context(), "file.too_large", s.cfg.Storage.MaxSizeMB))
-	case errors.Is(err, bizfile.ErrFileTypeDenied):
+	case isErr(err, bizfile.ErrFileTypeDenied):
 		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
-	case errors.Is(err, bizfile.ErrDriverUnavailable):
+	case isErr(err, bizfile.ErrDriverUnavailable):
 		response.FailI18n(c, http.StatusServiceUnavailable, response.CodeErr, err)
 	default:
 		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
@@ -1003,145 +795,6 @@ func (s *HTTPServer) deleteIPBlacklist(c *gin.Context) {
 		return
 	}
 	response.OK(c, nil)
-}
-
-// ---- 商户（开放 API 授权） ----
-
-func (s *HTTPServer) listMerchants(c *gin.Context) {
-	page, size := pageParams(c)
-	q := bizmerchant.Query{
-		Name:   strings.TrimSpace(c.Query("name")),
-		Code:   strings.TrimSpace(c.Query("code")),
-		AppKey: strings.TrimSpace(c.Query("app_key")),
-	}
-	if v := c.Query("status"); v != "" {
-		if st, err := strconv.Atoi(v); err == nil {
-			q.Status = &st
-		}
-	}
-	list, pg, err := s.merchant.List(c.Request.Context(), q, page, size)
-	if err != nil {
-		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
-		return
-	}
-	response.OK(c, listResult{List: list, Page: pg})
-}
-
-func (s *HTTPServer) createMerchant(c *gin.Context) {
-	var req merchantsvc.CreateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
-		return
-	}
-	vo, err := s.merchant.Create(c.Request.Context(), req)
-	if err != nil {
-		s.merchantErr(c, err)
-		return
-	}
-	response.OK(c, vo)
-}
-
-func (s *HTTPServer) getMerchant(c *gin.Context) {
-	id, ok := idParam(c)
-	if !ok {
-		return
-	}
-	vo, err := s.merchant.Get(c.Request.Context(), id)
-	if err != nil {
-		s.merchantErr(c, err)
-		return
-	}
-	response.OK(c, vo)
-}
-
-func (s *HTTPServer) updateMerchant(c *gin.Context) {
-	id, ok := idParam(c)
-	if !ok {
-		return
-	}
-	var req merchantsvc.UpdateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
-		return
-	}
-	if err := s.merchant.Update(c.Request.Context(), id, req); err != nil {
-		s.merchantErr(c, err)
-		return
-	}
-	response.OK(c, nil)
-}
-
-func (s *HTTPServer) deleteMerchant(c *gin.Context) {
-	id, ok := idParam(c)
-	if !ok {
-		return
-	}
-	if err := s.merchant.Delete(c.Request.Context(), id); err != nil {
-		s.merchantErr(c, err)
-		return
-	}
-	response.OK(c, nil)
-}
-
-func (s *HTTPServer) resetMerchantSecret(c *gin.Context) {
-	id, ok := idParam(c)
-	if !ok {
-		return
-	}
-	vo, err := s.merchant.ResetSecret(c.Request.Context(), id)
-	if err != nil {
-		s.merchantErr(c, err)
-		return
-	}
-	response.OK(c, vo)
-}
-
-func (s *HTTPServer) setMerchantStatus(c *gin.Context) {
-	id, ok := idParam(c)
-	if !ok {
-		return
-	}
-	var req merchantsvc.SetStatusRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
-		return
-	}
-	if err := s.merchant.SetStatus(c.Request.Context(), id, req); err != nil {
-		s.merchantErr(c, err)
-		return
-	}
-	response.OK(c, nil)
-}
-
-func (s *HTTPServer) listMerchantAPILogs(c *gin.Context) {
-	page, size := pageParams(c)
-	q := bizmerchant.APILogQuery{AppKey: c.Query("app_key"), Path: c.Query("path")}
-	if v := c.Query("status_code"); v != "" {
-		if sc, err := strconv.Atoi(v); err == nil {
-			q.StatusCode = &sc
-		}
-	}
-	if t, ok := parseUnixParam(c.Query("start")); ok {
-		q.Start = t
-	}
-	if t, ok := parseUnixParam(c.Query("end")); ok {
-		q.End = t
-	}
-	logs, pg, err := s.merchant.ListAPILogs(c.Request.Context(), q, page, size)
-	if err != nil {
-		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
-		return
-	}
-	response.OK(c, listResult{List: logs, Page: pg})
-}
-
-// merchantErr 商户操作错误映射：不存在 404，其余 400
-func (s *HTTPServer) merchantErr(c *gin.Context, err error) {
-	if errors.Is(err, bizmerchant.ErrMerchantNotFound) {
-		response.FailI18n(c, http.StatusNotFound, response.CodeErr, err)
-		return
-	}
-	response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 }
 
 // ---- 租户 ----
@@ -1238,14 +891,33 @@ func (s *HTTPServer) setTenantStatus(c *gin.Context) {
 	response.OK(c, nil)
 }
 
-// tenantErr 租户操作错误映射：不存在 404，存在关联应用用户 409，其余 400
+// syncTenant 存量补链：未同步租户在平台创建/绑定并回填 platform_id
+func (s *HTTPServer) syncTenant(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	vo, err := s.tenant.SyncExisting(c.Request.Context(), id)
+	if err != nil {
+		s.tenantErr(c, err)
+		return
+	}
+	response.OK(c, vo)
+}
+
+// tenantErr 租户操作错误映射：不存在 404，关联应用用户/平台冲突 409，平台调用失败按平台状态透传
 func (s *HTTPServer) tenantErr(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, biztenant.ErrTenantNotFound):
+	case isErr(err, biztenant.ErrTenantNotFound):
 		response.FailI18n(c, http.StatusNotFound, response.CodeErr, err)
-	case errors.Is(err, biztenant.ErrTenantInUse):
+	case isErr(err, biztenant.ErrTenantInUse):
 		response.FailI18n(c, http.StatusConflict, response.CodeErr, err)
 	default:
+		var perr *platformError
+		if errorsAs(err, &perr) {
+			s.platformErr(c, err)
+			return
+		}
 		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 	}
 }
@@ -1352,7 +1024,7 @@ func (s *HTTPServer) resetAppUserPassword(c *gin.Context) {
 
 // appuserErr 应用用户操作错误映射：不存在 404，其余 400
 func (s *HTTPServer) appuserErr(c *gin.Context, err error) {
-	if errors.Is(err, bizappuser.ErrAppUserNotFound) {
+	if isErr(err, bizappuser.ErrAppUserNotFound) {
 		response.FailI18n(c, http.StatusNotFound, response.CodeErr, err)
 		return
 	}
@@ -1409,7 +1081,7 @@ func (s *HTTPServer) appChangePassword(c *gin.Context) {
 		return
 	}
 	if err := s.appuser.ChangePassword(c.Request.Context(), sub.Username, req); err != nil {
-		if errors.Is(err, bizappuser.ErrBadCredentials) {
+		if isErr(err, bizappuser.ErrBadCredentials) {
 			response.BadRequest(c, i18n.T(c.Request.Context(), "profile.wrong_old_password"))
 			return
 		}
@@ -1431,9 +1103,9 @@ func (s *HTTPServer) submitExport(c *gin.Context, biz string) {
 	vo, err := s.export.Submit(c.Request.Context(), biz, params, sub.UserID, sub.Username)
 	if err != nil {
 		switch {
-		case errors.Is(err, bizexport.ErrQueueFull):
+		case isErr(err, bizexport.ErrQueueFull):
 			response.FailI18n(c, http.StatusTooManyRequests, response.CodeErr, err)
-		case errors.Is(err, bizexport.ErrUnsupportedBiz):
+		case isErr(err, bizexport.ErrUnsupportedBiz):
 			response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 		default:
 			response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
@@ -1474,12 +1146,12 @@ func (s *HTTPServer) downloadExport(c *gin.Context) {
 		s.exportErr(c, err)
 		return
 	}
-	// 云存储：鉴权通过后 302 到短时效预签名 URL
+	// 平台存储：鉴权通过后 302 到短时效预签名 URL
 	if d.URL != "" {
 		c.Redirect(http.StatusFound, d.URL)
 		return
 	}
-	// 本地存储：后端代理流式输出（强制 attachment + nosniff，CSV 不内联渲染）
+	// 历史本地驱动：后端代理流式输出（强制 attachment + nosniff，CSV 不内联渲染）
 	defer d.Body.Close()
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("X-Content-Type-Options", "nosniff")
@@ -1507,15 +1179,15 @@ func (s *HTTPServer) deleteExport(c *gin.Context) {
 // exportErr 导出操作错误映射：不存在 404，越权 403，未完成 409，队列满 429，存储后端未配置 503，其余 500
 func (s *HTTPServer) exportErr(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, bizexport.ErrNotFound):
+	case isErr(err, bizexport.ErrNotFound):
 		response.FailI18n(c, http.StatusNotFound, response.CodeErr, err)
-	case errors.Is(err, bizexport.ErrNotOwner):
+	case isErr(err, bizexport.ErrNotOwner):
 		response.FailI18n(c, http.StatusForbidden, response.CodeForbidden, err)
-	case errors.Is(err, bizexport.ErrNotReady):
+	case isErr(err, bizexport.ErrNotReady):
 		response.FailI18n(c, http.StatusConflict, response.CodeErr, err)
-	case errors.Is(err, bizexport.ErrQueueFull):
+	case isErr(err, bizexport.ErrQueueFull):
 		response.FailI18n(c, http.StatusTooManyRequests, response.CodeErr, err)
-	case errors.Is(err, bizfile.ErrDriverUnavailable):
+	case isErr(err, bizfile.ErrDriverUnavailable):
 		response.FailI18n(c, http.StatusServiceUnavailable, response.CodeErr, err)
 	default:
 		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
@@ -1564,12 +1236,4 @@ func idParam(c *gin.Context) (uint, bool) {
 		return 0, false
 	}
 	return uint(id), true
-}
-
-// truncate 按字节长度截断（UA 摘要存储用）
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n]
 }

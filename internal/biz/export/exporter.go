@@ -32,9 +32,9 @@ type Registry struct {
 }
 
 // NewRegistry 注册全部导出器（wire 按具体类型注入，避免同接口多实现歧义）
-func NewRegistry(user *UserExporter, loginLog *LoginLogExporter, opLog *OpLogExporter) *Registry {
-	r := &Registry{exporters: make(map[string]Exporter, 3)}
-	for _, e := range []Exporter{user, loginLog, opLog} {
+func NewRegistry(user *UserExporter, opLog *OpLogExporter) *Registry {
+	r := &Registry{exporters: make(map[string]Exporter, 2)}
+	for _, e := range []Exporter{user, opLog} {
 		r.exporters[e.Biz()] = e
 	}
 	return r

@@ -4,10 +4,20 @@ import (
 	"context"
 	"net/url"
 	"strconv"
+	"time"
 
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 )
+
+// parseUnix 解析 unix 秒级时间戳查询参数（与日志列表页 start/end 入参一致；空/非法返回零值表示不限）
+func parseUnix(s string) (t time.Time) {
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err == nil {
+		t = time.Unix(n, 0)
+	}
+	return
+}
 
 // OpLogExporter 操作日志导出（复用日志仓储；查询条件与列表页一致：username / method / kw / start / end）
 type OpLogExporter struct {

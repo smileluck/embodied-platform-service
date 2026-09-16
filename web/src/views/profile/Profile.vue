@@ -15,15 +15,12 @@
             <span class="muted">{{ t('profile.email') }}</span>
             <span class="mono">{{ user?.email || '—' }}</span>
           </div>
+          <!-- 平台是唯一身份源：账号状态在平台维护，此处展示本系统准入状态 -->
           <div class="sum-meta-row">
-            <span class="muted">{{ t('common.status') }}</span>
-            <n-tag :type="user?.status === 1 ? 'success' : 'error'" size="small" round>
-              {{ user?.status === 1 ? t('common.enabled') : t('common.disabled') }}
+            <span class="muted">{{ t('user.admissionStatus') }}</span>
+            <n-tag :type="user?.admitted ? 'success' : 'warning'" size="small" round>
+              {{ user?.admitted ? t('user.admitted') : t('user.suspended') }}
             </n-tag>
-          </div>
-          <div class="sum-meta-row">
-            <span class="muted">{{ t('profile.joinTime') }}</span>
-            <span class="mono">{{ user?.created_at || '—' }}</span>
           </div>
         </div>
       </div>
@@ -100,8 +97,9 @@ async function saveInfo() {
   }
   infoSaving.value = true
   try {
-    const { data } = await updateProfile({ nickname: infoForm.nickname.trim(), email: infoForm.email.trim() })
-    userStore.user = data.data.user
+    // 代理到平台（本人 token）成功后重拉本地 profile 刷新快照
+    await updateProfile({ nickname: infoForm.nickname.trim(), email: infoForm.email.trim() })
+    await userStore.loadUserContext()
     message.success(t('common.saveSuccess'))
   } catch (e: any) {
     message.error(e?.response?.data?.msg || t('profile.saveFailed'))

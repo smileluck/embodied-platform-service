@@ -64,7 +64,7 @@ func (r *repo) Delete(ctx context.Context, id uint) error {
 		if err := tx.Where("role_id = ?", id).Delete(&model.RolePermissionPO{}).Error; err != nil {
 			return err
 		}
-		return tx.Where("role_id = ?", id).Delete(&model.UserRolePO{}).Error
+		return tx.Where("role_id = ?", id).Delete(&model.PlatformUserRolePO{}).Error
 	})
 }
 
@@ -91,10 +91,10 @@ func (r *repo) FindNamesByIDs(ctx context.Context, ids []uint) ([]string, error)
 	return names, err
 }
 
-// CountUsers 统计角色下的用户数量（删除保护用）
+// CountUsers 统计角色下的准入投影数量（删除保护用）
 func (r *repo) CountUsers(ctx context.Context, roleID uint) (int64, error) {
 	var n int64
-	err := r.data.DB.WithContext(ctx).Model(&model.UserRolePO{}).
+	err := r.data.DB.WithContext(ctx).Model(&model.PlatformUserRolePO{}).
 		Where("role_id = ?", roleID).Count(&n).Error
 	return n, err
 }

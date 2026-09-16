@@ -1,10 +1,10 @@
-// login 模块文案（由对应页面抽取填充）
+// login 模块文案（登录直调 embodied-platform，token 双用）
 export default {
   brandHeadline1: '让系统治理',
   brandHeadline2: '安静地运转',
-  brandSub: '用户、角色、权限、菜单——一处掌控。',
+  brandSub: '身份来自平台，准入始于这里。',
   formTitle: '欢迎回来',
-  formSub: '使用你的管理员账号继续',
+  formSub: '使用你的平台账号继续（同一账号可登录平台与本系统）',
   username: '用户名',
   password: '密码',
   captcha: '验证码',
@@ -16,7 +16,8 @@ export default {
   loginButton: '登 录',
   captchaLoadFailed: '验证码加载失败，请点击刷新',
   loginSuccess: '登录成功',
-  loginFailed: '登录失败',
+  loginFailed: '登录失败（请确认平台服务可达且账号有效）',
   captchaError: '验证码错误，请重新输入',
   sessionExpired: '登录已失效，请重新登录',
+  notAdmitted: '账号尚未获准进入本系统，请联系管理员开启准入',
 }

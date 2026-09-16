@@ -3,6 +3,7 @@ export default {
   login: 'Sign In',
   profile: 'Profile',
   exportRecords: 'Export Records',
+  device: 'Device Detail',
   notFound: 'Page Not Found',
   serverError: 'Server Error',
   home: 'Home',

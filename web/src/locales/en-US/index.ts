@@ -6,11 +6,10 @@ import dashboard from './dashboard'
 import user from './user'
 import role from './role'
 import permMenu from './permMenu'
-import online from './online'
-import loginLog from './loginLog'
 import opLog from './opLog'
 import blacklist from './blacklist'
-import merchant from './merchant'
+import device from './device'
+import model from './model'
 import tenant from './tenant'
 import appUser from './appUser'
 import file from './file'
@@ -28,11 +27,10 @@ export default {
   user,
   role,
   permMenu,
-  online,
-  loginLog,
   opLog,
   blacklist,
-  merchant,
+  device,
+  model,
   tenant,
   appUser,
   file,

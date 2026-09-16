@@ -1,158 +1,136 @@
-# SmileX Admin
+# embodied-platform-service
 
 <div align="center">
 
-**DDD 驱动的全栈后台管理系统**
+**embodied-platform 业务管理端**（设备/型号/租户/文件全部委外给平台，账号体系统一到平台）
 
-Gin · GORM · Wire · Vue3 · TypeScript · Naive UI
-
-多数据库（MySQL / PostgreSQL / SQLite）· RBAC · JWT · 动态菜单 · 微服务可演进
+Gin · GORM · Wire · Vue3 · TypeScript · Naive UI · 平台 SDK
 
 </div>
 
 ---
 
-## ✨ 特性
+## 架构定位
 
-### 后端（DDD + Kratos 兼容分层）
-- 🏗️ **DDD 四层架构**：`biz`（领域层）/ `data`（基础设施）/ `service`（应用层）/ `server`（传输层），依赖倒置，仓储接口定义在领域层
-- 🧩 **四个限界上下文**：auth / user / role / permission，跨上下文仅通过最小接口或领域事件通信
-- 🔌 **多数据库**：配置一行切换 MySQL / PostgreSQL / SQLite，自动建表 + 种子数据
-- 🔐 **RBAC + JWT**：用户-角色-权限三级模型，API 路径通配匹配，access + refresh 双令牌
-- 🎯 **google/wire 依赖注入**：与 Kratos 完全同构，**切换微服务时业务层零改动**
-- 📜 **proto 契约先行**：`api/` 下已定义接口契约，平滑生成 gRPC/HTTP 代码
+本系统是 [embodied-platform](../embodied-platform)（具身智能设备基础设施平台）的**业务管理端**，
+按照平台《统一账号决策》（平台仓库 `aiDoc/notes/proposed/architecture/2026-09-12-unified-account-ego-login.md`）接入：
 
-### 前端（Vue3 + Naive UI）
-- 🎨 **现代化 UI**：Naive UI 按需加载，路由级代码分割
-- 🧭 **动态菜单路由**：菜单完全由后台配置，`addRoute()` 运行时注册，改菜单不改代码
-- 🔘 **按钮级权限**：`v-permission` 自定义指令
-- 🔄 **Token 静默续期**：401 自动刷新重放，用户无感
-- 📦 **两种部署**：单二进制（后端托管 SPA）/ Nginx 分离部署
-
-## 🚀 快速开始
-
-```bash
-# 零依赖体验（SQLite）：configs/config.yaml 里 db.driver 改为 sqlite 即可
-git clone https://github.com/yourname/SmileX-Admin-Gin.git
-cd SmileX-Admin-Gin
-make web-install web-build run
-# 打开 http://localhost:8080，admin / 123456
+```
+embodied-platform（平台 = 唯一身份源 + 设备/存储基础设施）
+   ▲ ①登录/token 双用         ▲ ②商户 HMAC 开放面        ▲ ③管理面 JWT 服务账号     ▲ ④storage-gateway API Key
+   │ (浏览器直调)              │ /open-api/v1 设备域       │ 租户/型号/用户列表        │ :27091 文件存取
+   │
+┌─┴───────────────────────────┴───────────────────────────┴──────────────────────────┴───────────────┐
+│ embodied-platform-service（本系统）                                                                  │
+│ · 认证：平台 token + profile 自省（缓存 30-60s）+ 本地准入投影（开关+本地角色），无本地密码/JWT/会话     │
+│ · 保留：角色/权限(RBAC)、菜单、操作日志、手工 IP 黑名单、导出、租户(+平台强一致同步)、应用用户(独立体系) │
+│ · 移除：商户模块、本地登录/会话/验证码/登录日志/在线用户、多云存储驱动（oss/cos/tos/minio）             │
+│ · 新增：设备管理（开放面代理）、型号管理（管理面代理 + 物模型只读选择器）                              │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-MySQL 方式：
+关键设计：
+
+- **一个账户登录多个平台**：登录页由浏览器直调平台 `POST /api/v1/auth/login`（token 双用，既调本系统也直调平台）；
+  本系统后端拿 token 调平台 `GET /auth/profile` 自省（平台侧吊销/改密在 30-60s 缓存 TTL 内感知）。
+- **准入在业务平台侧**：本地 `platform_users` 投影表（`platform_user_id` 唯一 + 准入开关 + 本地角色），首登懒建、
+  默认关闭；`platform.bootstrapAdmins` 内的平台账号首登自动放行并绑超管角色（冷启动引导）。
+- **禁用/删除 = 同步吊销本地授权**：关闭准入/删除投影/调整角色时整体失效准入与 RBAC 决策缓存，
+  该用户的存量平台 token 对本系统**立即** 403；平台侧账号不受影响（三层开关：平台禁用=全局、准入=项目×个人）。
+- **租户与平台强一致同步**：本地租户创建/更新/删除平台先行、本地跟随（失败整体失败/回滚），并统一绑定本服务商户
+  （`merchant_id` 按 AppKey 自动解析），绑入商户租户集后开放面设备注册才可用；存量租户可单条「同步至平台」补链。
+- **文件存储走平台 storage-gateway**：上传=后端中转（presign → PUT → complete）；下载=302 预签名 URL；
+  平台存储未配置时自动降级本地磁盘（历史存量文件仍可读）。
+
+## 部署前置清单（平台侧，对照平台 `docs/dev/integration-guide.md` §11）
+
+1. 平台创建**商户**（`appKey`/`appSecret`，scopes 至少 `device:*`、`telemetry:read`、`data-event:read`）；
+2. 平台开通**管理面服务账号**（`platform.admin`），并配置租户/型号/用户管理 RBAC；
+3. 平台管理端签发 **storage API Key**（`platform.storage`，目标桶读写 scope）；
+4. 平台 CORS 白名单（`cors.allowedOrigins`）登记本系统前端 Origin（登录直调平台需要）；
+5. NTP 校时（HMAC 时间戳偏差 ≤ 300s）。
+
+以上凭证填入 `configs/config.yaml` 的 `platform` 段；启动时自动做三类连通性自检并打日志（失败不阻断启动）。
+
+## 快速开始
 
 ```bash
-mysql -uroot -p < migrations/mysql.sql   # 建库
-# 修改 configs/config.yaml 的 db.mysql 连接信息后
-make web-build run
+# 前置：本机可达的 embodied-platform 主服务(27080)与 storage-gateway(27091)，并完成上面的清单
+# 前端平台地址：web/.env.development 的 VITE_PLATFORM_API（默认 http://localhost:27080）
+make web-install web-build run   # 打开 http://localhost:28180
+# 用「平台侧的」管理员账号登录（默认引导账号 admin，见 platform.bootstrapAdmins）
 ```
 
-前后端热更新开发（推荐，一条命令）：
+开发热更新（前后端）：
 
 ```bash
-go install github.com/air-verse/air@latest  # 首次需安装 air
-make dev    # 后端 air 热加载 :8080 + 前端 Vite 热更新 :5173（/api 自动代理到后端）
-# 打开 http://localhost:5173
+make dev    # 后端 air 热加载 :28180 + 前端 Vite :28170（/api 代理到后端，登录/刷新直调平台）
 ```
 
-或分开启动：
+## 平台 SDK 引入方式
 
-```bash
-make run        # 终端1：后端 :8080
-make web-dev    # 终端2：前端 :5173（/api 自动代理到后端）
+`go.mod` 中联调期直接 replace 到同仓平台 SDK：
+
+```go
+require github.com/smilex/smilex-admin-gin/sdk v0.0.0
+replace github.com/smilex/smilex-admin-gin/sdk => ../embodied-platform/sdk
 ```
 
-## 📖 API（/api/v1）
+正式部署经 GOPRIVATE 拉取（见 `embodied-platform/sdk/README.md`），删除 replace 即可。
+
+## API（/api/v1，平台 token 认证）
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | /auth/login | 登录 |
-| POST | /auth/refresh | 刷新令牌 |
-| GET | /auth/profile | 当前用户信息（含权限） |
-| GET | /menus | 当前用户可见菜单树 |
-| GET/POST | /users | 用户列表 / 创建 |
-| GET/PUT/DELETE | /users/:id | 用户详情 / 更新 / 删除 |
-| PUT | /users/:id/roles | 分配角色 |
-| PUT | /users/:id/password | 重置密码 |
-| GET/POST | /roles | 角色列表 / 创建 |
-| PUT | /roles/:id/permissions | 绑定权限 |
-| GET/POST | /permissions | 权限列表 / 创建（支持 type=menu 筛选） |
-| GET/POST | /ip-blacklist | IP 黑名单列表 / 新增 |
-| DELETE | /ip-blacklist/:id | 解封指定黑名单 |
+| GET | /auth/profile | 本人信息（平台身份 + 准入状态 + 本地权限） |
+| PUT | /auth/profile、/auth/password | 本人改资料/改密（以本人平台 token 代理到平台） |
+| GET | /menus、/menus/search | 本人菜单树 / 菜单搜索 |
+| GET/PUT/DELETE | /users、/users/:id/admission、/users/:id/roles、/users/sync | 准入管理（列表/开关/角色/移除/从平台同步） |
+| GET/POST/PUT/DELETE | /roles、/permissions | 角色 / 菜单权限（本地 RBAC） |
+| GET/POST/PUT/DELETE | /tenants、/tenants/:id/status、/tenants/:id/sync | 租户（与平台强一致同步 + 存量补链） |
+| GET/POST | /devices、/devices/:id(/shadow//commands//telemetry//data-events)、/device-commands/:id | 设备域（开放面代理） |
+| GET/POST/PUT/DELETE | /device-models、/thing-models、/thing-models/:id/versions | 型号管理 + 物模型只读选择器（管理面代理） |
+| GET/POST/DELETE | /files、/files/:id/raw | 文件（平台存储；下载 302 预签名） |
+| GET/POST/DELETE | /app-users、/app-auth/* | 应用用户（本系统独立 C 端体系，未接入平台） |
+| GET/DELETE | /operation-logs、/ip-blacklist | 操作日志 / 手工 IP 黑名单 |
 
-## 🏛️ 架构与依赖方向
+> 已知能力缺口（平台侧暂未提供）：设备更新/删除/状态流转（开放面与管理面均无删除）；
+> 物模型管理、数据映射(TMP)、通信监控、OTA 列入后续规划。
 
-```
-server ──▶ service ──▶ biz ◀── data
- (Gin)     (用例编排)  (领域层)  (GORM/PG/SQLite/JWT)
-                     ▲
-              （仓储接口在 biz，data 实现 —— 依赖倒置）
-```
-
-- 依赖倒置：仓储接口定义在 `internal/biz/*/repo.go`，`internal/data/*` 实现
-- 限界上下文：auth / user / role / permission 各自独立，**跨上下文只允许依赖对方 biz 层接口**（如 `auth.UserReader`），或走 `pkg/eventbus` 领域事件
-- PO（持久化对象）与领域实体分离，转换在 `internal/data/model`
-
-## 📈 微服务升级路径
-
-单体优先，架构预留拆分能力，切换到 Kratos 时 **biz / data / service 三层零改动**：
-
-1. **proto 契约先行**：`api/` 下已定义 auth / admin 的 proto（首期手写实现与其对齐）
-2. **拆服务**：把目标上下文的 `biz` + `data` + `service` 平移到 Kratos 工程，`internal/server` 层由 proto 生成的 HTTP/gRPC server 代替
-3. **DI 复用**：wire Provider 图与 Kratos 完全同构
-4. **服务间通信**：gRPC（契约即 `api/proto`）
-5. **异步解耦**：`pkg/eventbus` 进程内总线替换为 MQ（NSQ/Kafka），业务代码不变
-6. **可观测**：接入 OpenTelemetry
-
-## 🎨 前端设计要点（web/）
-
-- **动态菜单**：登录后拉取 `/auth/profile` + `/menus`，菜单树动态 `addRoute()` 注册路由，侧边栏递归渲染——菜单在"菜单管理"页面配置，无需改前端代码
-- **按钮级权限**：`v-permission="['menu:user']"` 指令控制显隐
-- **token 静默续期**：axios 拦截器捕获 401，自动用 refresh token 换新并重放请求
-- **部署两种方式**：① 后端托管 `web/dist`（单二进制，SPA history fallback）；② Nginx 独立部署 + 反代 `/api`
-- 新增页面：在 `web/src/router/index.ts` 的 `viewModules` 登记菜单 code → 组件映射，再到"菜单管理"里建菜单即可
-
-## 🗂️ 目录结构
+## 目录结构
 
 ```
-cmd/server/        # 入口 + wire 注入
-api/               # proto 契约
-configs/           # 配置
-internal/biz/      # 领域层（实体/值对象/仓储接口/Usecase）
-internal/data/     # 基础设施（GORM PO/仓储实现/JWT/多数据库工厂）
-internal/service/  # 应用层（薄用例）
-internal/server/   # 传输层（Gin 路由/中间件/SPA 静态托管）
-internal/conf/     # 配置加载
-pkg/               # eventbus / response / logger / pagination
-web/               # 前端（Vue3 + TS + Naive UI）
-migrations/        # 三方言建表 SQL
+cmd/server/            入口 + wire 注入（启动含平台连通性自检）
+internal/biz/          领域层：admission(准入)/auth(平台身份自省)/role/permission/log/file/export/
+                       blacklist/tenant(平台同步)/device(开放面代理)/devmodel(管理面代理)/appuser
+internal/data/         基础设施：GORM 仓储 + platform/(三类凭证客户端) + file/(platform/local 存储驱动)
+internal/service/      应用层（薄用例）
+internal/server/       传输层（Gin 路由/PlatformAuth 中间件/SPA 托管）
+web/                   前端（Vue3 + TS + Naive UI；登录直调平台 web/src/api/platform.ts）
+migrations/            三方言建表 SQL（菜单/权限种子在 AutoMigrate 中幂等补齐）
 ```
 
-## 🛠️ 技术栈
-
-| 层 | 技术 |
-|---|---|
-| Web | Gin、JWT、CORS、RBAC 中间件 |
-| ORM | GORM（MySQL / PostgreSQL / SQLite） |
-| DI | google/wire |
-| 前端 | Vue3、TypeScript、Vite、Naive UI、Pinia |
-| 日志 | zap |
-
-## 🧰 常用命令
+## 常用命令
 
 ```bash
 make build       # 编译后端
 make run         # 运行后端
 make wire        # 重新生成 DI（改 Provider 后执行）
 make test        # 测试
-make web-install # 安装前端依赖
 make web-dev     # 前端开发（热更新）
 make web-build   # 前端构建（产物 web/dist，由后端静态托管）
 ```
 
-## ⚠️ 安全提醒
+## 旧数据说明
 
-默认账号 `admin / 123456`，上线前务必修改密码及 JWT secret。
+账号体系切换为「平台唯一身份源」后，本地 `users` / `user_roles` / `merchants` / `merchant_api_logs` /
+`login_logs` 等旧表不再使用（AutoMigrate 已移除对应 PO）。存量库可手工清理：
+
+```sql
+DROP TABLE IF EXISTS merchant_api_logs, merchants, login_logs, user_roles, users;
+```
+
+历史本地文件（`files.driver='local'`）仍可读取；新上传一律走平台存储。
 
 ## License
 

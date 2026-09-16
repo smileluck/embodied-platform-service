@@ -19,7 +19,6 @@ export default {
   },
   biz: {
     user: '用户列表',
-    loginLog: '登录日志',
     opLog: '操作日志',
   },
 }

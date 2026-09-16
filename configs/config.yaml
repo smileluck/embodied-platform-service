@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 28180
   mode: debug # debug | release
 
 db:
@@ -43,9 +43,28 @@ auth:
 cache:
   l2Enabled: true # 二级缓存（Redis）开关；false 时 RBAC 等读缓存仅用进程内一级缓存（多实例间不共享）
 
-openapi: # 开放 API（商户 HMAC 签名）验签配置
-  signSkewSeconds: 300 # 请求时间戳允许的最大偏差（秒），超出即拒绝
-  nonceTtlSeconds: 600 # nonce 防重放去重的 Redis 键 TTL（秒），应不小于 signSkewSeconds
+# embodied-platform 平台接入（唯一身份源 + 设备/型号/租户同步 + 文件存储）
+# 部署前置（对照平台 docs/dev/integration-guide.md §11）：
+#   1. 平台侧创建商户（appKey/appSecret，scopes 至少 device:* telemetry:read data-event:read）并绑定租户集
+#   2. 平台侧开管理账号（本服务 admin.username/password）并配置租户/型号/用户管理 RBAC
+#   3. 平台管理端签发 storage API Key（storage.apiKeyId/apiSecret，目标桶读写 scope）
+#   4. 平台 CORS 白名单（cors.allowedOrigins）登记本系统前端 Origin（登录直调平台）
+#   5. NTP 校时（HMAC 时间戳偏差 ≤ 300s）
+platform:
+  baseUrl: http://localhost:27080 # 平台主服务（/api/v1 与 /open-api/v1 同源）
+  appKey: "" # 商户 AppKey（平台商户管理创建）
+  appSecret: "" # 商户 AppSecret 明文（仅创建时返回一次，妥善保管）
+  admin: # 管理面服务账号（租户同步/型号管理/平台用户列表）
+    username: ""
+    password: ""
+  storage: # storage-gateway 直连（文件存储后端）
+    baseUrl: http://localhost:27091
+    apiKeyId: ""
+    apiSecret: ""
+    bucket: default
+  bootstrapAdmins: # 免准入引导账号（平台用户名，首登自动放行并绑超管角色）
+    - admin
+  timeoutSeconds: 15
 
 log:
   retentionDays: 90 # 登录/操作日志保留天数，超期每日自动清理；0 表示永久保留
@@ -68,36 +87,11 @@ export:
     email: email
 
 storage:
-  driver: local # 当前写入的存储后端：local | oss | cos | tos | minio
-  # 切换 driver 只影响新上传；读/删按文件记录落库时的后端解析，升级后端后旧文件仍可访问（旧后端配置需保留）
+  # 存储后端：platform（embodied-platform storage-gateway，配置 platform.storage 后自动启用）
+  # 或 local（降级/历史存量读取）。driver 留空时自动选择：平台存储已配置 → platform，否则 local。
+  driver: ""
   maxSizeMB: 20 # 单文件上传大小上限
-  signExpireMinutes: 15 # 云存储预签名下载 URL 有效期（分钟）
+  signExpireMinutes: 15 # 预签名下载 URL 有效期（分钟）
   denyExts: [] # 禁止上传的扩展名（如 ["exe","sh"]），空则用内置黑名单
   local:
-    dir: ./data/uploads # 本地存储根目录
-  oss: # 阿里云 OSS
-    endpoint: "" # 如 oss-cn-hangzhou.aliyuncs.com
-    bucket: ""
-    accessKeyId: ""
-    accessKeySecret: ""
-    prefix: "" # 对象 key 前缀，如 uploads/
-  cos: # 腾讯云 COS
-    region: "" # 如 ap-guangzhou
-    bucket: "" # 形如 example-1250000000
-    secretId: ""
-    secretKey: ""
-    prefix: ""
-  tos: # 火山引擎 TOS
-    endpoint: "" # 如 tos-cn-beijing.volces.com
-    region: "" # 如 cn-beijing
-    bucket: ""
-    accessKey: ""
-    secretKey: ""
-    prefix: ""
-  minio: # 自定义 S3 兼容存储（如 JuiceFS + MinIO）
-    endpoint: "" # 不含 scheme，如 127.0.0.1:9000
-    bucket: ""
-    accessKey: ""
-    secretKey: ""
-    useSSL: false
-    prefix: ""
+    dir: ./data/uploads # 本地存储根目录（平台存储未配置时的降级写入后端；历史存量文件读取）

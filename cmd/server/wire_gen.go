@@ -8,46 +8,45 @@ package main
 
 import (
 	"github.com/google/wire"
-	"github.com/mojocn/base64Captcha"
+	admission2 "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	appuser2 "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
-	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
+	auth2 "github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	blacklist2 "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
-	captcha2 "github.com/smilex/smilex-admin-gin/internal/biz/captcha"
+	device2 "github.com/smilex/smilex-admin-gin/internal/biz/device"
+	devmodel2 "github.com/smilex/smilex-admin-gin/internal/biz/devmodel"
 	export2 "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	file2 "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	log2 "github.com/smilex/smilex-admin-gin/internal/biz/log"
-	merchant2 "github.com/smilex/smilex-admin-gin/internal/biz/merchant"
 	permission2 "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	role2 "github.com/smilex/smilex-admin-gin/internal/biz/role"
-	session2 "github.com/smilex/smilex-admin-gin/internal/biz/session"
 	tenant2 "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
-	user2 "github.com/smilex/smilex-admin-gin/internal/biz/user"
 	"github.com/smilex/smilex-admin-gin/internal/data"
+	"github.com/smilex/smilex-admin-gin/internal/data/admission"
 	"github.com/smilex/smilex-admin-gin/internal/data/appuser"
+	"github.com/smilex/smilex-admin-gin/internal/data/auth"
 	"github.com/smilex/smilex-admin-gin/internal/data/blacklist"
-	"github.com/smilex/smilex-admin-gin/internal/data/captcha"
+	"github.com/smilex/smilex-admin-gin/internal/data/device"
+	"github.com/smilex/smilex-admin-gin/internal/data/devmodel"
 	"github.com/smilex/smilex-admin-gin/internal/data/export"
 	"github.com/smilex/smilex-admin-gin/internal/data/file"
 	"github.com/smilex/smilex-admin-gin/internal/data/log"
-	"github.com/smilex/smilex-admin-gin/internal/data/merchant"
 	"github.com/smilex/smilex-admin-gin/internal/data/permission"
+	"github.com/smilex/smilex-admin-gin/internal/data/platform"
 	"github.com/smilex/smilex-admin-gin/internal/data/role"
-	"github.com/smilex/smilex-admin-gin/internal/data/session"
 	"github.com/smilex/smilex-admin-gin/internal/data/tenant"
-	"github.com/smilex/smilex-admin-gin/internal/data/user"
 	"github.com/smilex/smilex-admin-gin/internal/server"
+	admission3 "github.com/smilex/smilex-admin-gin/internal/service/admission"
 	appuser3 "github.com/smilex/smilex-admin-gin/internal/service/appuser"
-	auth2 "github.com/smilex/smilex-admin-gin/internal/service/auth"
+	auth3 "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	blacklist3 "github.com/smilex/smilex-admin-gin/internal/service/blacklist"
+	device3 "github.com/smilex/smilex-admin-gin/internal/service/device"
+	devmodel3 "github.com/smilex/smilex-admin-gin/internal/service/devmodel"
 	export3 "github.com/smilex/smilex-admin-gin/internal/service/export"
 	file3 "github.com/smilex/smilex-admin-gin/internal/service/file"
 	log3 "github.com/smilex/smilex-admin-gin/internal/service/log"
-	merchant3 "github.com/smilex/smilex-admin-gin/internal/service/merchant"
 	permission3 "github.com/smilex/smilex-admin-gin/internal/service/permission"
 	role3 "github.com/smilex/smilex-admin-gin/internal/service/role"
-	session3 "github.com/smilex/smilex-admin-gin/internal/service/session"
 	tenant3 "github.com/smilex/smilex-admin-gin/internal/service/tenant"
-	user3 "github.com/smilex/smilex-admin-gin/internal/service/user"
 )
 
 // Injectors from wire.go:
@@ -58,32 +57,31 @@ func wireApp() (*server.HTTPServer, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	identityClient := platform.NewIdentityClient(bootstrap)
+	identityAdapter := auth.NewIdentityAdapter(identityClient)
 	dataData, cleanup, err := data.NewData(bootstrap)
 	if err != nil {
 		return nil, nil, err
 	}
-	repo := user.NewRepo(dataData)
-	roleRepo := role.NewRepo(dataData)
-	permissionRepo := permission.NewRepo(dataData)
-	tokenIssuer := data.NewJWTIssuer(bootstrap)
+	repo := admission.NewRepo(dataData)
+	adminClient := platform.NewAdminClient(bootstrap)
+	platformUserReaderAdapter := admission.NewPlatformUserReaderAdapter(adminClient)
 	client, cleanup2, err := data.NewRedisClient(bootstrap)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	store := captcha.NewStore(client)
-	usecase := captcha2.NewUsecase(bootstrap, store)
-	sessionRepo := session.NewRepo(client)
-	sessionUsecase := session2.NewUsecase(sessionRepo, bootstrap)
-	authUsecase := auth.NewUsecase(repo, roleRepo, permissionRepo, tokenIssuer, usecase, sessionUsecase)
-	service := auth2.NewService(authUsecase, usecase)
-	userUsecase := user2.NewUsecase(repo, sessionUsecase)
-	userService := user3.NewService(userUsecase)
-	roleUsecase := role2.NewUsecase(roleRepo)
+	rbacCache := data.NewRBACCache(client, bootstrap)
+	usecase := admission2.NewUsecase(repo, platformUserReaderAdapter, rbacCache, bootstrap)
+	permissionRepo := permission.NewRepo(dataData)
+	roleRepo := role.NewRepo(dataData)
+	authUsecase := auth2.NewUsecase(identityAdapter, usecase, permissionRepo, roleRepo)
+	service := auth3.NewService(authUsecase)
+	admissionService := admission3.NewService(usecase)
+	roleUsecase := role2.NewUsecase(roleRepo, rbacCache)
 	roleService := role3.NewService(roleUsecase)
 	permissionUsecase := permission2.NewUsecase(permissionRepo)
 	permissionService := permission3.NewService(permissionUsecase)
-	sessionService := session3.NewService(sessionUsecase)
 	logRepo, cleanup3, err := log.NewRepo(dataData, bootstrap)
 	if err != nil {
 		cleanup2()
@@ -93,7 +91,8 @@ func wireApp() (*server.HTTPServer, func(), error) {
 	logUsecase := log2.NewUsecase(logRepo, bootstrap)
 	logService := log3.NewService(logUsecase)
 	fileRepo := file.NewRepo(dataData)
-	storageManager, err := file.NewStorageManager(bootstrap)
+	storageClient := platform.NewStorageClient(bootstrap)
+	storageManager, err := file.NewStorageManager(bootstrap, storageClient)
 	if err != nil {
 		cleanup3()
 		cleanup2()
@@ -104,9 +103,8 @@ func wireApp() (*server.HTTPServer, func(), error) {
 	fileService := file3.NewService(fileUsecase)
 	exportRepo := export.NewRepo(dataData)
 	userExporter := export2.NewUserExporter(repo, bootstrap)
-	loginLogExporter := export2.NewLoginLogExporter(logRepo, bootstrap)
 	opLogExporter := export2.NewOpLogExporter(logRepo, bootstrap)
-	registry := export2.NewRegistry(userExporter, loginLogExporter, opLogExporter)
+	registry := export2.NewRegistry(userExporter, opLogExporter)
 	worker, cleanup4, err := export.NewWorker(dataData, bootstrap, registry, storageManager, exportRepo)
 	if err != nil {
 		cleanup3()
@@ -119,27 +117,24 @@ func wireApp() (*server.HTTPServer, func(), error) {
 	blacklistRepo := blacklist.NewRepo(dataData, client)
 	blacklistUsecase := blacklist2.NewUsecase(blacklistRepo, blacklistRepo)
 	blacklistService := blacklist3.NewService(blacklistUsecase)
-	merchantRepo := merchant.NewRepo(dataData)
-	apiLogRepo, cleanup5, err := merchant.NewAPILogRepo(dataData, bootstrap)
-	if err != nil {
-		cleanup4()
-		cleanup3()
-		cleanup2()
-		cleanup()
-		return nil, nil, err
-	}
-	merchantUsecase := merchant2.NewUsecase(merchantRepo, apiLogRepo)
-	merchantService := merchant3.NewService(merchantUsecase)
 	tenantRepo := tenant.NewRepo(dataData)
-	tenantUsecase := tenant2.NewUsecase(tenantRepo)
+	syncer := tenant.NewSyncer(adminClient, bootstrap)
+	tenantUsecase := tenant2.NewUsecase(tenantRepo, syncer)
 	tenantService := tenant3.NewService(tenantUsecase)
 	appuserRepo := appuser.NewRepo(dataData)
-	appuserTokenIssuer := data.NewAppTokenIssuer(bootstrap)
-	appuserUsecase := appuser2.NewUsecase(appuserRepo, appuserTokenIssuer)
+	tokenIssuer := data.NewAppTokenIssuer(bootstrap)
+	appuserUsecase := appuser2.NewUsecase(appuserRepo, tokenIssuer)
 	appuserService := appuser3.NewService(appuserUsecase)
-	httpServer := server.NewHTTPServer(bootstrap, service, userService, roleService, permissionService, sessionService, logService, fileService, exportService, blacklistService, merchantService, merchantUsecase, tenantService, appuserService, appuserUsecase, appuserTokenIssuer, client)
+	sdkClient := platform.NewOpenAPIClient(bootstrap)
+	gatewayAdapter := device.NewGatewayAdapter(sdkClient)
+	tenantReader := tenant.NewTenantAvailability(dataData)
+	deviceUsecase := device2.NewUsecase(gatewayAdapter, tenantReader)
+	deviceService := device3.NewService(deviceUsecase)
+	devmodelGatewayAdapter := devmodel.NewGatewayAdapter(adminClient)
+	devmodelUsecase := devmodel2.NewUsecase(devmodelGatewayAdapter)
+	devmodelService := devmodel3.NewService(devmodelUsecase)
+	httpServer := server.NewHTTPServer(bootstrap, service, admissionService, usecase, roleService, permissionService, logService, fileService, exportService, blacklistService, tenantService, appuserService, appuserUsecase, tokenIssuer, deviceService, devmodelService, rbacCache, client)
 	return httpServer, func() {
-		cleanup5()
 		cleanup4()
 		cleanup3()
 		cleanup2()
@@ -149,10 +144,10 @@ func wireApp() (*server.HTTPServer, func(), error) {
 
 // wire.go:
 
-var bizSet = wire.NewSet(user2.NewUsecase, role2.NewUsecase, permission2.NewUsecase, captcha2.NewUsecase, session2.NewUsecase, log2.NewUsecase, file2.NewUsecase, blacklist2.NewUsecase, merchant2.NewUsecase, tenant2.NewUsecase, appuser2.NewUsecase, export2.NewUsecase, export2.NewRegistry, export2.NewUserExporter, export2.NewLoginLogExporter, export2.NewOpLogExporter, auth.NewUsecase, wire.Bind(new(auth.CaptchaVerifier), new(*captcha2.Usecase)), wire.Bind(new(auth.SessionManager), new(*session2.Usecase)), wire.Bind(new(user2.SessionRevoker), new(*session2.Usecase)))
+var bizSet = wire.NewSet(admission2.NewUsecase, role2.NewUsecase, permission2.NewUsecase, log2.NewUsecase, file2.NewUsecase, blacklist2.NewUsecase, tenant2.NewUsecase, appuser2.NewUsecase, device2.NewUsecase, devmodel2.NewUsecase, export2.NewUsecase, export2.NewRegistry, export2.NewUserExporter, export2.NewOpLogExporter, auth2.NewUsecase, wire.Bind(new(auth2.AdmissionReader), new(*admission2.Usecase)))
 
-var dataRepoSet = wire.NewSet(data.NewData, data.NewRedisClient, data.NewJWTIssuer, data.NewAppTokenIssuer, user.NewRepo, role.NewRepo, permission.NewRepo, session.NewRepo, log.NewRepo, file.NewRepo, file.NewStorageManager, blacklist.NewRepo, merchant.NewRepo, merchant.NewAPILogRepo, tenant.NewRepo, appuser.NewRepo, captcha.NewStore, export.NewRepo, export.NewWorker, wire.Bind(new(base64Captcha.Store), new(*captcha.Store)), wire.Bind(new(auth.UserStore), new(user2.Repo)), wire.Bind(new(auth.RoleNameReader), new(role2.Repo)), wire.Bind(new(auth.PermissionReader), new(permission2.Repo)), wire.Bind(new(log2.Repo), new(*log.Repo)), wire.Bind(new(blacklist2.Repo), new(*blacklist.Repo)), wire.Bind(new(blacklist2.LoginProtector), new(*blacklist.Repo)), wire.Bind(new(export2.Enqueuer), new(*export.Worker)))
+var dataRepoSet = wire.NewSet(data.NewData, data.NewRedisClient, data.NewAppTokenIssuer, data.NewRBACCache, admission.NewRepo, role.NewRepo, permission.NewRepo, log.NewRepo, file.NewRepo, file.NewStorageManager, blacklist.NewRepo, tenant.NewRepo, appuser.NewRepo, export.NewRepo, export.NewWorker, platform.NewAdminClient, platform.NewIdentityClient, platform.NewStorageClient, platform.NewOpenAPIClient, device.NewGatewayAdapter, devmodel.NewGatewayAdapter, tenant.NewSyncer, tenant.NewTenantAvailability, admission.NewPlatformUserReaderAdapter, auth.NewIdentityAdapter, wire.Bind(new(auth2.IdentitySource), new(*auth.IdentityAdapter)), wire.Bind(new(auth2.PermissionReader), new(permission2.Repo)), wire.Bind(new(auth2.RoleNameReader), new(role2.Repo)), wire.Bind(new(log2.Repo), new(*log.Repo)), wire.Bind(new(blacklist2.Repo), new(*blacklist.Repo)), wire.Bind(new(blacklist2.LoginProtector), new(*blacklist.Repo)), wire.Bind(new(export2.Enqueuer), new(*export.Worker)), wire.Bind(new(tenant2.PlatformSyncer), new(*tenant.Syncer)), wire.Bind(new(device2.Gateway), new(*device.GatewayAdapter)), wire.Bind(new(devmodel2.Gateway), new(*devmodel.GatewayAdapter)), wire.Bind(new(admission2.PlatformUserReader), new(*admission.PlatformUserReaderAdapter)), wire.Bind(new(admission2.DecisionCache), new(*data.RBACCache)), wire.Bind(new(role2.DecisionCache), new(*data.RBACCache)))
 
-var serviceSet = wire.NewSet(auth2.NewService, user3.NewService, role3.NewService, permission3.NewService, session3.NewService, log3.NewService, file3.NewService, blacklist3.NewService, export3.NewService, merchant3.NewService, tenant3.NewService, appuser3.NewService)
+var serviceSet = wire.NewSet(auth3.NewService, admission3.NewService, role3.NewService, permission3.NewService, log3.NewService, file3.NewService, blacklist3.NewService, export3.NewService, tenant3.NewService, appuser3.NewService, device3.NewService, devmodel3.NewService)
 
 var providerSet = wire.NewSet(bizSet, dataRepoSet, serviceSet, ProvideConfig, server.NewHTTPServer)

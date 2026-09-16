@@ -11,7 +11,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/smilex/smilex-admin-gin/internal/biz/permission"
-	"github.com/smilex/smilex-admin-gin/internal/biz/user"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/internal/data/model"
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
@@ -118,14 +117,15 @@ func ensurePostgresDatabase(c conf.Postgres) {
 	}
 }
 
-// migrateAndSeed 自动建表 + 存量迁移 + 种子数据（超管 admin/123456）
+// migrateAndSeed 自动建表 + 存量迁移 + 种子数据。
+// 平台是唯一身份源：本地不再种子超管账号，冷启动由 platform.bootstrapAdmins
+// 内的平台账号首登自动建准入投影并绑超管角色（见 biz/admission.EnsureBootstrap）。
 func (d *Data) migrateAndSeed() error {
 	if err := d.DB.AutoMigrate(
-		&model.UserPO{}, &model.RolePO{}, &model.PermissionPO{},
-		&model.UserRolePO{}, &model.RolePermissionPO{},
-		&model.LoginLogPO{}, &model.OperationLogPO{},
+		&model.PlatformUserPO{}, &model.PlatformUserRolePO{},
+		&model.RolePO{}, &model.PermissionPO{}, &model.RolePermissionPO{},
+		&model.OperationLogPO{},
 		&model.FilePO{}, &model.ExportRecordPO{}, &model.IPBlacklistPO{},
-		&model.MerchantPO{}, &model.MerchantAPILogPO{},
 		&model.TenantPO{}, &model.AppUserPO{}, &model.AppUserTenantPO{},
 	); err != nil {
 		return err
@@ -135,30 +135,15 @@ func (d *Data) migrateAndSeed() error {
 		return err
 	}
 
-	var userCount int64
-	if err := d.DB.Model(&model.UserPO{}).Count(&userCount).Error; err != nil {
+	var roleCount int64
+	if err := d.DB.Model(&model.RolePO{}).Count(&roleCount).Error; err != nil {
 		return err
 	}
-	if userCount == 0 {
-		// 超管角色 + 通配权限（button 绑定 */*，参与 RBAC 匹配）
+	if roleCount == 0 {
+		// 超管角色 + 通配权限（button 绑定 */*，参与 RBAC 匹配）；
+		// 菜单与按钮权限点由 ensureSystemMenus / ensureSystemButtonPerms 统一补齐
 		rolePO := model.RolePO{ID: 1, Name: "超级管理员", Remark: "拥有全部权限"}
 		permPO := model.PermissionPO{ID: 1, Name: "全部权限", Code: "all", Type: string(permission.TypeButton), Method: "*", Path: "*"}
-
-		// 菜单种子数据（接口按钮权限点由 ensureSystemButtonPerms 统一补齐）
-		perms := []model.PermissionPO{
-			{ID: 100, Name: "首页", Code: "menu:dashboard", Type: "menu", Path: "/dashboard", Icon: "HomeOutline", Sort: 1},
-			{ID: 110, Name: "系统管理", Code: "menu:system", Type: "dir", Icon: "SettingsOutline", Sort: 2},
-			{ID: 111, Name: "用户管理", Code: "menu:user", Type: "menu", Path: "/system/users", ParentID: 110, Icon: "PersonOutline", Sort: 1},
-			{ID: 112, Name: "角色管理", Code: "menu:role", Type: "menu", Path: "/system/roles", ParentID: 110, Icon: "IdCardOutline", Sort: 2},
-			{ID: 114, Name: "菜单管理", Code: "menu:menu", Type: "menu", Path: "/system/menus", ParentID: 110, Icon: "MenuOutline", Sort: 4},
-			{ID: 115, Name: "在线用户", Code: "menu:online", Type: "menu", Path: "/system/online", ParentID: 110, Icon: "PulseOutline", Sort: 5},
-		}
-		adminPwd, err := user.NewPassword("123456")
-		if err != nil {
-			return err
-		}
-		adminPO := model.UserPO{ID: 1, Username: "admin", Password: string(adminPwd), Nickname: "超级管理员", Email: "admin@smilex.local", Status: int(user.StatusEnabled)}
-
 		if err := d.DB.Transaction(func(tx *gorm.DB) error {
 			if err := tx.Create(&permPO).Error; err != nil {
 				return err
@@ -166,28 +151,11 @@ func (d *Data) migrateAndSeed() error {
 			if err := tx.Create(&rolePO).Error; err != nil {
 				return err
 			}
-			if err := tx.Create(&adminPO).Error; err != nil {
-				return err
-			}
-			if err := tx.Create(&model.UserRolePO{UserID: 1, RoleID: 1}).Error; err != nil {
-				return err
-			}
-			if err := tx.Create(&model.RolePermissionPO{RoleID: 1, PermissionID: 1}).Error; err != nil {
-				return err
-			}
-			for i := range perms {
-				if err := tx.Create(&perms[i]).Error; err != nil {
-					return err
-				}
-				if err := tx.Create(&model.RolePermissionPO{RoleID: 1, PermissionID: perms[i].ID}).Error; err != nil {
-					return err
-				}
-			}
-			logger.Info("seeded super admin: admin/123456 (please change password before production)")
-			return nil
+			return tx.Create(&model.RolePermissionPO{RoleID: 1, PermissionID: 1}).Error
 		}); err != nil {
 			return err
 		}
+		logger.Info("seeded super admin role (admission: platform.bootstrapAdmins 首登自动放行)")
 	}
 
 	// 系统菜单幂等补齐（存量库升级路径），需先于按钮补齐执行以解析按钮归属
@@ -211,24 +179,26 @@ type systemMenuDef struct {
 
 // systemMenus 需幂等保障的系统菜单清单（按 code 判断存在性；不指定固定 ID，避免与存量库自增记录冲突）
 var systemMenus = []systemMenuDef{
-	{Name: "在线用户", Code: "menu:online", Path: "/system/online", Icon: "PulseOutline", Sort: 5, ParentCode: "menu:system"},
-	{Name: "关于我们", Code: "menu:about", Path: "/about", Icon: "InformationCircleOutline", Sort: 9},
-	// 日志管理（顶级目录分组，父级先于子菜单声明以解析 ParentCode）
-	{Name: "日志管理", Code: "menu:log", Type: "dir", Icon: "DocumentTextOutline", Sort: 3},
-	{Name: "登录日志", Code: "menu:loginLog", Path: "/log/login-logs", Icon: "LogInOutline", Sort: 1, ParentCode: "menu:log"},
-	{Name: "操作日志", Code: "menu:opLog", Path: "/log/operation-logs", Icon: "ClipboardOutline", Sort: 2, ParentCode: "menu:log"},
-	// 文件管理（顶级菜单）
-	{Name: "文件管理", Code: "menu:file", Path: "/file", Icon: "FolderOpenOutline", Sort: 4},
-	// IP 黑名单（挂在系统管理目录下）
-	{Name: "IP黑名单", Code: "menu:blacklist", Path: "/system/blacklist", Icon: "BanOutline", Sort: 6, ParentCode: "menu:system"},
-	// 开放API（顶级目录分组，父级先于子菜单声明以解析 ParentCode）
-	{Name: "开放API", Code: "menu:openapi", Type: "dir", Icon: "KeyOutline", Sort: 5},
-	{Name: "商户管理", Code: "menu:merchant", Path: "/openapi/merchants", Icon: "StorefrontOutline", Sort: 1, ParentCode: "menu:openapi"},
-	{Name: "API调用日志", Code: "menu:merchantLog", Path: "/openapi/api-logs", Icon: "DocumentTextOutline", Sort: 2, ParentCode: "menu:openapi"},
-	// 租户中心（顶级目录分组，父级先于子菜单声明以解析 ParentCode）
-	{Name: "租户中心", Code: "menu:tenantCenter", Type: "dir", Icon: "BusinessOutline", Sort: 2},
+	{Name: "首页", Code: "menu:dashboard", Path: "/dashboard", Icon: "HomeOutline", Sort: 1},
+	{Name: "系统管理", Code: "menu:system", Type: "dir", Icon: "SettingsOutline", Sort: 2},
+	{Name: "用户准入", Code: "menu:user", Path: "/system/users", ParentCode: "menu:system", Icon: "PersonOutline", Sort: 1},
+	{Name: "角色管理", Code: "menu:role", Path: "/system/roles", ParentCode: "menu:system", Icon: "IdCardOutline", Sort: 2},
+	{Name: "菜单管理", Code: "menu:menu", Path: "/system/menus", ParentCode: "menu:system", Icon: "MenuOutline", Sort: 4},
+	{Name: "IP黑名单", Code: "menu:blacklist", Path: "/system/blacklist", ParentCode: "menu:system", Icon: "BanOutline", Sort: 6},
+	// 设备中心（顶级目录分组，父级先于子菜单声明以解析 ParentCode）
+	{Name: "设备中心", Code: "menu:deviceCenter", Type: "dir", Icon: "HardwareChipOutline", Sort: 3},
+	{Name: "设备管理", Code: "menu:device", Path: "/device/devices", Icon: "HardwareChipOutline", Sort: 1, ParentCode: "menu:deviceCenter"},
+	{Name: "型号管理", Code: "menu:deviceModel", Path: "/device/models", Icon: "CubeOutline", Sort: 2, ParentCode: "menu:deviceCenter"},
+	// 租户中心（顶级目录分组）
+	{Name: "租户中心", Code: "menu:tenantCenter", Type: "dir", Icon: "BusinessOutline", Sort: 4},
 	{Name: "租户管理", Code: "menu:tenant", Path: "/tenant/tenants", Icon: "BusinessOutline", Sort: 1, ParentCode: "menu:tenantCenter"},
 	{Name: "应用用户", Code: "menu:appUser", Path: "/tenant/app-users", Icon: "PeopleOutline", Sort: 2, ParentCode: "menu:tenantCenter"},
+	// 日志管理（顶级目录分组）
+	{Name: "日志管理", Code: "menu:log", Type: "dir", Icon: "DocumentTextOutline", Sort: 5},
+	{Name: "操作日志", Code: "menu:opLog", Path: "/log/operation-logs", Icon: "ClipboardOutline", Sort: 2, ParentCode: "menu:log"},
+	// 文件管理（顶级菜单）
+	{Name: "文件管理", Code: "menu:file", Path: "/file", Icon: "FolderOpenOutline", Sort: 6},
+	{Name: "关于我们", Code: "menu:about", Path: "/about", Icon: "InformationCircleOutline", Sort: 9},
 }
 
 // ensureSystemMenus 幂等补齐系统菜单并绑定超管角色（每次启动执行）：
@@ -291,15 +261,14 @@ type systemButtonPermDef struct {
 // systemButtonPerms 系统管理各接口的 button 权限点清单：
 // code 控前端按钮显隐，method/path 绑定接口参与后端 RBAC 校验（path 支持中间通配 *）
 var systemButtonPerms = []systemButtonPermDef{
-	// 用户管理
+	// 用户准入
 	{Name: "查询用户", Code: "user:list", Menu: "menu:user", Method: "GET", Path: "/api/v1/users", Sort: 1},
 	{Name: "用户详情", Code: "user:view", Menu: "menu:user", Method: "GET", Path: "/api/v1/users/*", Sort: 2},
-	{Name: "新增用户", Code: "user:create", Menu: "menu:user", Method: "POST", Path: "/api/v1/users", Sort: 3},
-	{Name: "编辑用户", Code: "user:update", Menu: "menu:user", Method: "PUT", Path: "/api/v1/users/*", Sort: 4},
-	{Name: "删除用户", Code: "user:delete", Menu: "menu:user", Method: "DELETE", Path: "/api/v1/users/*", Sort: 5},
-	{Name: "分配角色", Code: "user:setRoles", Menu: "menu:user", Method: "PUT", Path: "/api/v1/users/*/roles", Sort: 6},
-	{Name: "重置密码", Code: "user:resetPassword", Menu: "menu:user", Method: "PUT", Path: "/api/v1/users/*/password", Sort: 7},
-	{Name: "导出用户", Code: "user:export", Menu: "menu:user", Method: "POST", Path: "/api/v1/users/export", Sort: 8},
+	{Name: "设置准入", Code: "user:setAdmission", Menu: "menu:user", Method: "PUT", Path: "/api/v1/users/*/admission", Sort: 3},
+	{Name: "分配角色", Code: "user:setRoles", Menu: "menu:user", Method: "PUT", Path: "/api/v1/users/*/roles", Sort: 4},
+	{Name: "移除准入", Code: "user:delete", Menu: "menu:user", Method: "DELETE", Path: "/api/v1/users/*", Sort: 5},
+	{Name: "同步平台用户", Code: "user:sync", Menu: "menu:user", Method: "POST", Path: "/api/v1/users/sync", Sort: 6},
+	{Name: "导出用户", Code: "user:export", Menu: "menu:user", Method: "POST", Path: "/api/v1/users/export", Sort: 7},
 	// 角色管理
 	{Name: "查询角色", Code: "role:list", Menu: "menu:role", Method: "GET", Path: "/api/v1/roles", Sort: 1},
 	{Name: "角色详情", Code: "role:view", Menu: "menu:role", Method: "GET", Path: "/api/v1/roles/*", Sort: 2},
@@ -313,14 +282,24 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "新增权限", Code: "menu:create", Menu: "menu:menu", Method: "POST", Path: "/api/v1/permissions", Sort: 3},
 	{Name: "编辑权限", Code: "menu:update", Menu: "menu:menu", Method: "PUT", Path: "/api/v1/permissions/*", Sort: 4},
 	{Name: "删除权限", Code: "menu:delete", Menu: "menu:menu", Method: "DELETE", Path: "/api/v1/permissions/*", Sort: 5},
-	// 在线用户
-	{Name: "查询在线用户", Code: "online:list", Menu: "menu:online", Method: "GET", Path: "/api/v1/online-users", Sort: 1},
-	{Name: "下线会话", Code: "online:kick", Menu: "menu:online", Method: "DELETE", Path: "/api/v1/online-users/*", Sort: 2},
-	{Name: "用户全部下线", Code: "online:kickUser", Menu: "menu:online", Method: "DELETE", Path: "/api/v1/users/*/sessions", Sort: 3},
+	// 设备管理（开放面代理）
+	{Name: "查询设备", Code: "device:list", Menu: "menu:device", Method: "GET", Path: "/api/v1/devices", Sort: 1},
+	{Name: "设备详情", Code: "device:view", Menu: "menu:device", Method: "GET", Path: "/api/v1/devices/*", Sort: 2},
+	{Name: "注册设备", Code: "device:register", Menu: "menu:device", Method: "POST", Path: "/api/v1/devices", Sort: 3},
+	{Name: "读取影子", Code: "device:shadow", Menu: "menu:device", Method: "GET", Path: "/api/v1/devices/*/shadow", Sort: 4},
+	{Name: "查询命令", Code: "device:commandList", Menu: "menu:device", Method: "GET", Path: "/api/v1/devices/*/commands", Sort: 5},
+	{Name: "查询遥测", Code: "device:telemetry", Menu: "menu:device", Method: "GET", Path: "/api/v1/devices/*/telemetry", Sort: 6},
+	{Name: "查询事件", Code: "device:dataEvent", Menu: "menu:device", Method: "GET", Path: "/api/v1/devices/*/data-events", Sort: 7},
+	{Name: "下发命令", Code: "device:commandIssue", Menu: "menu:device", Method: "POST", Path: "/api/v1/devices/*/commands", Sort: 8},
+	{Name: "命令详情", Code: "device:commandGet", Menu: "menu:device", Method: "GET", Path: "/api/v1/device-commands/*", Sort: 9},
+	// 型号管理（管理面代理）
+	{Name: "查询型号", Code: "model:list", Menu: "menu:deviceModel", Method: "GET", Path: "/api/v1/device-models", Sort: 1},
+	{Name: "型号详情", Code: "model:view", Menu: "menu:deviceModel", Method: "GET", Path: "/api/v1/device-models/*", Sort: 2},
+	{Name: "新增型号", Code: "model:create", Menu: "menu:deviceModel", Method: "POST", Path: "/api/v1/device-models", Sort: 3},
+	{Name: "编辑型号", Code: "model:update", Menu: "menu:deviceModel", Method: "PUT", Path: "/api/v1/device-models/*", Sort: 4},
+	{Name: "删除型号", Code: "model:delete", Menu: "menu:deviceModel", Method: "DELETE", Path: "/api/v1/device-models/*", Sort: 5},
+	{Name: "物模型选择器", Code: "model:tmPicker", Menu: "menu:deviceModel", Method: "GET", Path: "/api/v1/thing-models", Sort: 6},
 	// 日志管理
-	{Name: "查询登录日志", Code: "log:login:list", Menu: "menu:loginLog", Method: "GET", Path: "/api/v1/login-logs", Sort: 1},
-	{Name: "清理登录日志", Code: "log:login:clear", Menu: "menu:loginLog", Method: "DELETE", Path: "/api/v1/login-logs", Sort: 2},
-	{Name: "导出登录日志", Code: "log:login:export", Menu: "menu:loginLog", Method: "POST", Path: "/api/v1/login-logs/export", Sort: 3},
 	{Name: "查询操作日志", Code: "log:op:list", Menu: "menu:opLog", Method: "GET", Path: "/api/v1/operation-logs", Sort: 1},
 	{Name: "清理操作日志", Code: "log:op:clear", Menu: "menu:opLog", Method: "DELETE", Path: "/api/v1/operation-logs", Sort: 2},
 	{Name: "导出操作日志", Code: "log:op:export", Menu: "menu:opLog", Method: "POST", Path: "/api/v1/operation-logs/export", Sort: 3},
@@ -333,22 +312,14 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "查询黑名单", Code: "blacklist:list", Menu: "menu:blacklist", Method: "GET", Path: "/api/v1/ip-blacklist", Sort: 1},
 	{Name: "新增黑名单", Code: "blacklist:create", Menu: "menu:blacklist", Method: "POST", Path: "/api/v1/ip-blacklist", Sort: 2},
 	{Name: "解封黑名单", Code: "blacklist:delete", Menu: "menu:blacklist", Method: "DELETE", Path: "/api/v1/ip-blacklist/*", Sort: 3},
-	// 商户管理（开放 API 授权）
-	{Name: "查询商户", Code: "merchant:list", Menu: "menu:merchant", Method: "GET", Path: "/api/v1/merchants", Sort: 1},
-	{Name: "商户详情", Code: "merchant:view", Menu: "menu:merchant", Method: "GET", Path: "/api/v1/merchants/*", Sort: 2},
-	{Name: "新增商户", Code: "merchant:create", Menu: "menu:merchant", Method: "POST", Path: "/api/v1/merchants", Sort: 3},
-	{Name: "编辑商户", Code: "merchant:update", Menu: "menu:merchant", Method: "PUT", Path: "/api/v1/merchants/*", Sort: 4},
-	{Name: "删除商户", Code: "merchant:delete", Menu: "menu:merchant", Method: "DELETE", Path: "/api/v1/merchants/*", Sort: 5},
-	{Name: "重置密钥", Code: "merchant:resetSecret", Menu: "menu:merchant", Method: "PUT", Path: "/api/v1/merchants/*/secret", Sort: 6},
-	{Name: "修改状态", Code: "merchant:status", Menu: "menu:merchant", Method: "PUT", Path: "/api/v1/merchants/*/status", Sort: 7},
-	// API 调用日志
-	{Name: "查询调用日志", Code: "merchantLog:list", Menu: "menu:merchantLog", Method: "GET", Path: "/api/v1/merchant-api-logs", Sort: 1},
 	// 租户管理
 	{Name: "查询租户", Code: "tenant:list", Menu: "menu:tenant", Method: "GET", Path: "/api/v1/tenants", Sort: 1},
 	{Name: "租户详情", Code: "tenant:view", Menu: "menu:tenant", Method: "GET", Path: "/api/v1/tenants/*", Sort: 2},
 	{Name: "新增租户", Code: "tenant:create", Menu: "menu:tenant", Method: "POST", Path: "/api/v1/tenants", Sort: 3},
 	{Name: "编辑租户", Code: "tenant:update", Menu: "menu:tenant", Method: "PUT", Path: "/api/v1/tenants/*", Sort: 4},
 	{Name: "删除租户", Code: "tenant:delete", Menu: "menu:tenant", Method: "DELETE", Path: "/api/v1/tenants/*", Sort: 5},
+	{Name: "租户状态", Code: "tenant:status", Menu: "menu:tenant", Method: "PUT", Path: "/api/v1/tenants/*/status", Sort: 6},
+	{Name: "同步至平台", Code: "tenant:sync", Menu: "menu:tenant", Method: "POST", Path: "/api/v1/tenants/*/sync", Sort: 7},
 	// 应用用户
 	{Name: "查询应用用户", Code: "appUser:list", Menu: "menu:appUser", Method: "GET", Path: "/api/v1/app-users", Sort: 1},
 	{Name: "应用用户详情", Code: "appUser:view", Menu: "menu:appUser", Method: "GET", Path: "/api/v1/app-users/*", Sort: 2},
@@ -365,14 +336,18 @@ var systemButtonPerms = []systemButtonPermDef{
 func (d *Data) ensureSystemButtonPerms() error {
 	// 菜单 code -> ID（存量库菜单 ID 可能与种子不同，按 code 解析；菜单缺失时 ParentID 落 0，不影响 RBAC）
 	menuIDs := map[string]uint{}
-	for _, code := range []string{"menu:user", "menu:role", "menu:menu", "menu:online", "menu:loginLog", "menu:opLog", "menu:file", "menu:blacklist", "menu:merchant", "menu:merchantLog", "menu:tenant", "menu:appUser"} {
+	menuCodes := map[string]struct{}{}
+	for _, def := range systemButtonPerms {
+		menuCodes[def.Menu] = struct{}{}
+	}
+	for code := range menuCodes {
 		var menu model.PermissionPO
 		if err := d.DB.Where("code = ? AND type = ?", code, string(permission.TypeMenu)).First(&menu).Error; err == nil {
 			menuIDs[code] = menu.ID
 		}
 	}
 
-	// 超管角色固定 ID=1（编码字段已移除，角色不再有业务编码）
+	// 超管角色固定 ID=1
 	var superRole model.RolePO
 	superErr := d.DB.First(&superRole, 1).Error
 
@@ -435,12 +410,25 @@ func (d *Data) ensureSystemButtonPerms() error {
 	return nil
 }
 
+// obsoletePermCodes 已废弃的菜单与按钮权限点（本次改造移除的模块）：
+// 在线用户/登录日志（会话与登录委外给平台）、开放API/商户/调用日志（商户模块移除）
+var obsoletePermCodes = []string{
+	"menu:online", "menu:loginLog", "menu:openapi", "menu:merchant", "menu:merchantLog",
+	"online:list", "online:kick", "online:kickUser",
+	"log:login:list", "log:login:clear", "log:login:export",
+	"merchant:list", "merchant:view", "merchant:create", "merchant:update",
+	"merchant:delete", "merchant:resetSecret", "merchant:status", "merchantLog:list",
+	// 旧用户管理按钮（本地账号体系移除，由 user:setAdmission 等新按钮替代）
+	"user:create", "user:update", "user:resetPassword",
+}
+
 // migrateLegacy 存量库幂等迁移（每次启动执行，无匹配行时零副作用）：
 //  1. api 权限类型并入 button（接口绑定能力由 button 承担）；
 //  2. 移除已并入「菜单管理」页的旧「权限管理」菜单入口（含角色关联）；
-//  3. 「菜单与权限」更名「菜单管理」；
+//  3. 「菜单与权限」更名「菜单管理」、「用户管理」更名「用户准入」；
 //  4. 目录类型显式化：含菜单/目录子级的 menu 转为 dir（仅按钮子级的不算，避免页面菜单被误判为分组）；
-//  5. 删除已废弃的 roles.code 列（AutoMigrate 不会删列，删列时唯一索引随之删除）
+//  5. 删除已废弃的 roles.code 列（AutoMigrate 不会删列，删列时唯一索引随之删除）；
+//  6. 物理删除本次改造废弃的菜单/按钮权限点及其角色绑定（在线用户/登录日志/商户/开放API 等）。
 func (d *Data) migrateLegacy() error {
 	if err := d.DB.Model(&model.PermissionPO{}).Where("type = ?", "api").
 		Update("type", "button").Error; err != nil {
@@ -469,12 +457,33 @@ func (d *Data) migrateLegacy() error {
 		Update("name", "菜单管理").Error; err != nil {
 		return err
 	}
+	if err := d.DB.Model(&model.PermissionPO{}).Where("code = ?", "menu:user").
+		Update("name", "用户准入").Error; err != nil {
+		return err
+	}
 	// roles.code 已随编码功能移除：存量库显式删列（MySQL/PG/SQLite 删列均连带删除仅含该列的唯一索引）
 	if d.DB.Migrator().HasColumn(&model.RolePO{}, "code") {
 		if err := d.DB.Migrator().DropColumn(&model.RolePO{}, "code"); err != nil {
 			return err
 		}
 		logger.Info("dropped legacy column roles.code")
+	}
+	// 废弃权限点清理：先删角色绑定，再物理删权限行（含软删残留）
+	if len(obsoletePermCodes) > 0 {
+		var ids []uint
+		if err := d.DB.Unscoped().Model(&model.PermissionPO{}).
+			Where("code IN ?", obsoletePermCodes).Pluck("id", &ids).Error; err != nil {
+			return err
+		}
+		if len(ids) > 0 {
+			if err := d.DB.Unscoped().Delete(&model.RolePermissionPO{}, "permission_id IN ?", ids).Error; err != nil {
+				return err
+			}
+			if err := d.DB.Unscoped().Delete(&model.PermissionPO{}, "id IN ?", ids).Error; err != nil {
+				return err
+			}
+			logger.Info("dropped obsolete permissions (merchant/online/login-log/local-account)", zap.Int("count", len(ids)))
+		}
 	}
 	return nil
 }

@@ -8,7 +8,7 @@ build:
 run:
 	go run ./cmd/server -conf configs/config.yaml
 
-# 一键开发：后端热加载（air :8080）+ 前端热更新（Vite :5173，/api 代理到 8080）
+# 一键开发：后端热加载（air :28180）+ 前端热更新（Vite :28170，/api 代理到 28180）
 # 需先: go install github.com/air-verse/air@latest
 dev:
 	@trap 'kill 0' INT TERM EXIT; \
@@ -26,7 +26,7 @@ tidy:
 test:
 	go test ./...
 
-# 前端开发（Vite 热更新，/api 代理到 localhost:8080）
+# 前端开发（Vite 热更新，/api 代理到 localhost:28180）
 web-dev:
 	cd web && npm run dev
 

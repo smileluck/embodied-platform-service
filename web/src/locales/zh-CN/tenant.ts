@@ -1,4 +1,4 @@
-// tenant 模块文案（租户管理）
+// tenant 模块文案（租户管理：与 embodied-platform 强一致同步）
 export default {
   statusPlaceholder: '状态',
   name: '租户名称',
@@ -9,12 +9,18 @@ export default {
   contactPhone: '联系电话',
   newTenant: '新增租户',
   editTenant: '编辑租户',
+  platformSync: '平台同步',
+  synced: '已同步',
+  unsynced: '未同步',
+  syncToPlatform: '同步至平台',
+  syncDone: '已同步至平台',
+  syncFailed: '同步失败（请检查平台服务账号配置）',
   statusUpdated: '状态已更新',
   statusFailed: '状态更新失败',
   saveFailed: '保存失败',
   deleteFailed: '删除失败',
   deleteConfirmTitle: '删除确认',
-  deleteConfirmContent: '确定删除租户「{name}」吗？该操作不可恢复。',
+  deleteConfirmContent: '确定删除租户「{name}」吗？将同时删除平台侧租户，该操作不可恢复。',
   form: {
     nameRequired: '请输入租户名称',
     codeRequired: '请输入租户编码',

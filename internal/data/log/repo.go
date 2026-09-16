@@ -1,4 +1,5 @@
 // Package log 日志仓储 GORM 实现：写入走内存队列异步落库，附带每日保留期自动清理。
+// 管理端登录已委外给平台（登录日志在平台侧），本仓储只承载操作日志（写请求审计）。
 package log
 
 import (
@@ -19,11 +20,11 @@ import (
 // 写入队列容量：超出即丢弃并告警（日志属于尽力而为的旁路数据，不反压业务主流程）
 const queueSize = 256
 
-// Repo 日志仓储（登录/操作日志共用；写异步、读删同步）
+// Repo 日志仓储（操作日志；写异步、读删同步）
 type Repo struct {
 	data  *data.Data
-	queue chan interface{} // *model.LoginLogPO | *model.OperationLogPO
-	done  chan struct{}    // 通知保留期清理循环退出
+	queue chan *model.OperationLogPO
+	done  chan struct{} // 通知保留期清理循环退出
 	wg    sync.WaitGroup
 }
 
@@ -32,7 +33,7 @@ type Repo struct {
 func NewRepo(d *data.Data, c *conf.Bootstrap) (*Repo, func(), error) {
 	r := &Repo{
 		data:  d,
-		queue: make(chan interface{}, queueSize),
+		queue: make(chan *model.OperationLogPO, queueSize),
 		done:  make(chan struct{}),
 	}
 	r.wg.Add(1)
@@ -54,14 +55,7 @@ func (r *Repo) writeWorker() {
 	defer r.wg.Done()
 	ctx := context.Background()
 	for item := range r.queue {
-		var err error
-		switch x := item.(type) {
-		case *model.LoginLogPO:
-			err = r.data.DB.WithContext(ctx).Create(x).Error
-		case *model.OperationLogPO:
-			err = r.data.DB.WithContext(ctx).Create(x).Error
-		}
-		if err != nil {
+		if err := r.data.DB.WithContext(ctx).Create(item).Error; err != nil {
 			logger.Warn("log write failed", zap.Error(err))
 		}
 	}
@@ -87,31 +81,17 @@ func (r *Repo) retentionLoop(days int) {
 func (r *Repo) cleanupExpired(days int) {
 	ctx := context.Background()
 	cutoff := time.Now().AddDate(0, 0, -days)
-	n1, err := r.DeleteLoginBefore(ctx, cutoff)
-	if err != nil {
-		logger.Warn("login log retention cleanup failed", zap.Error(err))
-		return
-	}
-	n2, err := r.DeleteOperationBefore(ctx, cutoff)
+	n, err := r.DeleteOperationBefore(ctx, cutoff)
 	if err != nil {
 		logger.Warn("operation log retention cleanup failed", zap.Error(err))
 		return
 	}
-	if n1+n2 > 0 {
-		logger.Info("log retention cleanup",
-			zap.Int64("login_logs_deleted", n1), zap.Int64("operation_logs_deleted", n2))
+	if n > 0 {
+		logger.Info("log retention cleanup", zap.Int64("operation_logs_deleted", n))
 	}
 }
 
 // ---- 写入（异步） ----
-
-func (r *Repo) CreateLogin(l *bizlog.LoginLog) {
-	select {
-	case r.queue <- model.LoginLogToPO(l):
-	default:
-		logger.Warn("login log queue full, dropped", zap.String("ip", l.IP))
-	}
-}
 
 func (r *Repo) CreateOperation(o *bizlog.OperationLog) {
 	select {
@@ -122,38 +102,6 @@ func (r *Repo) CreateOperation(o *bizlog.OperationLog) {
 }
 
 // ---- 查询 ----
-
-func (r *Repo) ListLoginLogs(ctx context.Context, q bizlog.LoginLogQuery, page, pageSize int) ([]*bizlog.LoginLog, int64, error) {
-	tx := r.data.DB.WithContext(ctx).Model(&model.LoginLogPO{})
-	if q.Username != "" {
-		tx = tx.Where("username LIKE ? ESCAPE '/'", security.EscapeLike(q.Username)+"%")
-	}
-	if q.IP != "" {
-		tx = tx.Where("ip = ?", q.IP)
-	}
-	if q.Status != nil {
-		tx = tx.Where("status = ?", *q.Status)
-	}
-	if !q.Start.IsZero() {
-		tx = tx.Where("created_at >= ?", q.Start)
-	}
-	if !q.End.IsZero() {
-		tx = tx.Where("created_at <= ?", q.End)
-	}
-	var total int64
-	if err := tx.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	var pos []model.LoginLogPO
-	if err := listPage(tx, page, pageSize).Find(&pos).Error; err != nil {
-		return nil, 0, err
-	}
-	out := make([]*bizlog.LoginLog, 0, len(pos))
-	for i := range pos {
-		out = append(out, model.LoginLogFromPO(&pos[i]))
-	}
-	return out, total, nil
-}
 
 func (r *Repo) ListOperationLogs(ctx context.Context, q bizlog.OperationLogQuery, page, pageSize int) ([]*bizlog.OperationLog, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.OperationLogPO{})
@@ -199,11 +147,6 @@ func listPage(tx *gorm.DB, page, pageSize int) *gorm.DB {
 }
 
 // ---- 删除（手动清空与保留期清理共用） ----
-
-func (r *Repo) DeleteLoginBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	res := r.data.DB.WithContext(ctx).Where("created_at < ?", cutoff).Delete(&model.LoginLogPO{})
-	return res.RowsAffected, res.Error
-}
 
 func (r *Repo) DeleteOperationBefore(ctx context.Context, cutoff time.Time) (int64, error) {
 	res := r.data.DB.WithContext(ctx).Where("created_at < ?", cutoff).Delete(&model.OperationLogPO{})

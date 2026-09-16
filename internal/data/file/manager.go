@@ -1,43 +1,41 @@
-// Package file 文件元数据仓储 GORM 实现与各存储后端适配
+// Package file 文件元数据仓储 GORM 实现与存储后端适配。
+//
+// 存储后端只有两个：
+//   - platform：embodied-platform storage-gateway（默认写入后端，配置 platform.storage 后启用）
+//   - local：本地磁盘（平台存储未配置时的降级写入后端；同时承载历史存量文件的读取）
+//
+// 读/删按文件记录落库的 driver 解析后端，旧文件在新后端上线后仍可访问。
 package file
 
 import (
-	"fmt"
-
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
+	"github.com/smilex/smilex-admin-gin/internal/data/platform"
+	"github.com/smilex/smilex-admin-gin/pkg/logger"
 )
 
-// NewStorageManager 按配置构造全部已配置完整的存储后端：
-// local 总是可用；云存储凭据齐全才注册。当前 driver 未注册时返回错误（启动即暴露配置问题）。
-// 读/删按文件记录的 driver 解析后端，因此升级存储后端后旧文件仍可访问（旧后端配置需保留）。
-func NewStorageManager(c *conf.Bootstrap) (*bizfile.StorageManager, error) {
+// NewStorageManager 构造存储后端注册表：
+// driver 显式配置时以配置为准；留空时自动选择——平台存储配置齐全选 platform，否则降级 local。
+func NewStorageManager(c *conf.Bootstrap, storageClient *platform.StorageClient) (*bizfile.StorageManager, error) {
 	backends := []bizfile.Storage{newLocalStorage(c.Storage.Local.Dir)}
 
-	if o := c.Storage.OSS; o.Endpoint != "" && o.Bucket != "" && o.AccessKeyID != "" && o.AccessKeySecret != "" {
-		b, err := newOSSStorage(o)
-		if err != nil {
-			return nil, fmt.Errorf("init oss storage: %w", err)
-		}
-		backends = append(backends, b)
-	}
-	if o := c.Storage.COS; o.Region != "" && o.Bucket != "" && o.SecretID != "" && o.SecretKey != "" {
-		backends = append(backends, newCOSStorage(o))
-	}
-	if o := c.Storage.TOS; o.Endpoint != "" && o.Region != "" && o.Bucket != "" && o.AccessKey != "" && o.SecretKey != "" {
-		b, err := newTOSStorage(o)
-		if err != nil {
-			return nil, fmt.Errorf("init tos storage: %w", err)
-		}
-		backends = append(backends, b)
-	}
-	if o := c.Storage.MinIO; o.Endpoint != "" && o.Bucket != "" && o.AccessKey != "" && o.SecretKey != "" {
-		b, err := newMinIOStorage(o)
-		if err != nil {
-			return nil, fmt.Errorf("init minio storage: %w", err)
-		}
-		backends = append(backends, b)
+	platformReady := c.Platform.Storage.BaseURL != "" && c.Platform.Storage.APIKeyID != "" && c.Platform.Storage.APISecret != ""
+	current := "local"
+	if c.Storage.Driver != "" {
+		current = c.Storage.Driver
+	} else if platformReady {
+		current = "platform"
 	}
 
-	return bizfile.NewStorageManager(c.Storage.Driver, backends...)
+	if platformReady {
+		if b := newPlatformStorage(storageClient, c.Platform.Storage.Bucket); b != nil {
+			backends = append(backends, b)
+		}
+	} else if current == "platform" {
+		logger.Warn("platform storage not configured, falling back to local dir " +
+			"(文件不会进入平台存储；生产环境请配置 platform.storage)")
+		current = "local"
+	}
+
+	return bizfile.NewStorageManager(current, backends...)
 }

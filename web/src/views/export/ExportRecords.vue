@@ -82,7 +82,7 @@ function confirmDelete(row: ExportRecord) {
 }
 
 const bizNames = computed<Record<string, string>>(() => ({
-  user: t('exportRecords.biz.user'), login_log: t('exportRecords.biz.loginLog'), op_log: t('exportRecords.biz.opLog'),
+  user: t('exportRecords.biz.user'), op_log: t('exportRecords.biz.opLog'),
 }))
 
 const statusType = (s: ExportRecord['status']): TagProps['type'] =>

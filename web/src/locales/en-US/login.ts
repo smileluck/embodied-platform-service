@@ -1,10 +1,10 @@
-// login module messages (extracted from the corresponding page)
+// login module messages (sign-in goes directly to embodied-platform, token dual-use)
 export default {
   brandHeadline1: 'Let system governance',
   brandHeadline2: 'run quietly',
-  brandSub: 'Users, roles, permissions, and menus — all in one place.',
+  brandSub: 'Identity from the platform, admission starts here.',
   formTitle: 'Welcome back',
-  formSub: 'Sign in with your admin account to continue',
+  formSub: 'Sign in with your platform account (works on both the platform and this console)',
   username: 'Username',
   password: 'Password',
   captcha: 'Captcha',
@@ -16,7 +16,8 @@ export default {
   loginButton: 'Sign In',
   captchaLoadFailed: 'Failed to load the captcha, please click to refresh',
   loginSuccess: 'Signed in successfully',
-  loginFailed: 'Sign-in failed',
+  loginFailed: 'Sign-in failed (check platform availability and account)',
   captchaError: 'Incorrect captcha, please try again',
   sessionExpired: 'Your session has expired, please sign in again',
+  notAdmitted: 'Your account has not been admitted to this console yet, contact an administrator',
 }

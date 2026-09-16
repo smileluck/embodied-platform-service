@@ -36,9 +36,10 @@ type SetStatusRequest struct {
 	Status *int `json:"status" binding:"required,oneof=0 1"`
 }
 
-// VO 租户视图
+// VO 租户视图（platform_id 非零表示已与平台同步）
 type VO struct {
 	ID           uint   `json:"id"`
+	PlatformID   uint   `json:"platform_id"`
 	Name         string `json:"name"`
 	Code         string `json:"code"`
 	ContactName  string `json:"contact_name"`
@@ -52,7 +53,7 @@ type VO struct {
 // ToVO 租户实体转视图
 func ToVO(t *biztenant.Tenant) *VO {
 	return &VO{
-		ID: t.ID, Name: t.Name, Code: t.Code,
+		ID: t.ID, PlatformID: t.PlatformID, Name: t.Name, Code: t.Code,
 		ContactName: t.ContactName, ContactPhone: t.ContactPhone,
 		Remark: t.Remark, Status: int(t.Status),
 		CreatedAt: formatTime(t.CreatedAt), UpdatedAt: formatTime(t.UpdatedAt),
@@ -95,6 +96,15 @@ func (s *Service) List(ctx context.Context, q biztenant.Query, page, pageSize in
 
 func (s *Service) SetStatus(ctx context.Context, id uint, req SetStatusRequest) error {
 	return s.uc.SetStatus(ctx, id, biztenant.Status(*req.Status))
+}
+
+// SyncExisting 存量补链：未同步租户在平台创建/绑定并回填 platform_id
+func (s *Service) SyncExisting(ctx context.Context, id uint) (*VO, error) {
+	t, err := s.uc.SyncExisting(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return ToVO(t), nil
 }
 
 func formatTime(t time.Time) string {

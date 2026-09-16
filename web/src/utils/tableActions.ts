@@ -1,12 +1,15 @@
 import { h, type VNode } from 'vue'
 import { NButton } from 'naive-ui'
+import { useUserStore } from '../stores/user'
 
-/** 表格操作项：文字按钮描述；accent 主操作用主题色，danger 危险操作用警示色 */
+/** 表格操作项：文字按钮描述；accent 主操作用主题色，danger 危险操作用警示色；
+ * permission 非空时按当前用户权限点过滤（等价 v-permission） */
 export interface TableAction {
   label: string
   onClick?: () => void
   accent?: boolean
   danger?: boolean
+  permission?: string
 }
 
 const DIVIDER_STYLE = 'display:inline-block;width:1px;height:12px;background:var(--sx-line);flex-shrink:0'
@@ -17,11 +20,21 @@ const DIVIDER_STYLE = 'display:inline-block;width:1px;height:12px;background:var
  * 空数组渲染占位「—」。
  */
 export function renderActions(items: Array<TableAction | VNode>): VNode {
-  if (items.length === 0) {
+  // 携带 permission 的操作项按当前用户权限点过滤（无权限不渲染）
+  const userStore = useUserStore()
+  const filtered = items.filter((item) => {
+    if (typeof item === 'object' && item !== null && 'permission' in item) {
+      const perm = (item as TableAction).permission
+      return !perm || userStore.has(perm)
+    }
+    return true
+  })
+  const list = filtered
+  if (list.length === 0) {
     return h('span', { style: 'color: var(--sx-muted); font-size: 12px' }, '—')
   }
   const children: VNode[] = []
-  items.forEach((item, i) => {
+  list.forEach((item, i) => {
     if (i > 0) children.push(h('i', { style: DIVIDER_STYLE }))
     if (typeof item === 'object' && item !== null && 'label' in item) {
       const a = item as TableAction

@@ -3,17 +3,15 @@ package server
 import (
 	"errors"
 
+	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
-	bizmerchant "github.com/smilex/smilex-admin-gin/internal/biz/merchant"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/role"
-	bizsession "github.com/smilex/smilex-admin-gin/internal/biz/session"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
-	"github.com/smilex/smilex-admin-gin/internal/biz/user"
 	"github.com/smilex/smilex-admin-gin/pkg/response"
 )
 
@@ -23,15 +21,12 @@ var errKeys = []struct {
 	target error
 	key    string
 }{
-	// 认证
-	{bizauth.ErrInvalidCredentials, "auth.invalid_credentials"},
-	{bizauth.ErrDisabledAccount, "auth.account_disabled"},
-	{bizauth.ErrCaptcha, "auth.captcha_invalid"},
-	// 用户
-	{user.ErrUserNotFound, "user.not_found"},
-	{user.ErrDuplicateUsername, "user.name_exists"},
-	{user.ErrSuperAdminProtected, "user.super_protected"},
-	{user.ErrDeleteSuperAdmin, "user.super_delete_forbidden"},
+	// 认证（平台身份）
+	{bizauth.ErrInvalidToken, "auth.invalid_credentials"},
+	{bizauth.ErrPlatformUnavailable, "auth.platform_unavailable"},
+	// 准入
+	{bizadmission.ErrNotFound, "user.not_found"},
+	{bizadmission.ErrDuplicatePlatformUser, "user.name_exists"},
 	// 角色
 	{role.ErrRoleNotFound, "role.not_found"},
 	{role.ErrRoleHasUsers, "role.has_users"},
@@ -57,19 +52,12 @@ var errKeys = []struct {
 	{bizexport.ErrNotFound, "export.not_found"},
 	{bizexport.ErrNotOwner, "export.not_owner"},
 	{bizexport.ErrNotReady, "export.not_ready"},
-	// 会话
-	{bizsession.ErrSessionNotFound, "session.not_found"},
 	// IP 黑名单
 	{bizblacklist.ErrInvalidIP, "blacklist.invalid_ip"},
 	{bizblacklist.ErrInvalidExpire, "blacklist.invalid_expire"},
 	{bizblacklist.ErrIPExists, "blacklist.ip_exists"},
 	{bizblacklist.ErrSelfBan, "blacklist.self_ban"},
 	{bizblacklist.ErrNotFound, "blacklist.not_found"},
-	// 商户（开放 API 授权）
-	{bizmerchant.ErrMerchantNotFound, "merchant.not_found"},
-	{bizmerchant.ErrDuplicateCode, "merchant.code_exists"},
-	{bizmerchant.ErrMerchantDisabled, "merchant.disabled"},
-	{bizmerchant.ErrInvalidSign, "merchant.sign_invalid"},
 	// 租户
 	{biztenant.ErrTenantNotFound, "tenant.not_found"},
 	{biztenant.ErrDuplicateTenantName, "tenant.name_exists"},

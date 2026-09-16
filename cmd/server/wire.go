@@ -5,116 +5,124 @@ package main
 
 import (
 	"github.com/google/wire"
-	base64Captcha "github.com/mojocn/base64Captcha"
+	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
-	bizcaptcha "github.com/smilex/smilex-admin-gin/internal/biz/captcha"
+	bizdevice "github.com/smilex/smilex-admin-gin/internal/biz/device"
+	bizdevmodel "github.com/smilex/smilex-admin-gin/internal/biz/devmodel"
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
-	bizmerchant "github.com/smilex/smilex-admin-gin/internal/biz/merchant"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	bizrole "github.com/smilex/smilex-admin-gin/internal/biz/role"
-	bizsession "github.com/smilex/smilex-admin-gin/internal/biz/session"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
-	bizuser "github.com/smilex/smilex-admin-gin/internal/biz/user"
 	"github.com/smilex/smilex-admin-gin/internal/data"
+	dataadmission "github.com/smilex/smilex-admin-gin/internal/data/admission"
 	dataappuser "github.com/smilex/smilex-admin-gin/internal/data/appuser"
+	dataauth "github.com/smilex/smilex-admin-gin/internal/data/auth"
 	datablacklist "github.com/smilex/smilex-admin-gin/internal/data/blacklist"
-	datacaptcha "github.com/smilex/smilex-admin-gin/internal/data/captcha"
+	datadevice "github.com/smilex/smilex-admin-gin/internal/data/device"
+	datadevmodel "github.com/smilex/smilex-admin-gin/internal/data/devmodel"
 	dataexport "github.com/smilex/smilex-admin-gin/internal/data/export"
 	datafile "github.com/smilex/smilex-admin-gin/internal/data/file"
 	datalog "github.com/smilex/smilex-admin-gin/internal/data/log"
-	datamerchant "github.com/smilex/smilex-admin-gin/internal/data/merchant"
 	dataperm "github.com/smilex/smilex-admin-gin/internal/data/permission"
+	"github.com/smilex/smilex-admin-gin/internal/data/platform"
 	datarole "github.com/smilex/smilex-admin-gin/internal/data/role"
-	datasession "github.com/smilex/smilex-admin-gin/internal/data/session"
 	datatenant "github.com/smilex/smilex-admin-gin/internal/data/tenant"
-	datauser "github.com/smilex/smilex-admin-gin/internal/data/user"
 	"github.com/smilex/smilex-admin-gin/internal/server"
+	admissionsvc "github.com/smilex/smilex-admin-gin/internal/service/admission"
 	appusersvc "github.com/smilex/smilex-admin-gin/internal/service/appuser"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	blacklistsvc "github.com/smilex/smilex-admin-gin/internal/service/blacklist"
+	devicesvc "github.com/smilex/smilex-admin-gin/internal/service/device"
+	devmodelsvc "github.com/smilex/smilex-admin-gin/internal/service/devmodel"
 	exportsvc "github.com/smilex/smilex-admin-gin/internal/service/export"
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
-	merchantsvc "github.com/smilex/smilex-admin-gin/internal/service/merchant"
 	permsvc "github.com/smilex/smilex-admin-gin/internal/service/permission"
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
-	sessionsvc "github.com/smilex/smilex-admin-gin/internal/service/session"
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
-	usersvc "github.com/smilex/smilex-admin-gin/internal/service/user"
 )
 
 var bizSet = wire.NewSet(
-	bizuser.NewUsecase,
+	bizadmission.NewUsecase,
 	bizrole.NewUsecase,
 	bizperm.NewUsecase,
-	bizcaptcha.NewUsecase,
-	bizsession.NewUsecase,
 	bizlog.NewUsecase,
 	bizfile.NewUsecase,
 	bizblacklist.NewUsecase,
-	bizmerchant.NewUsecase,
 	biztenant.NewUsecase,
 	bizappuser.NewUsecase,
+	bizdevice.NewUsecase,
+	bizdevmodel.NewUsecase,
 	bizexport.NewUsecase,
 	bizexport.NewRegistry,
 	bizexport.NewUserExporter,
-	bizexport.NewLoginLogExporter,
 	bizexport.NewOpLogExporter,
 	auth.NewUsecase,
 	// 跨上下文最小依赖接口绑定（provider 与 bind 需同 set）
-	wire.Bind(new(auth.CaptchaVerifier), new(*bizcaptcha.Usecase)),
-	wire.Bind(new(auth.SessionManager), new(*bizsession.Usecase)),
-	wire.Bind(new(bizuser.SessionRevoker), new(*bizsession.Usecase)),
+	wire.Bind(new(auth.AdmissionReader), new(*bizadmission.Usecase)),
 )
 
 var dataRepoSet = wire.NewSet(
 	data.NewData,
 	data.NewRedisClient,
-	data.NewJWTIssuer,
 	data.NewAppTokenIssuer,
-	datauser.NewRepo,
+	data.NewRBACCache,
+	dataadmission.NewRepo,
 	datarole.NewRepo,
 	dataperm.NewRepo,
-	datasession.NewRepo,
 	datalog.NewRepo,
 	datafile.NewRepo,
 	datafile.NewStorageManager,
 	datablacklist.NewRepo,
-	datamerchant.NewRepo,
-	datamerchant.NewAPILogRepo,
 	datatenant.NewRepo,
 	dataappuser.NewRepo,
-	datacaptcha.NewStore,
 	dataexport.NewRepo,
 	dataexport.NewWorker,
-	// 跨上下文最小依赖接口绑定
-	wire.Bind(new(base64Captcha.Store), new(*datacaptcha.Store)),
-	wire.Bind(new(auth.UserStore), new(bizuser.Repo)),
-	wire.Bind(new(auth.RoleNameReader), new(bizrole.Repo)),
+	// 平台集成层（三类凭证 + 身份自省）
+	platform.NewAdminClient,
+	platform.NewIdentityClient,
+	platform.NewStorageClient,
+	platform.NewOpenAPIClient,
+	// 平台网关适配器
+	datadevice.NewGatewayAdapter,
+	datadevmodel.NewGatewayAdapter,
+	datatenant.NewSyncer,
+	datatenant.NewTenantAvailability,
+	dataadmission.NewPlatformUserReaderAdapter,
+	dataauth.NewIdentityAdapter,
+	// 跨上下文最小依赖接口绑定（provider 与 bind 需同 set）
+	wire.Bind(new(auth.IdentitySource), new(*dataauth.IdentityAdapter)),
 	wire.Bind(new(auth.PermissionReader), new(bizperm.Repo)),
+	wire.Bind(new(auth.RoleNameReader), new(bizrole.Repo)),
 	wire.Bind(new(bizlog.Repo), new(*datalog.Repo)),
 	wire.Bind(new(bizblacklist.Repo), new(*datablacklist.Repo)),
 	wire.Bind(new(bizblacklist.LoginProtector), new(*datablacklist.Repo)),
 	wire.Bind(new(bizexport.Enqueuer), new(*dataexport.Worker)),
+	wire.Bind(new(biztenant.PlatformSyncer), new(*datatenant.Syncer)),
+	wire.Bind(new(bizdevice.Gateway), new(*datadevice.GatewayAdapter)),
+	wire.Bind(new(bizdevmodel.Gateway), new(*datadevmodel.GatewayAdapter)),
+	wire.Bind(new(bizadmission.PlatformUserReader), new(*dataadmission.PlatformUserReaderAdapter)),
+	wire.Bind(new(bizadmission.DecisionCache), new(*data.RBACCache)),
+	wire.Bind(new(bizrole.DecisionCache), new(*data.RBACCache)),
 )
 
 var serviceSet = wire.NewSet(
 	authsvc.NewService,
-	usersvc.NewService,
+	admissionsvc.NewService,
 	rolesvc.NewService,
 	permsvc.NewService,
-	sessionsvc.NewService,
 	logsvc.NewService,
 	filesvc.NewService,
 	blacklistsvc.NewService,
 	exportsvc.NewService,
-	merchantsvc.NewService,
 	tenantsvc.NewService,
 	appusersvc.NewService,
+	devicesvc.NewService,
+	devmodelsvc.NewService,
 )
 
 var providerSet = wire.NewSet(bizSet, dataRepoSet, serviceSet, ProvideConfig, server.NewHTTPServer)

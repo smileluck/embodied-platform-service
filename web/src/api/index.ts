@@ -1,38 +1,37 @@
 import request from './request'
-import type { AppUser, BlacklistItem, CaptchaInfo, ExportRecord, FileInfo, LoginLogInfo, MenuHit, MenuNode, Merchant, MerchantAPILog, OnlineSession, OperationLogInfo, PageResult, Permission, R, Role, Tenant, TokenPair, UserInfo, LogPageResult } from './types'
+import type {
+  AdmissionUser, AppUser, BlacklistItem, DataEvent, Device, DeviceCommand, DeviceModel, DeviceShadow,
+  ExportRecord, FileInfo, LogPageResult, MenuHit, MenuNode, OperationLogInfo, PageResult, Permission,
+  R, Role, TelemetryHistory, Tenant, TMNode, TMVersion, UserInfo,
+} from './types'
 
-// ---- 认证 ----
-export const getCaptcha = () => request.get<R<CaptchaInfo>>('/auth/captcha')
-export const login = (data: { username: string; password: string; captcha_id: string; captcha_code: string; device_type?: string }) =>
-  request.post<R<TokenPair>>('/auth/login', data)
-export const refreshToken = (refresh_token: string) =>
-  request.post<R<TokenPair>>('/auth/refresh', { refresh_token })
-export const logout = () => request.post<R<null>>('/auth/logout')
+// ---- 认证（登录/刷新/登出直调平台，见 ./platform.ts；这里只保留本系统自身数据接口） ----
 export const getProfile = () =>
   request.get<R<{ user: UserInfo; permissions: Permission[] }>>('/auth/profile')
 export const getMenus = () => request.get<R<MenuNode[]>>('/menus')
 // 菜单搜索（顶栏命令面板）：后端在当前用户可见菜单内模糊匹配，空关键词返回空
 export const searchMenus = (kw: string) =>
   request.get<R<MenuHit[]>>('/menus/search', { params: { kw } })
-// 本人更新昵称/邮箱，返回更新后的完整个人信息
+// 本人更新昵称/邮箱（后端以本人平台 token 代理到平台）
 export const updateProfile = (data: { nickname?: string; email?: string }) =>
-  request.put<R<{ user: UserInfo; permissions: Permission[] }>>('/auth/profile', data)
-// 本人修改密码（校验旧密码）；成功后需重新登录
+  request.put<R<null>>('/auth/profile', data)
+// 本人修改密码（后端代理到平台；平台侧校验旧密码并吊销其他端会话）
 export const changePassword = (data: { old_password: string; new_password: string }) =>
   request.put<R<null>>('/auth/password', data)
 
-// ---- 用户 ----
+// ---- 用户准入（平台是唯一身份源，本地只管准入开关与角色） ----
 export const listUsers = (params: { page: number; page_size: number; username?: string; status?: number }) =>
-  request.get<R<PageResult<UserInfo>>>('/users', { params })
-export const createUser = (data: Partial<UserInfo> & { password: string }) =>
-  request.post<R<UserInfo>>('/users', data)
-export const updateUser = (id: number, data: Partial<UserInfo>) =>
-  request.put<R<null>>(`/users/${id}`, data)
-export const deleteUser = (id: number) => request.delete<R<null>>(`/users/${id}`)
+  request.get<R<PageResult<AdmissionUser>>>('/users', { params })
+export const getUser = (id: number) => request.get<R<AdmissionUser>>(`/users/${id}`)
+// 开/关准入（关闭即同步吊销该用户对本系统的访问授权，即时生效）
+export const setUserAdmission = (id: number, enabled: boolean) =>
+  request.put<R<null>>(`/users/${id}/admission`, { enabled })
 export const setUserRoles = (id: number, role_ids: number[]) =>
   request.put<R<null>>(`/users/${id}/roles`, { role_ids })
-export const resetPassword = (id: number, password: string) =>
-  request.put<R<null>>(`/users/${id}/password`, { password })
+// 移除准入（删除投影；平台账号不受影响）
+export const deleteUser = (id: number) => request.delete<R<null>>(`/users/${id}`)
+// 从平台拉取用户列表：预建投影（默认停用）/刷新快照
+export const syncUsersFromPlatform = () => request.post<R<{ created: number; refreshed: number }>>('/users/sync')
 
 // ---- 角色 ----
 export const listRoles = (params: { page: number; page_size: number; name?: string }) =>
@@ -57,44 +56,13 @@ export const updatePermission = (id: number, data: Partial<Permission>) =>
   request.put<R<null>>(`/permissions/${id}`, data)
 export const deletePermission = (id: number) => request.delete<R<null>>(`/permissions/${id}`)
 
-// ---- 在线用户 ----
-export const listOnlineUsers = (params: { page: number; page_size: number; username?: string; device?: string }) =>
-  request.get<R<PageResult<OnlineSession>>>('/online-users', { params })
-// 踢单个会话下线（某端）
-export const kickOnlineSession = (sid: string) => request.delete<R<null>>(`/online-users/${sid}`)
-// 踢某用户全部端下线
-export const kickUserSessions = (userId: number) => request.delete<R<null>>(`/users/${userId}/sessions`)
-
 // ---- 日志 ----
 // start/end 为 unix 秒级时间戳
-export const listLoginLogs = (params: { page: number; page_size: number; username?: string; ip?: string; status?: number; start?: number; end?: number }) =>
-  request.get<R<LogPageResult<LoginLogInfo>>>('/login-logs', { params })
-export const clearLoginLogs = () => request.delete<R<{ deleted: number }>>('/login-logs')
 export const listOperationLogs = (params: { page: number; page_size: number; username?: string; method?: string; kw?: string; start?: number; end?: number }) =>
   request.get<R<LogPageResult<OperationLogInfo>>>('/operation-logs', { params })
 export const clearOperationLogs = () => request.delete<R<{ deleted: number }>>('/operation-logs')
 
-// ---- 商户（开放平台）----
-export const listMerchants = (params: { page: number; page_size: number; name?: string; code?: string; app_key?: string; status?: number }) =>
-  request.get<R<PageResult<Merchant>>>('/merchants', { params })
-// 创建成功时 app_secret 仅此一次明文返回，前端需弹窗展示并提示保存
-export const createMerchant = (data: { name: string; code: string; contact_name?: string; contact_phone?: string; contact_email?: string; remark?: string }) =>
-  request.post<R<Merchant & { app_secret: string }>>('/merchants', data)
-export const getMerchant = (id: number) => request.get<R<Merchant>>(`/merchants/${id}`)
-// 联系人字段留空表示不修改（列表/详情返回的均为脱敏值，不可原样回传）
-export const updateMerchant = (id: number, data: { name: string; contact_name?: string; contact_phone?: string; contact_email?: string; remark?: string }) =>
-  request.put<R<null>>(`/merchants/${id}`, data)
-export const deleteMerchant = (id: number) => request.delete<R<null>>(`/merchants/${id}`)
-// 重置密钥：新 app_secret 仅此一次明文返回
-export const resetMerchantSecret = (id: number) =>
-  request.put<R<{ app_key: string; app_secret: string }>>(`/merchants/${id}/secret`)
-export const setMerchantStatus = (id: number, status: number) =>
-  request.put<R<null>>(`/merchants/${id}/status`, { status })
-// start/end 为 unix 秒级时间戳
-export const listMerchantAPILogs = (params: { page: number; page_size: number; app_key?: string; path?: string; status_code?: number; start?: number; end?: number }) =>
-  request.get<R<PageResult<MerchantAPILog>>>('/merchant-api-logs', { params })
-
-// ---- 租户 ----
+// ---- 租户（创建/更新/删除与平台强一致同步） ----
 export const listTenants = (params: { page: number; page_size: number; name?: string; code?: string; status?: number }) =>
   request.get<R<PageResult<Tenant>>>('/tenants', { params })
 export const createTenant = (data: { name: string; code: string; contact_name?: string; contact_phone?: string; remark?: string }) =>
@@ -106,6 +74,8 @@ export const updateTenant = (id: number, data: { name: string; contact_name?: st
 export const deleteTenant = (id: number) => request.delete<R<null>>(`/tenants/${id}`)
 export const setTenantStatus = (id: number, status: number) =>
   request.put<R<null>>(`/tenants/${id}/status`, { status })
+// 存量补链：未同步租户在平台创建/绑定并回填 platform_id
+export const syncTenant = (id: number) => request.post<R<Tenant>>(`/tenants/${id}/sync`)
 
 // ---- 应用用户 ----
 // kw 模糊匹配用户名/昵称，phone 精确匹配，tenant_id 按租户筛选
@@ -124,6 +94,50 @@ export const setAppUserStatus = (id: number, status: number) =>
 export const resetAppUserPassword = (id: number, password: string) =>
   request.put<R<null>>(`/app-users/${id}/password`, { password })
 
+// ---- 设备（平台开放面代理；租户范围由平台按商户绑定服务端收敛） ----
+export const listDevices = (params: { page: number; page_size: number; kw?: string; model_id?: number; status?: string; online?: string; transport?: string }) =>
+  request.get<R<PageResult<Device>>>('/devices', { params })
+export const registerDevice = (data: {
+  sn: string; name: string; model_id?: number; tenant_id: number
+  firmware_version?: string; hardware_version?: string; transport?: string
+}) => request.post<R<Device>>('/devices', data)
+export const getDevice = (id: number) => request.get<R<Device>>(`/devices/${id}`)
+export const getDeviceShadow = (id: number) => request.get<R<DeviceShadow>>(`/devices/${id}/shadow`)
+export const listDeviceCommands = (id: number, params: { page: number; page_size: number; status?: string }) =>
+  request.get<R<PageResult<DeviceCommand>>>(`/devices/${id}/commands`, { params })
+// priority 必填：0 急停（高危）/1 运维 /2 Agent /3 业务
+export const issueDeviceCommand = (id: number, data: { command_type: string; params?: any; priority: number; idempotency_key?: string }) =>
+  request.post<R<DeviceCommand>>(`/devices/${id}/commands`, data)
+export const getDeviceCommand = (id: number) => request.get<R<DeviceCommand>>(`/device-commands/${id}`)
+// metric/from(RFC3339)/to/interval_seconds/marker/limit
+export const getDeviceTelemetry = (id: number, params: Record<string, any>) =>
+  request.get<R<TelemetryHistory>>(`/devices/${id}/telemetry`, { params })
+// 离散事件游标轮询：上轮最大 id 作下轮 since_id
+export const listDeviceDataEvents = (id: number, params: { since_id?: number; limit?: number }) =>
+  request.get<R<{ list: DataEvent[] }>>(`/devices/${id}/data-events`, { params })
+
+// ---- 设备型号（平台管理面代理；创建须绑物模型节点+已发布版本） ----
+export const listDeviceModels = (params: { page: number; page_size: number; kw?: string; status?: number }) =>
+  request.get<R<PageResult<DeviceModel>>>('/device-models', { params })
+export const createDeviceModel = (data: {
+  code: string; name: string; tm_node_id: number; tm_version_id: number
+  manufacturer?: string; description?: string; transport?: string
+}) => request.post<R<DeviceModel>>('/device-models', data)
+export const getDeviceModel = (id: number) => request.get<R<DeviceModel>>(`/device-models/${id}`)
+export const updateDeviceModel = (id: number, data: {
+  name: string; tm_version_id: number; status: number
+  manufacturer?: string; description?: string; transport?: string
+}) => request.put<R<null>>(`/device-models/${id}`, data)
+export const deleteDeviceModel = (id: number) => request.delete<R<null>>(`/device-models/${id}`)
+
+// ---- 物模型只读选择器（型号创建表单数据源） ----
+// layer=model 为型号可绑定的层；layer 留空返回全部层
+export const listThingModelNodes = (params?: { layer?: string; kw?: string }) =>
+  request.get<R<TMNode[]>>('/thing-models', { params })
+// 节点的已发布版本（后端已过滤 published）
+export const listThingModelVersions = (nodeId: number) =>
+  request.get<R<TMVersion[]>>(`/thing-models/${nodeId}/versions`)
+
 // ---- IP 黑名单 ----
 export const listBlacklist = (params: { page: number; page_size: number; ip?: string }) =>
   request.get<R<PageResult<BlacklistItem>>>('/ip-blacklist', { params })
@@ -141,13 +155,13 @@ export const uploadFile = (file: File) => {
   return request.post<R<FileInfo>>('/files', fd, { timeout: 0 })
 }
 export const deleteFile = (id: number) => request.delete<R<null>>(`/files/${id}`)
-// 下载/预览均走鉴权接口：云存储会 302 到预签名 URL（axios 自动跟随），统一按 blob 取回
+// 下载/预览均走鉴权接口：平台存储会 302 到预签名 URL（axios 自动跟随），统一按 blob 取回
 export const getFileBlob = (id: number, download = false) =>
   request.get<Blob>(`/files/${id}/raw`, { responseType: 'blob', timeout: 0, params: download ? { download: 1 } : {} })
 
 // ---- 异步导出 ----
 // 提交导出任务：params 为当前列表过滤条件（剔除 page/page_size 与空值）；429 表示队列满
-export const createExport = (biz: 'users' | 'login-logs' | 'operation-logs', params: Record<string, any>) => {
+export const createExport = (biz: 'users' | 'operation-logs', params: Record<string, any>) => {
   const query: Record<string, any> = {}
   for (const [k, v] of Object.entries(params)) {
     if (k === 'page' || k === 'page_size') continue

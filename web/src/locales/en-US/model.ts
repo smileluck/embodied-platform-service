@@ -1,0 +1,23 @@
+// model module messages (device models proxied via the platform admin API)
+export default {
+  kwPlaceholder: 'Code / name',
+  newModel: 'New Model',
+  editModel: 'Edit Model',
+  code: 'Model Code',
+  codePlaceholder: 'Unique code, immutable after creation',
+  codeRequired: 'Please enter the model code',
+  name: 'Model Name',
+  nameRequired: 'Please enter the model name',
+  tmBinding: 'Thing Model',
+  tmNode: 'Thing-model node',
+  tmNodePlaceholder: 'Pick a model-layer node',
+  tmNodeRequired: 'Please select a thing-model node',
+  tmVersion: 'Thing-model version',
+  tmVersionPlaceholder: 'Pick a published version',
+  tmVersionRequired: 'Please select a thing-model version',
+  manufacturer: 'Manufacturer',
+  publishedAt: 'Published',
+  listFailed: 'Failed to load models',
+  deleteConfirmTitle: 'Delete confirmation',
+  deleteConfirmContent: 'Delete model "{name}"? The platform-side model will be deleted too. This cannot be undone.',
+}

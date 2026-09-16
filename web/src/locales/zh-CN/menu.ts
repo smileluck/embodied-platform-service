@@ -3,6 +3,7 @@ export default {
   login: '登录',
   profile: '个人中心',
   exportRecords: '导出记录',
+  device: '设备详情',
   notFound: '页面不存在',
   serverError: '服务异常',
   home: '首页',

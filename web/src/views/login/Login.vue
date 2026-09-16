@@ -91,9 +91,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NForm, NFormItem, NInput, NButton, NCheckbox, NDropdown, NIcon, useMessage, type FormInst, type DropdownOption } from 'naive-ui'
 import { LanguageOutline } from '@vicons/ionicons5'
-import { getCaptcha } from '../../api'
+import { platformCaptcha } from '../../api/platform'
 import { useUserStore } from '../../stores/user'
-import { setLocale, type AppLocale } from '../../locales'
+import { getLocale, setLocale, type AppLocale } from '../../locales'
 import MapFlow3D from './MapFlow3D.vue'
 import PulseWave from './PulseWave.vue'
 
@@ -135,21 +135,21 @@ const remember = ref(false)
 async function loadCaptcha() {
   form.captchaCode = ''
   try {
-    const { data: resp } = await getCaptcha()
-    // 服务端停用验证码：隐藏表单，登录时提交空验证码即可
-    if (resp.data.enabled === false) {
+    const resp = await platformCaptcha(getLocale())
+    // 平台停用验证码：隐藏表单，登录时提交空验证码即可
+    if (resp.enabled === false) {
       captchaEnabled.value = false
       captchaId.value = ''
       captchaImage.value = ''
       return
     }
     captchaEnabled.value = true
-    captchaId.value = resp.data.captcha_id
-    captchaImage.value = resp.data.captcha_image
+    captchaId.value = resp.captcha_id
+    captchaImage.value = resp.captcha_image
   } catch {
     captchaId.value = ''
     captchaImage.value = ''
-    message.error(t('login.captchaLoadFailed'))
+    captchaEnabled.value = false // 平台不可达时隐藏验证码，让登录错误自己暴露问题
   }
 }
 
@@ -179,7 +179,7 @@ function persistRemembered() {
 }
 
 async function onLogin() {
-  // 防重复提交：会话同端互斥下，连续两次登录会让首次的导航因会话被顶替而 401 踢回登录页
+  // 防重复提交：连续两次登录会让首次的导航因平台会话同端互斥被顶替而异常
   if (loading.value) return
   try {
     await formRef.value?.validate()
@@ -188,14 +188,16 @@ async function onLogin() {
   }
   loading.value = true
   try {
+    // 登录直调平台（token 双用：既调本系统也直调平台）
     await userStore.login(form.username, form.password, captchaId.value, form.captchaCode)
     persistRemembered()
     message.success(t('login.loginSuccess'))
     // 不在这里 loadUserContext——交由路由守卫统一加载并注册动态路由
+    // （若本系统准入未开启，守卫会捕获 403 并回登录页提示「未准入」）
     router.push('/')
   } catch (e: any) {
-    const msg: string = e?.response?.data?.msg || t('login.loginFailed')
-    message.error(/captcha/i.test(msg) ? t('login.captchaError') : msg)
+    const msg: string = e?.response?.data?.msg || e?.message || t('login.loginFailed')
+    message.error(/captcha|验证码/i.test(msg) ? t('login.captchaError') : msg)
     // 验证码一次性，登录失败（无论原因）后必须换新
     loadCaptcha()
   } finally {
@@ -206,9 +208,13 @@ async function onLogin() {
 onMounted(() => {
   restoreRemembered()
   loadCaptcha()
-  // 会话失效被踢回登录页（同端新登录顶替 / 被管理员下线 / 长期未活跃过期）
+  // 会话失效被踢回登录页（平台侧吊销/被顶替/长期未活跃过期）
   if (route.query.reason === 'expired') {
     message.warning(t('login.sessionExpired'))
+  }
+  // 平台身份有效但本系统准入未开启：提示联系管理员开启
+  if (route.query.reason === 'notAdmitted') {
+    message.warning(t('login.notAdmitted'))
   }
 })
 </script>

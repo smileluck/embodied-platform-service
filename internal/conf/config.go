@@ -7,16 +7,16 @@ import (
 
 // Bootstrap 应用根配置
 type Bootstrap struct {
-	Server Server `mapstructure:"server"`
-	DB     DB     `mapstructure:"db"`
-	JWT    JWT    `mapstructure:"jwt"`
-	Redis  Redis  `mapstructure:"redis"`
-	Auth    Auth    `mapstructure:"auth"`
-	Log     Log     `mapstructure:"log"`
-	Cache   Cache   `mapstructure:"cache"`
-	Storage Storage `mapstructure:"storage"`
-	Export  Export  `mapstructure:"export"`
-	OpenAPI OpenAPI `mapstructure:"openapi"`
+	Server   Server   `mapstructure:"server"`
+	DB       DB       `mapstructure:"db"`
+	JWT      JWT      `mapstructure:"jwt"`
+	Redis    Redis    `mapstructure:"redis"`
+	Auth     Auth     `mapstructure:"auth"`
+	Log      Log      `mapstructure:"log"`
+	Cache    Cache    `mapstructure:"cache"`
+	Storage  Storage  `mapstructure:"storage"`
+	Export   Export   `mapstructure:"export"`
+	Platform Platform `mapstructure:"platform"`
 }
 
 type Server struct {
@@ -83,13 +83,43 @@ type Cache struct {
 	L2Enabled bool `mapstructure:"l2Enabled"`
 }
 
-// OpenAPI 开放 API 验签配置（商户 HMAC 签名）
-type OpenAPI struct {
-	// SignSkewSeconds 请求时间戳允许的最大偏差（秒），超出即拒绝（防重放窗口）
-	SignSkewSeconds int `mapstructure:"signSkewSeconds"`
-	// NonceTTLSeconds nonce 防重放去重的 Redis 键 TTL（秒），应不小于 SignSkewSeconds
-	NonceTTLSeconds int `mapstructure:"nonceTtlSeconds"`
+// Platform embodied-platform 平台接入配置。
+// 平台是唯一身份源（登录在本系统前端直调平台，本系统后端只做 token 自省 + 本地准入投影）；
+// 设备/型号走平台开放面（商户 HMAC）与管理面（服务账号 JWT）；文件存储走 storage-gateway。
+type Platform struct {
+	// BaseURL 平台主服务地址（/api/v1 与 /open-api/v1 同源），形如 http://host:27080
+	BaseURL string `mapstructure:"baseUrl"`
+	// AppKey / AppSecret 商户凭证（平台商户管理创建，AppSecret 明文仅创建时返回一次）
+	AppKey    string `mapstructure:"appKey"`
+	AppSecret string `mapstructure:"appSecret"`
+	// Admin 管理面服务账号：租户同步 / 型号管理 / 平台用户列表拉取（需平台侧开通并配置 RBAC）
+	Admin PlatformAdmin `mapstructure:"admin"`
+	// Storage storage-gateway 直连（文件存储后端；API Key 由平台管理端 /api/v1/storage/api-keys 签发）
+	Storage PlatformStorage `mapstructure:"storage"`
+	// BootstrapAdmins 免准入引导账号（平台用户名）：首次登录自动创建投影并绑定超管角色，解决冷启动
+	BootstrapAdmins []string `mapstructure:"bootstrapAdmins"`
+	// TimeoutSeconds 调用平台的 HTTP 超时（秒）
+	TimeoutSeconds int `mapstructure:"timeoutSeconds"`
 }
+
+// PlatformAdmin 平台管理面服务账号
+type PlatformAdmin struct {
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+}
+
+// PlatformStorage storage-gateway OpenAPI 接入（Bearer {apiKeyId}:{apiSecret}）
+type PlatformStorage struct {
+	// BaseURL 网关地址（前缀 /openapi/storage/v1 由客户端拼接），形如 http://host:27091
+	BaseURL   string `mapstructure:"baseUrl"`
+	APIKeyID  string `mapstructure:"apiKeyId"`
+	APISecret string `mapstructure:"apiSecret"`
+	// Bucket 文件管理统一使用的桶（需在 API Key scope 内）
+	Bucket string `mapstructure:"bucket"`
+}
+
+// Enabled 平台接入是否已配置（BaseURL 非空视为启用；未配置时同步类操作报错）
+func (p Platform) Enabled() bool { return p.BaseURL != "" }
 
 type Log struct {
 	// RetentionDays 登录/操作日志保留天数，超期每日自动清理；0 表示永久保留
@@ -116,59 +146,17 @@ type Export struct {
 }
 
 // Storage 文件存储配置：driver 决定新上传写入的后端；
-// 读/删按文件记录落库时的 driver 解析对应后端，因此切换 driver 后旧文件仍可访问（旧后端配置需保留）
+// 读/删按文件记录落库时的 driver 解析对应后端，因此切换 driver 后旧文件仍可访问
 type Storage struct {
-	Driver            string   `mapstructure:"driver"` // local | oss | cos | tos | minio
-	MaxSizeMB         int64    `mapstructure:"maxSizeMB"`
-	SignExpireMinutes int      `mapstructure:"signExpireMinutes"` // 云存储预签名下载 URL 有效期
-	DenyExts          []string `mapstructure:"denyExts"`          // 禁止上传的扩展名（空则用内置黑名单）
+	Driver            string       `mapstructure:"driver"` // platform | local（平台存储未配置时自动降级 local）
+	MaxSizeMB         int64        `mapstructure:"maxSizeMB"`
+	SignExpireMinutes int          `mapstructure:"signExpireMinutes"` // 预签名下载 URL 有效期（分钟）
+	DenyExts          []string     `mapstructure:"denyExts"`          // 禁止上传的扩展名（空则用内置黑名单）
 	Local             LocalStorage `mapstructure:"local"`
-	OSS               OSSStorage   `mapstructure:"oss"`
-	COS               COSStorage   `mapstructure:"cos"`
-	TOS               TOSStorage   `mapstructure:"tos"`
-	MinIO             MinIOStorage `mapstructure:"minio"`
 }
 
 type LocalStorage struct {
-	Dir string `mapstructure:"dir"` // 本地存储根目录
-}
-
-// OSSStorage 阿里云 OSS
-type OSSStorage struct {
-	Endpoint        string `mapstructure:"endpoint"`
-	Bucket          string `mapstructure:"bucket"`
-	AccessKeyID     string `mapstructure:"accessKeyId"`
-	AccessKeySecret string `mapstructure:"accessKeySecret"`
-	Prefix          string `mapstructure:"prefix"` // 对象 key 前缀（如 uploads/）
-}
-
-// COSStorage 腾讯云 COS
-type COSStorage struct {
-	Region    string `mapstructure:"region"`
-	Bucket    string `mapstructure:"bucket"` // 形如 example-1250000000
-	SecretID  string `mapstructure:"secretId"`
-	SecretKey string `mapstructure:"secretKey"`
-	Prefix    string `mapstructure:"prefix"`
-}
-
-// TOSStorage 火山引擎 TOS
-type TOSStorage struct {
-	Endpoint  string `mapstructure:"endpoint"`
-	Region    string `mapstructure:"region"`
-	Bucket    string `mapstructure:"bucket"`
-	AccessKey string `mapstructure:"accessKey"`
-	SecretKey string `mapstructure:"secretKey"`
-	Prefix    string `mapstructure:"prefix"`
-}
-
-// MinIOStorage 自定义 S3 兼容存储（如 JuiceFS + MinIO）
-type MinIOStorage struct {
-	Endpoint  string `mapstructure:"endpoint"` // 不含 scheme，如 127.0.0.1:9000
-	Bucket    string `mapstructure:"bucket"`
-	AccessKey string `mapstructure:"accessKey"`
-	SecretKey string `mapstructure:"secretKey"`
-	UseSSL    bool   `mapstructure:"useSSL"`
-	Prefix    string `mapstructure:"prefix"`
+	Dir string `mapstructure:"dir"` // 本地存储根目录（降级写入后端 + 历史存量文件读取）
 }
 
 // Load 从指定路径加载配置
@@ -190,14 +178,13 @@ func Load(path string) (*Bootstrap, error) {
 	v.SetDefault("export.maxRows", 100000)
 	v.SetDefault("export.retentionDays", 7)
 	v.SetDefault("export.queueSize", 64)
-	// 默认值：文件存储默认本地驱动，上传上限 20MB，预签名 URL 15 分钟
-	v.SetDefault("storage.driver", "local")
+	// 默认值：文件上传上限 20MB，预签名 URL 15 分钟，本地降级目录 ./data/uploads
 	v.SetDefault("storage.maxSizeMB", 20)
 	v.SetDefault("storage.signExpireMinutes", 15)
 	v.SetDefault("storage.local.dir", "./data/uploads")
-	// 默认值：开放 API 签名时间戳允许偏差 300 秒，nonce 防重放 TTL 600 秒
-	v.SetDefault("openapi.signSkewSeconds", 300)
-	v.SetDefault("openapi.nonceTtlSeconds", 600)
+	// 默认值：平台调用超时 15s；文件桶缺省 default
+	v.SetDefault("platform.timeoutSeconds", 15)
+	v.SetDefault("platform.storage.bucket", "default")
 	if err := v.ReadInConfig(); err != nil {
 		return nil, err
 	}

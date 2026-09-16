@@ -47,7 +47,9 @@ func (s *Service) Update(ctx context.Context, id uint, req UpdateRequest) error 
 
 func (s *Service) Delete(ctx context.Context, id uint) error { return s.uc.Delete(ctx, id) }
 
-func (s *Service) Get(ctx context.Context, id uint) (*bizperm.Permission, error) { return s.uc.Get(ctx, id) }
+func (s *Service) Get(ctx context.Context, id uint) (*bizperm.Permission, error) {
+	return s.uc.Get(ctx, id)
+}
 
 func (s *Service) List(ctx context.Context, q bizperm.Query, page, pageSize int) ([]*bizperm.Permission, interface{}, error) {
 	return s.uc.List(ctx, q, page, pageSize)

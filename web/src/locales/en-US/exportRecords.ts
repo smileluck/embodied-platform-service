@@ -19,7 +19,6 @@ export default {
   },
   biz: {
     user: 'User List',
-    loginLog: 'Login Logs',
     opLog: 'Operation Logs',
   },
 }

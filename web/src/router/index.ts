@@ -47,9 +47,14 @@ router.beforeEach(async (to) => {
       // '/' 落到第一个菜单
       const target = to.path === '/' ? firstPath : to.path
       return { path: target, query: to.query, replace: true }
-    } catch {
-      // token/会话失效（过期、被顶替、被下线、JWT 密钥更换）：
-      // 轻量清态（不发网络请求），携带原因回登录页
+    } catch (e: any) {
+      // 403 = 平台身份有效但本系统准入未开启（区别于 401 会话失效）；
+      // 清态回登录页并提示需管理员开启准入
+      if (e?.response?.status === 403) {
+        userStore.clearAuth()
+        return { path: '/login', query: { reason: 'notAdmitted' }, replace: true }
+      }
+      // token/会话失效（过期、被吊销、平台不可达）：轻量清态（不发网络请求），携带原因回登录页
       userStore.clearAuth()
       return loginRedirect()
     }

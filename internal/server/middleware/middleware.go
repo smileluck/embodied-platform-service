@@ -1,12 +1,17 @@
-// Package middleware HTTP 中间件：JWT 认证、RBAC 鉴权、CORS。
+// Package middleware HTTP 中间件：平台认证（token 自省 + 本地准入）、RBAC 鉴权、CORS。
 package middleware
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
@@ -42,10 +47,17 @@ func CORS() gin.HandlerFunc {
 
 const ctxSubjectKey = "auth.subject"
 
-// JWT 认证：Bearer token -> Subject 存入 context。
-// 会话校验：token 携带 sid，仅当对应会话存活（未被吊销/顶替/过期）时放行；
-// Redis 故障时 fail-closed，会话一律视为无效。
-func JWT(authSvc *authsvc.Service) gin.HandlerFunc {
+const ctxTokenKey = "auth.token"
+
+// PlatformAuth 平台认证：Bearer 平台 token →（缓存）平台 profile 自省 → 本地准入投影校验。
+//
+// 平台是唯一身份源（token 由前端直调平台登录取得，双用于两系统）：
+//   - 自省结果（平台用户 ID/用户名等不可变身份）按 token 哈希缓存 30-60s，
+//     平台侧吊销/改密在缓存 TTL 内感知（与平台统一账号决策一致）；
+//   - 准入状态每请求查本地投影：禁用/删除投影后立即 403（无缓存，即时生效）；
+//   - 平台不可达时 fail-closed（503），不降级放行；
+//   - bootstrapAdmins 内的平台账号首登自动建投影并绑超管角色（冷启动引导）。
+func PlatformAuth(authSrv *authsvc.Service, admissionUC *bizadmission.Usecase, idCache *cache.TwoLevel) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h := c.GetHeader("Authorization")
 		token, ok := strings.CutPrefix(h, "Bearer ")
@@ -54,23 +66,67 @@ func JWT(authSvc *authsvc.Service) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		s, err := authSvc.ParseSubject(token)
+		sum := sha256.Sum256([]byte(token))
+		key := "t:" + hex.EncodeToString(sum[:16])
+		val, err := idCache.Load(c.Request.Context(), key, func(ctx context.Context) (string, error) {
+			sub, err := authSrv.Introspect(ctx, token)
+			if err != nil {
+				return "", err
+			}
+			b, err := json.Marshal(sub)
+			if err != nil {
+				return "", err
+			}
+			return string(b), nil
+		})
 		if err != nil {
+			// loader 出错不回填缓存；按哨兵错误分类响应
+			switch {
+			case errors.Is(err, auth.ErrInvalidToken):
+				response.Unauthorized(c, "invalid or expired token")
+			case errors.Is(err, auth.ErrPlatformUnavailable):
+				response.ServerError(c, "platform unavailable")
+			default:
+				response.ServerError(c, "authenticate failed")
+			}
+			c.Abort()
+			return
+		}
+		var sub auth.Subject
+		if err := json.Unmarshal([]byte(val), &sub); err != nil || sub.UserID == 0 {
 			response.Unauthorized(c, "invalid or expired token")
 			c.Abort()
 			return
 		}
-		if s.SessionID == "" || !authSvc.ValidateSession(c.Request.Context(), s.SessionID) {
-			response.Unauthorized(c, "session revoked")
+
+		// 本地准入：未建投影的引导账号自动放行（幂等），其余未投影/被停用一律 403
+		proj, err := admissionUC.Admission(c.Request.Context(), sub.UserID)
+		if err != nil {
+			response.ServerError(c, "admission lookup failed")
 			c.Abort()
 			return
 		}
-		c.Set(ctxSubjectKey, s)
+		if proj == nil && admissionUC.IsBootstrap(sub.Username) {
+			proj, err = admissionUC.EnsureBootstrap(c.Request.Context(), sub.UserID, sub.Username)
+			if err != nil {
+				response.ServerError(c, "bootstrap admission failed")
+				c.Abort()
+				return
+			}
+		}
+		if proj == nil || !proj.Enabled {
+			response.Forbidden(c, "account not admitted to this console")
+			c.Abort()
+			return
+		}
+
+		c.Set(ctxSubjectKey, &sub)
+		c.Set(ctxTokenKey, token)
 		c.Next()
 	}
 }
 
-// Subject 从 context 取认证主体（JWT 中间件之后可用）
+// Subject 从 context 取认证主体（PlatformAuth 中间件之后可用；UserID 为平台用户 ID）
 func Subject(c *gin.Context) *auth.Subject {
 	if v, ok := c.Get(ctxSubjectKey); ok {
 		if s, ok := v.(*auth.Subject); ok {
@@ -78,6 +134,16 @@ func Subject(c *gin.Context) *auth.Subject {
 		}
 	}
 	return nil
+}
+
+// Token 从 context 取当前请求的平台 token（代理平台自身数据接口用）
+func Token(c *gin.Context) string {
+	if v, ok := c.Get(ctxTokenKey); ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
 }
 
 const ctxAppSubjectKey = "app.subject"
@@ -126,7 +192,8 @@ func AppSubject(c *gin.Context) *appSubject {
 	return nil
 }
 
-// RBAC 接口鉴权（二级缓存：L1 进程内存 + L2 Redis，减少查库；一致性由短 TTL 兜底）
+// RBAC 接口鉴权（二级缓存：L1 进程内存 + L2 Redis，减少查库；一致性由短 TTL 兜底 +
+// 准入/角色/权限变更时整体失效）。UserID 为平台用户 ID。
 func RBAC(authSvc *authsvc.Service, cache *cache.TwoLevel) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		s := Subject(c)

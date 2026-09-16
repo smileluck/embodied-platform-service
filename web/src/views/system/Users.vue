@@ -2,130 +2,111 @@
   <!-- 搜索栏独立卡片：可折叠，重置/搜索按钮在卡片右下角 -->
   <SearchCard storage-key="users" @search="load" @reset="resetQuery">
     <n-input v-model:value="query.username" :placeholder="t('user.username')" clearable style="width: 180px" @keyup.enter="load" />
+    <n-select v-model:value="query.status" :options="statusOptions" :placeholder="t('user.admissionStatus')" clearable style="width: 140px" />
   </SearchCard>
 
   <n-card>
     <template #header>
       <div class="page-actions">
         <n-button ghost :loading="exporting" @click="doExport" v-permission="['user:export']">{{ t('user.export') }}</n-button>
-        <n-button type="primary" ghost @click="openCreate" v-permission="['user:create']">{{ t('user.newUser') }}</n-button>
+        <n-button type="primary" ghost :loading="syncing" @click="doSync" v-permission="['user:sync']">{{ t('user.sync') }}</n-button>
       </div>
     </template>
 
+    <!-- 说明：账号体系在 embodied-platform 上（平台是唯一身份源），此处只管理「谁能进入本系统」 -->
     <n-data-table :columns="columns" :data="rows" :loading="loading" :pagination="pagination" paginate-single-page remote />
   </n-card>
 
-  <!-- 新增/编辑 -->
-  <n-modal v-model:show="showModal" preset="dialog" :title="editing ? t('user.editUser') : t('user.newUser')" style="width: 480px">
-    <n-form ref="formRef" :model="form" :rules="rules" label-placement="left" label-width="80">
-      <n-form-item :label="t('user.username')" path="username" v-if="!editing">
-        <n-input v-model:value="form.username" :placeholder="t('user.usernamePlaceholder')" />
-      </n-form-item>
-      <n-form-item :label="t('user.password')" path="password" v-if="!editing">
-        <n-input v-model:value="form.password" type="password" :maxlength="20" :placeholder="t('user.passwordPlaceholder')" />
-      </n-form-item>
-      <n-form-item :label="t('user.nickname')" path="nickname">
-        <n-input v-model:value="form.nickname" :maxlength="20" show-word-limit :placeholder="t('user.nicknamePlaceholder')" />
-      </n-form-item>
-      <n-form-item :label="t('user.phone')" path="phone">
-        <n-input v-model:value="form.phone" :maxlength="32" :placeholder="t('user.phonePlaceholder')" />
-      </n-form-item>
-      <n-form-item :label="t('user.email')" path="email"><n-input v-model:value="form.email" :placeholder="t('user.emailPlaceholder')" /></n-form-item>
-      <n-form-item :label="t('user.role')">
-        <n-select v-model:value="form.role_ids" multiple :options="roleOptions" :disabled="editing && !userStore.has('user:setRoles')" />
-      </n-form-item>
-      <n-form-item :label="t('common.status')" v-if="editing">
-        <n-switch v-model:value="form.statusOn" :checked-value="1" :unchecked-value="0" />
-      </n-form-item>
-    </n-form>
+  <!-- 分配角色 -->
+  <n-modal v-model:show="showRoles" preset="dialog" :title="t('user.setRoles')" style="width: 440px">
+    <p class="modal-hint">{{ t('user.rolesHint') }}</p>
+    <n-select v-model:value="roleIds" multiple :options="roleOptions" />
     <template #action>
-      <n-button @click="showModal = false">{{ t('common.cancel') }}</n-button>
-      <n-button type="primary" :loading="saving" @click="save">{{ t('common.confirm') }}</n-button>
-    </template>
-  </n-modal>
-
-  <!-- 重置密码 -->
-  <n-modal v-model:show="showPwd" preset="dialog" :title="t('user.resetPassword')" style="width: 420px">
-    <n-input v-model:value="newPassword" type="password" :maxlength="20" :placeholder="t('user.newPasswordPlaceholder')" />
-    <template #action>
-      <n-button @click="showPwd = false">{{ t('common.cancel') }}</n-button>
-      <n-button type="primary" @click="savePwd">{{ t('common.confirm') }}</n-button>
+      <n-button @click="showRoles = false">{{ t('common.cancel') }}</n-button>
+      <n-button type="primary" :loading="saving" @click="saveRoles">{{ t('common.confirm') }}</n-button>
     </template>
   </n-modal>
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref, type VNode } from 'vue'
-import { NCard, NInput, NButton, NDataTable, NModal, NForm, NFormItem, NSelect, NSwitch, NTag, useMessage, useDialog, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
+import { h, onMounted, reactive, ref } from 'vue'
+import { NCard, NInput, NButton, NDataTable, NModal, NSelect, NSwitch, NTag, useMessage, useDialog, type DataTableColumns } from 'naive-ui'
 import { renderActions, type TableAction } from '../../utils/tableActions'
 import SearchCard from '../../components/SearchCard.vue'
 import { useI18n } from 'vue-i18n'
-import { createUser, createExport, deleteUser, listRoles, listUsers, resetPassword, setUserRoles, updateUser } from '../../api'
+import { createExport, deleteUser, listRoles, listUsers, setUserAdmission, setUserRoles, syncUsersFromPlatform } from '../../api'
 import { usePagination } from '../../utils/pagination'
-import { useUserStore } from '../../stores/user'
-import type { UserInfo } from '../../api/types'
+import type { AdmissionUser } from '../../api/types'
 
 const { t } = useI18n()
 const message = useMessage()
 const dialog = useDialog()
-const userStore = useUserStore()
 
-// admin（id=1）超管账号：仅其本人可见操作按钮
-const SUPER_ADMIN_ID = 1
-const canOperate = (row: UserInfo) => row.id !== SUPER_ADMIN_ID || userStore.user?.id === SUPER_ADMIN_ID
 const loading = ref(false)
 const saving = ref(false)
-const rows = ref<UserInfo[]>([])
-const query = reactive({ username: '', page: 1, page_size: 10 })
+const syncing = ref(false)
+const exporting = ref(false)
+const rows = ref<AdmissionUser[]>([])
+const query = reactive({ username: '', status: null as number | null, page: 1, page_size: 10 })
 const roleOptions = ref<{ label: string; value: number }[]>([])
 
-const showModal = ref(false)
-const showPwd = ref(false)
-const editing = ref(false)
-const editId = ref(0)
-const newPassword = ref('')
-const form = reactive({ username: '', password: '', nickname: '', phone: '', email: '', role_ids: [] as number[], statusOn: 1 })
-const formRef = ref<FormInst | null>(null)
+const statusOptions = [
+  { label: t('user.admitted'), value: 1 },
+  { label: t('user.suspended'), value: 0 },
+]
 
-// 与后端 binding 规则保持一致：用户名 3-64、密码 6-20、昵称最长 20、手机号选填最长 32、邮箱格式（选填）
-const rules = computed<FormRules>(() => ({
-  username: [
-    { required: true, message: t('user.form.usernameRequired'), trigger: ['blur', 'input'] },
-    { min: 3, max: 64, message: t('user.form.usernameLength'), trigger: ['blur', 'input'] },
-  ],
-  password: [
-    { required: true, message: t('user.form.passwordRequired'), trigger: ['blur', 'input'] },
-    { min: 6, max: 20, message: t('user.form.passwordLength'), trigger: ['blur', 'input'] },
-  ],
-  nickname: [
-    { max: 20, message: t('user.form.nicknameLength'), trigger: ['blur', 'input'] },
-  ],
-  phone: [
-    {
-      trigger: ['blur', 'input'],
-      validator: (_rule, value: string) => !value || /^1[3-9]\d{9}$/.test(value),
-      message: t('user.form.phoneInvalid'),
-    },
-  ],
-  email: [
-    {
-      trigger: ['blur', 'input'],
-      validator: (_rule, value: string) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
-      message: t('user.form.emailInvalid'),
-    },
-  ],
-}))
+const { pagination } = usePagination(query, () => load())
 
-const { pagination, setTotal } = usePagination(query, load)
+const columns: DataTableColumns<AdmissionUser> = [
+  { title: 'ID', key: 'id', width: 70 },
+  { title: t('user.username'), key: 'username', width: 140 },
+  { title: t('user.nickname'), key: 'nickname', width: 140, ellipsis: { tooltip: true } },
+  { title: t('user.email'), key: 'email', width: 200, ellipsis: { tooltip: true } },
+  {
+    title: t('user.admissionStatus'),
+    key: 'enabled',
+    width: 100,
+    render: (row) =>
+      h(NTag, { type: row.enabled ? 'success' : 'warning', size: 'small', bordered: false },
+        { default: () => (row.enabled ? t('user.admitted') : t('user.suspended')) }),
+  },
+  { title: t('common.createTime'), key: 'created_at', width: 170 },
+  {
+    title: t('common.actions'),
+    key: 'actions',
+    width: 240,
+    render: (row) => {
+      const actions: TableAction[] = [
+        {
+          label: t('user.setRoles'),
+          permission: 'user:setRoles',
+          onClick: () => openRoles(row),
+        },
+      ]
+      actions.push(
+        row.enabled
+          ? { label: t('user.suspend'), permission: 'user:setAdmission', onClick: () => setAdmission(row, false) }
+          : { label: t('user.admit'), permission: 'user:setAdmission', onClick: () => setAdmission(row, true) },
+      )
+      actions.push({ label: t('common.delete'), permission: 'user:delete', onClick: () => confirmDelete(row) })
+      return renderActions(actions)
+    },
+  },
+]
 
 async function load() {
   loading.value = true
   try {
-    const { data } = await listUsers(query)
-    rows.value = data.data.list
-    pagination.page = query.page
-    pagination.pageSize = query.page_size
-    setTotal(data.data.page.total)
+    const { data: resp } = await listUsers({
+      page: query.page,
+      page_size: query.page_size,
+      username: query.username || undefined,
+      status: query.status ?? undefined,
+    })
+    rows.value = resp.data.list || []
+    pagination.itemCount = resp.data.page?.total || 0
+  } catch {
+    message.error(t('user.listFailed'))
   } finally {
     loading.value = false
   }
@@ -133,79 +114,52 @@ async function load() {
 
 function resetQuery() {
   query.username = ''
-  query.page = 1
+  query.status = null
   load()
 }
 
-// 异步导出：提交当前过滤条件（page/page_size 与空值由 createExport 剔除）
-const exporting = ref(false)
-async function doExport() {
-  exporting.value = true
+// ---- 准入开关（关闭即同步吊销该用户对本系统的访问授权，即时生效） ----
+async function setAdmission(row: AdmissionUser, enabled: boolean) {
   try {
-    await createExport('users', { ...query })
-    message.success(t('user.exportQueued'))
+    await setUserAdmission(row.id, enabled)
+    row.enabled = enabled
+    message.success(enabled ? t('user.admitSuccess') : t('user.suspendSuccess'))
   } catch (e: any) {
-    if (e?.response?.status === 429) {
-      message.warning(t('user.exportTooMany'))
-    } else {
-      message.error(e?.response?.data?.msg || t('user.exportFailed'))
-    }
-  } finally {
-    exporting.value = false
+    message.error(e?.response?.data?.msg || t('common.failed'))
   }
 }
 
-async function loadRoles() {
-  const { data } = await listRoles({ page: 1, page_size: 100 })
-  roleOptions.value = data.data.list.map((r) => ({ label: r.name, value: r.id }))
+// ---- 分配角色 ----
+const showRoles = ref(false)
+const roleIds = ref<number[]>([])
+const editingId = ref(0)
+
+function openRoles(row: AdmissionUser) {
+  editingId.value = row.id
+  roleIds.value = [...(row.role_ids || [])]
+  showRoles.value = true
 }
 
-function openCreate() {
-  editing.value = false
-  Object.assign(form, { username: '', password: '', nickname: '', phone: '', email: '', role_ids: [], statusOn: 1 })
-  showModal.value = true
-}
-
-function openEdit(row: UserInfo) {
-  editing.value = true
-  editId.value = row.id
-  Object.assign(form, { username: row.username, password: '', nickname: row.nickname, phone: row.phone, email: row.email, role_ids: row.role_ids ?? [], statusOn: row.status })
-  showModal.value = true
-}
-
-async function save() {
-  try {
-    await formRef.value?.validate()
-  } catch {
-    return // 校验失败，错误已在表单项上展示
-  }
+async function saveRoles() {
   saving.value = true
   try {
-    if (editing.value) {
-      await updateUser(editId.value, { nickname: form.nickname, phone: form.phone.trim(), email: form.email, status: form.statusOn })
-      // 分配角色是独立接口权限，未授权时不发起该调用（角色保持不变）
-      if (userStore.has('user:setRoles')) {
-        await setUserRoles(editId.value, form.role_ids)
-      }
-    } else {
-      await createUser({ username: form.username.trim(), password: form.password, nickname: form.nickname.trim(), phone: form.phone.trim(), email: form.email.trim(), role_ids: form.role_ids })
-    }
+    await setUserRoles(editingId.value, roleIds.value)
     message.success(t('common.saveSuccess'))
-    showModal.value = false
-    await load()
+    showRoles.value = false
+    load()
   } catch (e: any) {
-    message.error(e?.response?.data?.msg || t('user.saveFailed'))
+    message.error(e?.response?.data?.msg || t('common.saveFailed'))
   } finally {
     saving.value = false
   }
 }
 
-function confirmDelete(row: UserInfo) {
-  if (row.id === SUPER_ADMIN_ID) { message.error(t('user.superAdminNoDelete')); return }
+// ---- 移除准入（平台账号不受影响，仅移出本系统） ----
+function confirmDelete(row: AdmissionUser) {
   dialog.warning({
-    title: t('user.deleteConfirmTitle'),
-    content: t('user.deleteConfirmContent', { username: row.username }),
-    positiveText: t('common.delete'),
+    title: t('user.removeConfirmTitle'),
+    content: t('user.removeConfirmContent', { username: row.username }),
+    positiveText: t('common.confirm'),
     negativeText: t('common.cancel'),
     onPositiveClick: async () => {
       try {
@@ -213,66 +167,56 @@ function confirmDelete(row: UserInfo) {
         message.success(t('common.deleteSuccess'))
         load()
       } catch (e: any) {
-        message.error(e?.response?.data?.msg || t('user.deleteFailed'))
+        message.error(e?.response?.data?.msg || t('common.deleteFailed'))
       }
     },
   })
 }
 
-async function savePwd() {
-  if (newPassword.value.length < 6 || newPassword.value.length > 20) { message.warning(t('user.pwdLengthWarn')); return }
+// ---- 从平台同步用户（预建投影，默认停用；刷新存量快照） ----
+async function doSync() {
+  syncing.value = true
   try {
-    await resetPassword(editId.value, newPassword.value)
-    message.success(t('user.pwdResetSuccess'))
-    showPwd.value = false
+    const { data: resp } = await syncUsersFromPlatform()
+    message.success(t('user.syncDone', { created: resp.data.created, refreshed: resp.data.refreshed }))
+    load()
   } catch (e: any) {
-    message.error(e?.response?.data?.msg || t('user.pwdResetFailed'))
+    message.error(e?.response?.data?.msg || t('user.syncFailed'))
+  } finally {
+    syncing.value = false
   }
 }
 
-// 操作列依赖按钮权限，computed 使权限变化后重新渲染
-const columns = computed<DataTableColumns<UserInfo>>(() => [
-  { title: 'ID', key: 'id', width: 60 },
-  { title: t('user.username'), key: 'username' },
-  { title: t('user.nickname'), key: 'nickname', render: (row) => row.nickname || '—' },
-  { title: t('user.phone'), key: 'phone', width: 130, render: (row) => row.phone || '—' },
-  { title: t('user.email'), key: 'email', render: (row) => row.email || '—' },
-  {
-    title: t('common.status'), key: 'status', width: 80,
-    render: (row) => h(NTag, { type: row.status === 1 ? 'success' : 'error', size: 'small' }, { default: () => (row.status === 1 ? t('common.enabled') : t('common.disabled')) }),
-  },
-  { title: t('common.createTime'), key: 'created_at', width: 170 },
-  {
-    title: t('common.operation'), key: 'actions', width: 160,
-    render(row) {
-      if (!canOperate(row)) {
-        return renderActions([])
-      }
-      const actions: Array<TableAction | VNode> = []
-      if (userStore.has('user:update')) {
-        actions.push({ label: t('common.edit'), accent: true, onClick: () => openEdit(row) })
-      }
-      if (userStore.has('user:resetPassword')) {
-        actions.push({ label: t('user.resetPassword'), onClick: () => { editId.value = row.id; newPassword.value = ''; showPwd.value = true } })
-      }
-      // 超管账号禁止删除（即使超管本人），不展示删除按钮
-      if (row.id !== SUPER_ADMIN_ID && userStore.has('user:delete')) {
-        actions.push({ label: t('common.delete'), danger: true, onClick: () => confirmDelete(row) })
-      }
-      return renderActions(actions)
-    },
-  },
-])
+async function doExport() {
+  exporting.value = true
+  try {
+    await createExport('users', { username: query.username, status: query.status ?? undefined })
+    message.success(t('user.exportQueued'))
+  } catch (e: any) {
+    const status = e?.response?.status
+    message.error(status === 429 ? t('user.exportTooMany') : t('user.exportFailed'))
+  } finally {
+    exporting.value = false
+  }
+}
 
-onMounted(() => { load(); loadRoles() })
+onMounted(async () => {
+  load()
+  try {
+    const { data: resp } = await listRoles({ page: 1, page_size: 0 })
+    roleOptions.value = (resp.data.list || []).map((r) => ({ label: r.name, value: r.id }))
+  } catch { /* 角色加载失败不阻断列表 */ }
+})
 </script>
 
 <style scoped>
-/* 卡头只放操作按钮（页面标题由顶栏展示） */
 .page-actions {
-  width: 100%;
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
+}
+.modal-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--n-text-color-3, #999);
 }
 </style>
