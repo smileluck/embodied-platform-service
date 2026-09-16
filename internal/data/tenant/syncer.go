@@ -2,57 +2,37 @@ package tenant
 
 import (
 	"context"
-	"sync"
-	"time"
 
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
-	"github.com/smilex/smilex-admin-gin/internal/conf"
-	"github.com/smilex/smilex-admin-gin/internal/data/platform"
+	sdk "github.com/smilex/smilex-admin-gin/sdk"
 )
 
-// Syncer 平台租户同步实现（管理面服务账号）。
-// 同步的租户统一绑定本服务商户（按 AppKey 解析平台商户 ID，进程内缓存 10 分钟），
-// 绑入商户租户集后，开放面（商户 HMAC）的设备注册/查询才覆盖这些租户。
+// Syncer 平台租户同步实现（开放面商户 HMAC，经平台 SDK）。
+// 2026-09-16 起平台开放面提供租户域（scope tenant:*）：创建时 merchant 归属由平台
+// 服务端注入调用方商户（无需本地解析 merchant_id），读写按商户绑定收敛——
+// 本同步器创建的租户自动进入本商户租户集，开放面设备注册随即覆盖。
 type Syncer struct {
-	admin *platform.AdminClient
-	cfg   *conf.Bootstrap
-
-	mu         sync.Mutex
-	merchantID uint
-	resolvedAt time.Time
+	client *sdk.Client
 }
 
 // NewSyncer 构造（wire provider，绑定 biztenant.PlatformSyncer）
-func NewSyncer(admin *platform.AdminClient, cfg *conf.Bootstrap) *Syncer {
-	return &Syncer{admin: admin, cfg: cfg}
+func NewSyncer(client *sdk.Client) *Syncer {
+	return &Syncer{client: client}
 }
 
-// merchantIDCacheTTL 商户 ID 解析缓存时长
-const merchantIDCacheTTL = 10 * time.Minute
-
-// resolveMerchantID 解析本服务商户的平台 ID（AppKey → GET /merchants?app_key=）
-func (s *Syncer) resolveMerchantID(ctx context.Context) (uint, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.merchantID != 0 && time.Since(s.resolvedAt) < merchantIDCacheTTL {
-		return s.merchantID, nil
+// toBiz SDK 租户 → 领域实体
+func toBiz(t *sdk.Tenant) *biztenant.Tenant {
+	return &biztenant.Tenant{
+		ID: t.ID, Name: t.Name, Code: t.Code,
+		ContactName: t.ContactName, ContactPhone: t.ContactPhone,
+		Remark: t.Remark, Status: biztenant.Status(t.Status),
 	}
-	id, err := s.admin.FindMerchantIDByAppKey(ctx, s.cfg.Platform.AppKey)
-	if err != nil {
-		return 0, err
-	}
-	s.merchantID, s.resolvedAt = id, time.Now()
-	return id, nil
 }
 
 func (s *Syncer) CreateOnPlatform(ctx context.Context, t *biztenant.Tenant) (uint, error) {
-	mid, err := s.resolveMerchantID(ctx)
-	if err != nil {
-		return 0, err
-	}
-	pt, err := s.admin.CreateTenant(ctx, platform.TenantCreate{
+	pt, err := s.client.CreateTenant(ctx, sdk.TenantCreateRequest{
 		Name: t.Name, Code: t.Code, ContactName: t.ContactName,
-		ContactPhone: t.ContactPhone, Remark: t.Remark, MerchantID: mid,
+		ContactPhone: t.ContactPhone, Remark: t.Remark,
 	})
 	if err != nil {
 		return 0, err
@@ -61,44 +41,34 @@ func (s *Syncer) CreateOnPlatform(ctx context.Context, t *biztenant.Tenant) (uin
 }
 
 func (s *Syncer) UpdateOnPlatform(ctx context.Context, t *biztenant.Tenant) error {
-	mid, err := s.resolveMerchantID(ctx)
-	if err != nil {
-		return err
-	}
-	return s.admin.UpdateTenant(ctx, t.PlatformID, platform.TenantUpdate{
+	return s.client.UpdateTenant(ctx, t.PlatformID, sdk.TenantUpdateRequest{
 		Name: t.Name, ContactName: t.ContactName, ContactPhone: t.ContactPhone,
-		Remark: t.Remark, MerchantID: mid,
+		Remark: t.Remark,
 	})
 }
 
 func (s *Syncer) DeleteFromPlatform(ctx context.Context, platformID uint) error {
-	return s.admin.DeleteTenant(ctx, platformID)
+	return s.client.DeleteTenant(ctx, platformID)
 }
 
 func (s *Syncer) SetStatusOnPlatform(ctx context.Context, platformID uint, enabled bool) error {
-	status := 0
-	if enabled {
-		status = 1
-	}
-	return s.admin.SetTenantStatus(ctx, platformID, status)
+	return s.client.SetTenantStatus(ctx, platformID, enabled)
 }
 
+// LinkOrCreateOnPlatform 存量补链：本商户绑定集内按 code 精确查找——
+// 找到则更新资料（绑定已属本商户，无需再绑）；没有则创建。
+// 注意：他商户的同 code 租户在开放面不可见，若平台上已被占用，创建将 409（提示换码）。
 func (s *Syncer) LinkOrCreateOnPlatform(ctx context.Context, t *biztenant.Tenant) (uint, error) {
-	// 平台已有同 code 租户 → 重新绑定本服务商户并同步资料；没有 → 创建
-	if pt, err := s.admin.FindTenantByCode(ctx, t.Code); err == nil && pt != nil {
-		mid, err := s.resolveMerchantID(ctx)
-		if err != nil {
-			return 0, err
-		}
-		if uerr := s.admin.UpdateTenant(ctx, pt.ID, platform.TenantUpdate{
+	if pt, err := s.client.FindTenantByCode(ctx, t.Code); err != nil {
+		return 0, err
+	} else if pt != nil {
+		if uerr := s.client.UpdateTenant(ctx, pt.ID, sdk.TenantUpdateRequest{
 			Name: t.Name, ContactName: t.ContactName, ContactPhone: t.ContactPhone,
-			Remark: t.Remark, MerchantID: mid,
+			Remark: t.Remark,
 		}); uerr != nil {
 			return 0, uerr
 		}
 		return pt.ID, nil
-	} else if err != nil {
-		return 0, err
 	}
 	return s.CreateOnPlatform(ctx, t)
 }

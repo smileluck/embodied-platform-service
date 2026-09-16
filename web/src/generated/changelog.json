@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-16T08:46:09.098Z",
+  "generatedAt": "2026-09-16T09:44:18.322Z",
   "commits": [
+    {
+      "hash": "151b590",
+      "date": "2026-09-16",
+      "type": "fix",
+      "scope": "login",
+      "message": "添加平台不可达的专属错误提示"
+    },
     {
       "hash": "2186fe8",
       "date": "2026-09-16",

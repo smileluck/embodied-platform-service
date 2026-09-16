@@ -45,16 +45,20 @@ cache:
 
 # embodied-platform 平台接入（唯一身份源 + 设备/型号/租户同步 + 文件存储）
 # 部署前置（对照平台 docs/dev/integration-guide.md §11）：
-#   1. 平台侧创建商户（appKey/appSecret，scopes 至少 device:* telemetry:read data-event:read）并绑定租户集
-#   2. 平台侧开管理账号（本服务 admin.username/password）并配置租户/型号/用户管理 RBAC
-#   3. 平台管理端签发 storage API Key（storage.apiKeyId/apiSecret，目标桶读写 scope）
-#   4. 平台 CORS 白名单（cors.allowedOrigins）登记本系统前端 Origin（登录直调平台）
-#   5. NTP 校时（HMAC 时间戳偏差 ≤ 300s）
+#   1. 平台侧创建商户（appKey/appSecret）并配置 scopes：
+#      设备域 device:*、遥测 telemetry:read、data-event:read
+#      租户域 tenant:*（商户自管租户，同步创建即自动入商户租户集）
+#      型号域 model:*、物模型 thing-model:read（型号管理 + 选择器）
+#   2. 平台 CORS 白名单（cors.allowedOrigins）登记本系统前端 Origin（登录直调平台）
+#   3. NTP 校时（HMAC 时间戳偏差 ≤ 300s）
+#   4. （可选）platform.admin：仅用于「从平台同步用户」便利功能——管理账号列表按
+#      平台治理决策不上开放面；不配置时准入依赖首登懒建，其余功能不受影响
+#   5. （可选）storage 段：storage-gateway API Key（文件存储）；不配置时降级本地磁盘
 platform:
   baseUrl: http://localhost:27080 # 平台主服务（/api/v1 与 /open-api/v1 同源）
   appKey: "mk_0e94e71768252d89" # 商户 AppKey（平台商户管理创建）
   appSecret: "51e2f6710de945c50fd3d0f92731ef746d00d5080a5c4c0b9349e0d5a7eea48c" # 商户 AppSecret 明文（仅创建时返回一次，妥善保管）
-  admin: # 管理面服务账号（租户同步/型号管理/平台用户列表）
+  admin: # 可选：管理面服务账号，仅「从平台同步用户」使用；不配置则准入依赖首登懒建
     username: ""
     password: ""
   storage: # storage-gateway 直连（文件存储后端）

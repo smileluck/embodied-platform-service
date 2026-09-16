@@ -14,11 +14,17 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 )
 
-// ErrNotConfigured 平台接入未配置（baseUrl / 服务账号缺失）
-var ErrNotConfigured = errors.New("platform integration not configured")
+// ErrNotConfigured 平台管理面服务账号未配置（platform.admin 缺失）
+var ErrNotConfigured = errors.New("platform admin account not configured")
 
-// AdminClient 平台管理面客户端（/api/v1，服务账号 JWT）。
-// 用于租户同步、设备型号管理、物模型只读选择器、平台用户列表（准入同步）、商户 ID 解析。
+// AdminClient 平台管理面客户端（/api/v1，管理账号 JWT）。
+//
+// 2026-09-16 起，租户同步与型号管理已切换到开放面商户 HMAC（见 data/tenant/syncer.go、
+// data/devmodel/repo.go），本客户端只保留一个用途：**从平台同步用户列表**（准入投影的
+// 便利功能——管理账号列表是跨项目全局数据，按治理决策不上开放面，见平台决策记录
+// 2026-09-16-openapi-tenant-model.md 第 4 条）。未配置时该功能 503，核心流程
+// （登录/准入/租户/设备/型号/文件）不受影响。
+//
 // token 内存缓存，过期前自动重登；请求 401 时重登一次重试。
 type AdminClient struct {
 	baseURL  string
@@ -104,236 +110,20 @@ func (c *AdminClient) do(ctx context.Context, method, path string, query url.Val
 	return err
 }
 
-// Ping 连通性自检（登录 + 拉一页租户）
+// Ping 连通性自检（登录 + 拉一页平台用户）
 func (c *AdminClient) Ping(ctx context.Context) error {
 	var out []json.RawMessage
-	_, err := c.list(ctx, "/api/v1/tenants", url.Values{"page": {"1"}, "page_size": {"1"}}, &out)
+	q := url.Values{"page": {"1"}, "page_size": {"1"}}
+	endpoint := c.baseURL + "/api/v1/users?" + q.Encode()
+	token, err := c.ensureToken(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = doList(ctx, c.hc, endpoint, token, &out)
 	return err
 }
 
-func (c *AdminClient) list(ctx context.Context, path string, query url.Values, listOut any) (*Page, error) {
-	endpoint := c.baseURL + path
-	if len(query) > 0 {
-		endpoint += "?" + query.Encode()
-	}
-	token, err := c.ensureToken(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return doList(ctx, c.hc, endpoint, token, listOut)
-}
-
-// ---- 租户（同步；平台是设备侧租户的唯一真源，本系统租户需与平台保持一致） ----
-
-// TenantCreate 平台创建租户入参（MerchantID=本服务商户，绑入商户租户集后开放面设备注册才可用）
-type TenantCreate struct {
-	Name         string `json:"name"`
-	Code         string `json:"code"`
-	ContactName  string `json:"contact_name"`
-	ContactPhone string `json:"contact_phone"`
-	Remark       string `json:"remark"`
-	MerchantID   uint   `json:"merchant_id"`
-}
-
-// TenantUpdate 平台更新租户入参（code 创建后不可改）
-type TenantUpdate struct {
-	Name         string `json:"name"`
-	ContactName  string `json:"contact_name"`
-	ContactPhone string `json:"contact_phone"`
-	Remark       string `json:"remark"`
-	MerchantID   uint   `json:"merchant_id"`
-}
-
-// Tenant 平台租户视图
-type Tenant struct {
-	ID           uint   `json:"id"`
-	Name         string `json:"name"`
-	Code         string `json:"code"`
-	ContactName  string `json:"contact_name"`
-	ContactPhone string `json:"contact_phone"`
-	Remark       string `json:"remark"`
-	MerchantID   uint   `json:"merchant_id"`
-	Status       int    `json:"status"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
-}
-
-func (c *AdminClient) CreateTenant(ctx context.Context, req TenantCreate) (*Tenant, error) {
-	var out Tenant
-	if err := c.do(ctx, http.MethodPost, "/api/v1/tenants", nil, req, &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-func (c *AdminClient) UpdateTenant(ctx context.Context, id uint, req TenantUpdate) error {
-	return c.do(ctx, http.MethodPut, "/api/v1/tenants/"+strconv.FormatUint(uint64(id), 10), nil, req, nil)
-}
-
-func (c *AdminClient) DeleteTenant(ctx context.Context, id uint) error {
-	return c.do(ctx, http.MethodDelete, "/api/v1/tenants/"+strconv.FormatUint(uint64(id), 10), nil, nil, nil)
-}
-
-func (c *AdminClient) SetTenantStatus(ctx context.Context, id uint, status int) error {
-	body := map[string]*int{"status": &status}
-	return c.do(ctx, http.MethodPut, "/api/v1/tenants/"+strconv.FormatUint(uint64(id), 10)+"/status", nil, body, nil)
-}
-
-// FindTenantByCode 按 code 精确查找平台租户（存量补链用；未找到返回 nil）
-func (c *AdminClient) FindTenantByCode(ctx context.Context, code string) (*Tenant, error) {
-	var list []*Tenant
-	q := url.Values{"page": {"1"}, "page_size": {"50"}, "code": {code}}
-	// 平台列表 code 过滤为精确匹配；分页遍历前几页足够覆盖存量补链场景
-	for page := 1; page <= 20; page++ {
-		q.Set("page", strconv.Itoa(page))
-		pg, err := c.list(ctx, "/api/v1/tenants", q, &list)
-		if err != nil {
-			return nil, err
-		}
-		for _, t := range list {
-			if t.Code == code {
-				return t, nil
-			}
-		}
-		if pg == nil || len(list) == 0 || pg.Page*pg.PageSize >= int(pg.Total) {
-			break
-		}
-	}
-	return nil, nil
-}
-
-// ---- 设备型号（管理面 CRUD；创建须绑物模型 model 层节点的已发布版本） ----
-
-// DeviceModel 平台设备型号视图（与平台 biz/devmodel.Model json 对齐）
-type DeviceModel struct {
-	ID           uint   `json:"id"`
-	Code         string `json:"code"`
-	Name         string `json:"name"`
-	TMNodeID     uint   `json:"tm_node_id"`
-	TMVersionID  uint   `json:"tm_version_id"`
-	TMNodeName   string `json:"tm_node_name,omitempty"`
-	TMVersionNo  int    `json:"tm_version_no,omitempty"`
-	Status       int    `json:"status"`
-	Manufacturer string `json:"manufacturer"`
-	Description  string `json:"description"`
-	Transport    string `json:"transport"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
-}
-
-// ModelCreate 平台创建型号入参
-type ModelCreate struct {
-	Code         string `json:"code"`
-	Name         string `json:"name"`
-	TMNodeID     uint   `json:"tm_node_id"`
-	TMVersionID  uint   `json:"tm_version_id"`
-	Manufacturer string `json:"manufacturer"`
-	Description  string `json:"description"`
-	Transport    string `json:"transport,omitempty"`
-}
-
-// ModelUpdate 平台更新型号入参
-type ModelUpdate struct {
-	Name         string `json:"name"`
-	TMVersionID  uint   `json:"tm_version_id"`
-	Status       int    `json:"status"`
-	Manufacturer string `json:"manufacturer"`
-	Description  string `json:"description"`
-	Transport    string `json:"transport,omitempty"`
-}
-
-// ModelQuery 型号列表过滤
-type ModelQuery struct {
-	Keyword string
-	Status  *int
-}
-
-func (c *AdminClient) ListDeviceModels(ctx context.Context, q ModelQuery, page, pageSize int) ([]*DeviceModel, *Page, error) {
-	vals := url.Values{"page": {strconv.Itoa(page)}, "page_size": {strconv.Itoa(pageSize)}}
-	if q.Keyword != "" {
-		vals.Set("kw", q.Keyword)
-	}
-	if q.Status != nil {
-		vals.Set("status", strconv.Itoa(*q.Status))
-	}
-	var list []*DeviceModel
-	pg, err := c.list(ctx, "/api/v1/device-models", vals, &list)
-	return list, pg, err
-}
-
-func (c *AdminClient) CreateDeviceModel(ctx context.Context, req ModelCreate) (*DeviceModel, error) {
-	var out DeviceModel
-	if err := c.do(ctx, http.MethodPost, "/api/v1/device-models", nil, req, &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-func (c *AdminClient) GetDeviceModel(ctx context.Context, id uint) (*DeviceModel, error) {
-	var out DeviceModel
-	if err := c.do(ctx, http.MethodGet, "/api/v1/device-models/"+strconv.FormatUint(uint64(id), 10), nil, nil, &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-func (c *AdminClient) UpdateDeviceModel(ctx context.Context, id uint, req ModelUpdate) error {
-	return c.do(ctx, http.MethodPut, "/api/v1/device-models/"+strconv.FormatUint(uint64(id), 10), nil, req, nil)
-}
-
-func (c *AdminClient) DeleteDeviceModel(ctx context.Context, id uint) error {
-	return c.do(ctx, http.MethodDelete, "/api/v1/device-models/"+strconv.FormatUint(uint64(id), 10), nil, nil, nil)
-}
-
-// ---- 物模型（只读，型号创建表单的选择器数据源） ----
-
-// ThingModelNode 物模型节点
-type ThingModelNode struct {
-	ID       uint   `json:"id"`
-	Layer    string `json:"layer"` // base/category/model/instance
-	ParentID uint   `json:"parent_id"`
-	Code     string `json:"code"`
-	Name     string `json:"name"`
-	Status   int    `json:"status"`
-}
-
-// ThingModelVersion 物模型版本（型号绑定须选 status=published）
-type ThingModelVersion struct {
-	ID          uint   `json:"id"`
-	NodeID      uint   `json:"node_id"`
-	Version     int    `json:"version"`
-	Status      string `json:"status"` // draft / published
-	PublishedAt string `json:"published_at"`
-	CreatedAt   string `json:"created_at"`
-}
-
-// ListThingModelNodes 物模型节点列表（page_size=0 全量；layer 可选过滤）
-func (c *AdminClient) ListThingModelNodes(ctx context.Context, layer, kw string) ([]*ThingModelNode, error) {
-	vals := url.Values{"page_size": {"0"}}
-	if layer != "" {
-		vals.Set("layer", layer)
-	}
-	if kw != "" {
-		vals.Set("kw", kw)
-	}
-	var list []*ThingModelNode
-	if _, err := c.list(ctx, "/api/v1/thing-models", vals, &list); err != nil {
-		return nil, err
-	}
-	return list, nil
-}
-
-// ListThingModelVersions 节点全部版本（含草稿；调用方自行过滤 published）
-func (c *AdminClient) ListThingModelVersions(ctx context.Context, nodeID uint) ([]*ThingModelVersion, error) {
-	var list []*ThingModelVersion
-	path := "/api/v1/thing-models/" + strconv.FormatUint(uint64(nodeID), 10) + "/versions"
-	if _, err := c.list(ctx, path, nil, &list); err != nil {
-		return nil, err
-	}
-	return list, nil
-}
-
-// ---- 平台用户（准入投影同步的数据源） ----
+// ---- 平台用户（准入投影同步的唯一数据源） ----
 
 // PlatformUser 平台管理账号视图
 type PlatformUser struct {
@@ -352,29 +142,15 @@ func (c *AdminClient) ListPlatformUsers(ctx context.Context, username string, pa
 	if username != "" {
 		vals.Set("username", username)
 	}
-	var list []*PlatformUser
-	pg, err := c.list(ctx, "/api/v1/users", vals, &list)
-	return list, pg, err
-}
-
-// ---- 商户 ID 解析（租户同步时绑定 merchant_id 用） ----
-
-// FindMerchantIDByAppKey 按 AppKey 查平台商户 ID（本服务商户唯一）
-func (c *AdminClient) FindMerchantIDByAppKey(ctx context.Context, appKey string) (uint, error) {
-	var list []*struct {
-		ID     uint   `json:"id"`
-		AppKey string `json:"app_key"`
+	endpoint := c.baseURL + "/api/v1/users"
+	if len(vals) > 0 {
+		endpoint += "?" + vals.Encode()
 	}
-	q := url.Values{"page": {"1"}, "page_size": {"20"}, "app_key": {appKey}}
-	pg, err := c.list(ctx, "/api/v1/merchants", q, &list)
+	token, err := c.ensureToken(ctx)
 	if err != nil {
-		return 0, err
+		return nil, nil, err
 	}
-	for _, m := range list {
-		if m.AppKey == appKey {
-			return m.ID, nil
-		}
-	}
-	_ = pg
-	return 0, fmt.Errorf("platform merchant not found for app_key %q", appKey)
+	var list []*PlatformUser
+	pg, err := doList(ctx, c.hc, endpoint, token, &list)
+	return list, pg, err
 }

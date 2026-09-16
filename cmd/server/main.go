@@ -81,22 +81,22 @@ func checkPlatform(cfg *conf.Bootstrap) {
 
 	if cfg.Platform.Admin.Username != "" {
 		if err := platform.NewAdminClient(cfg).Ping(ctx); err != nil {
-			logger.Warn("platform admin api unreachable（租户同步/型号管理/用户同步将失败）", zap.Error(err))
+			logger.Warn("platform admin api unreachable（「从平台同步用户」将失败）", zap.Error(err))
 		} else {
-			logger.Info("platform admin api ok（租户同步/型号管理/用户同步可用）")
+			logger.Info("platform admin api ok（从平台同步用户可用）")
 		}
 	} else {
-		logger.Warn("platform.admin 未配置：租户同步/型号管理/用户同步不可用")
+		logger.Info("platform.admin 未配置：「从平台同步用户」不可用（准入依赖首登懒建，其余功能不受影响）")
 	}
 
 	if cfg.Platform.AppKey != "" {
 		if _, err := platform.NewOpenAPIClient(cfg).Ping(ctx); err != nil {
-			logger.Warn("platform open-api（商户 HMAC）验签失败或不可达（设备管理将失败）", zap.Error(err))
+			logger.Warn("platform open-api（商户 HMAC）验签失败或不可达（设备/租户同步/型号管理将失败）", zap.Error(err))
 		} else {
-			logger.Info("platform open-api ok（设备管理可用）")
+			logger.Info("platform open-api ok（设备/租户同步/型号管理可用）")
 		}
 	} else {
-		logger.Warn("platform.appKey 未配置：设备管理不可用")
+		logger.Warn("platform.appKey 未配置：设备管理/租户同步/型号管理不可用")
 	}
 
 	if sc := cfg.Platform.Storage; sc.BaseURL != "" && sc.APIKeyID != "" {
