@@ -4,7 +4,7 @@ export default {
   brandHeadline2: '安静地运转',
   brandSub: '机器人与 ego 设备的接入、准入与运营，从这里开始。',
   formTitle: '欢迎回来',
-  formSub: '使用你的平台账号继续（同一账号可登录平台与本系统）',
+  formSub: '使用你的平台账号继续',
   username: '用户名',
   password: '密码',
   captcha: '验证码',
