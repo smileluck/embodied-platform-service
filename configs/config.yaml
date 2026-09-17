@@ -10,7 +10,7 @@ db:
     port: 3306
     user: root
     password: "123456"
-    dbname: smilex_admin
+    dbname: smilex_admin_service # 独立库！与 embodied-platform 共用 MySQL 实例但必须分库，否则同名表（tenants/roles/app_users 等）被两边 autoMigrate 合并、数据互见
     charset: utf8mb4
     maxOpenConns: 20
     maxIdleConns: 10
@@ -19,7 +19,7 @@ db:
     port: 5432
     user: postgres
     password: "123456"
-    dbname: smilex_admin
+    dbname: smilex_admin_service # 同 mysql：与平台分库，防同名表互见
     sslmode: disable
     maxOpenConns: 20
     maxIdleConns: 10
@@ -68,6 +68,7 @@ platform:
     bucket: default
   bootstrapAdmins: # 免准入引导账号（平台用户名，首登自动放行并绑超管角色）
     - admin
+    - ego
   timeoutSeconds: 15
 
 log:
