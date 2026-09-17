@@ -213,15 +213,18 @@ func (s *HTTPServer) registerRoutes() {
 	authmw := middleware.PlatformAuth(s.auth, s.admissionUC, s.identityCache)
 	protected := v1.Group("", authmw, middleware.OpLog(s.log), middleware.RBAC(s.auth, s.rbacCache))
 
-	// 用户（准入管理：平台是唯一身份源，本地只管准入开关与角色）
+	// 用户（成员管理：列表实时来自平台本商户绑定成员；新增/删除推送平台——
+	// 新增=平台无此账号则创建有则绑定本商户，删除=仅解除关联账号本体保留；
+	// 路由 :id 一律为平台用户 ID，本地准入开关/角色仍存投影）
 	users := protected.Group("/users")
 	{
 		users.GET("", s.listUsers)
+		users.POST("", s.addUser)
 		users.GET("/:id", s.getUser)
 		users.PUT("/:id/admission", s.setUserAdmission)
 		users.PUT("/:id/roles", s.setUserRoles)
 		users.DELETE("/:id", s.deleteUser)
-		// 从平台拉取用户列表：预建投影（默认停用）/刷新快照
+		// 从平台拉取本商户绑定成员：补建缺失投影（成员=准入开启）/刷新快照
 		users.POST("/sync", s.syncUsersFromPlatform)
 		// 导出用户列表（查询条件透传 query，与列表页一致）
 		users.POST("/export", func(c *gin.Context) { s.submitExport(c, "user") })
@@ -371,7 +374,7 @@ func (s *HTTPServer) listUsers(c *gin.Context) {
 	_ = c.ShouldBindQuery(&req)
 	users, pg, err := s.admission.List(c.Request.Context(), req, page, size)
 	if err != nil {
-		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		s.platformErr(c, err)
 		return
 	}
 	response.OK(c, listResult{List: users, Page: pg})
@@ -388,6 +391,21 @@ func (s *HTTPServer) getUser(c *gin.Context) {
 		return
 	}
 	response.OK(c, vo)
+}
+
+// addUser 新增成员：推送平台（无此账号则创建并绑定本商户，有则仅绑定）并建本地准入投影
+func (s *HTTPServer) addUser(c *gin.Context) {
+	var req admissionsvc.AddRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	p, existed, err := s.admission.Add(c.Request.Context(), req)
+	if err != nil {
+		s.admissionErr(c, err)
+		return
+	}
+	response.OK(c, gin.H{"projection": p, "existed": existed})
 }
 
 func (s *HTTPServer) setUserAdmission(c *gin.Context) {
@@ -424,6 +442,7 @@ func (s *HTTPServer) setUserRoles(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// deleteUser 移除成员：解除平台侧绑定（账号本体保留）并删除本地投影
 func (s *HTTPServer) deleteUser(c *gin.Context) {
 	id, ok := idParam(c)
 	if !ok {
@@ -445,10 +464,15 @@ func (s *HTTPServer) syncUsersFromPlatform(c *gin.Context) {
 	response.OK(c, gin.H{"created": created, "refreshed": refreshed})
 }
 
-// admissionErr 准入操作错误映射：不存在 404，其余 400
+// admissionErr 准入/成员操作错误映射：不存在 404；平台信封错误透传；其余 400
 func (s *HTTPServer) admissionErr(c *gin.Context, err error) {
 	if isErr(err, bizadmission.ErrNotFound) {
 		response.FailI18n(c, http.StatusNotFound, response.CodeErr, err)
+		return
+	}
+	var perr *platformError
+	if errorsAs(err, &perr) {
+		s.platformErr(c, err)
 		return
 	}
 	response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)

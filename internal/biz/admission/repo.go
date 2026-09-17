@@ -26,6 +26,8 @@ type Repo interface {
 	FindByID(ctx context.Context, id uint) (*Projection, error)
 	// FindByPlatformUserID 按平台用户 ID 查（认证链路每请求调用）
 	FindByPlatformUserID(ctx context.Context, platformUserID uint) (*Projection, error)
+	// FindByPlatformUserIDs 批量按平台用户 ID 查（成员列表合并投影用；未建投影的不在返回 map 中）
+	FindByPlatformUserIDs(ctx context.Context, platformUserIDs []uint) (map[uint]*Projection, error)
 	List(ctx context.Context, q Query, page, pageSize int) ([]*Projection, int64, error)
 	SetRoles(ctx context.Context, id uint, roleIDs []uint) error
 }

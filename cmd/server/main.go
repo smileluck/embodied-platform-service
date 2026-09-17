@@ -74,20 +74,10 @@ func main() {
 	logger.Info("server stopped")
 }
 
-// checkPlatform 三类凭证连通性自检：管理面服务账号 / 开放面商户 HMAC / storage-gateway
+// checkPlatform 凭证连通性自检：开放面商户 HMAC / storage-gateway
 func checkPlatform(cfg *conf.Bootstrap) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-
-	if cfg.Platform.Admin.Username != "" {
-		if err := platform.NewAdminClient(cfg).Ping(ctx); err != nil {
-			logger.Warn("platform admin api unreachable（「从平台同步用户」将失败）", zap.Error(err))
-		} else {
-			logger.Info("platform admin api ok（从平台同步用户可用）")
-		}
-	} else {
-		logger.Info("platform.admin 未配置：「从平台同步用户」不可用（准入依赖首登懒建，其余功能不受影响）")
-	}
 
 	if cfg.Platform.AppKey != "" {
 		if _, err := platform.NewOpenAPIClient(cfg).Ping(ctx); err != nil {

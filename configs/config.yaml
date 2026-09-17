@@ -51,16 +51,13 @@ cache:
 #      型号域 model:*、物模型 thing-model:read（型号管理 + 选择器）
 #   2. 平台 CORS 白名单（cors.allowedOrigins）登记本系统前端 Origin（登录直调平台）
 #   3. NTP 校时（HMAC 时间戳偏差 ≤ 300s）
-#   4. （可选）platform.admin：仅用于「从平台同步用户」便利功能——管理账号列表按
-#      平台治理决策不上开放面；不配置时准入依赖首登懒建，其余功能不受影响
-#   5. （可选）storage 段：storage-gateway API Key（文件存储）；不配置时降级本地磁盘
+#   4. （可选）storage 段：storage-gateway API Key（文件存储）；不配置时降级本地磁盘
+#   注：用户（成员）管理走开放面 user:*（列表=本商户绑定成员，新增=即建即绑，删除=解绑），
+#   管理面服务账号通道已于 2026-09-17 移除，无需配置 platform.admin
 platform:
   baseUrl: http://localhost:27080 # 平台主服务（/api/v1 与 /open-api/v1 同源）
   appKey: "mk_0e94e71768252d89" # 商户 AppKey（平台商户管理创建）
   appSecret: "51e2f6710de945c50fd3d0f92731ef746d00d5080a5c4c0b9349e0d5a7eea48c" # 商户 AppSecret 明文（仅创建时返回一次，妥善保管）
-  admin: # 可选：管理面服务账号，仅「从平台同步用户」使用；不配置则准入依赖首登懒建
-    username: ""
-    password: ""
   storage: # storage-gateway 直连（文件存储后端）
     baseUrl: http://localhost:27091
     apiKeyId: ""

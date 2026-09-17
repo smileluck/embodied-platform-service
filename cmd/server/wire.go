@@ -82,8 +82,7 @@ var dataRepoSet = wire.NewSet(
 	dataappuser.NewRepo,
 	dataexport.NewRepo,
 	dataexport.NewWorker,
-	// 平台集成层（三类凭证 + 身份自省）
-	platform.NewAdminClient,
+	// 平台集成层（商户 HMAC 开放面 + 身份自省 + 存储）
 	platform.NewIdentityClient,
 	platform.NewStorageClient,
 	platform.NewOpenAPIClient,
@@ -92,7 +91,7 @@ var dataRepoSet = wire.NewSet(
 	datadevmodel.NewGatewayAdapter,
 	datatenant.NewSyncer,
 	datatenant.NewTenantAvailability,
-	dataadmission.NewPlatformUserReaderAdapter,
+	dataadmission.NewPlatformGateway,
 	dataauth.NewIdentityAdapter,
 	// 跨上下文最小依赖接口绑定（provider 与 bind 需同 set）
 	wire.Bind(new(auth.IdentitySource), new(*dataauth.IdentityAdapter)),
@@ -105,7 +104,7 @@ var dataRepoSet = wire.NewSet(
 	wire.Bind(new(biztenant.PlatformSyncer), new(*datatenant.Syncer)),
 	wire.Bind(new(bizdevice.Gateway), new(*datadevice.GatewayAdapter)),
 	wire.Bind(new(bizdevmodel.Gateway), new(*datadevmodel.GatewayAdapter)),
-	wire.Bind(new(bizadmission.PlatformUserReader), new(*dataadmission.PlatformUserReaderAdapter)),
+	wire.Bind(new(bizadmission.MemberGateway), new(*dataadmission.PlatformGateway)),
 	wire.Bind(new(bizadmission.DecisionCache), new(*data.RBACCache)),
 	wire.Bind(new(bizrole.DecisionCache), new(*data.RBACCache)),
 )

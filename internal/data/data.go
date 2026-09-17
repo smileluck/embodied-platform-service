@@ -261,14 +261,15 @@ type systemButtonPermDef struct {
 // systemButtonPerms 系统管理各接口的 button 权限点清单：
 // code 控前端按钮显隐，method/path 绑定接口参与后端 RBAC 校验（path 支持中间通配 *）
 var systemButtonPerms = []systemButtonPermDef{
-	// 用户准入
+	// 用户准入（成员来源=平台开放面本商户绑定集：新增/删除推送平台）
 	{Name: "查询用户", Code: "user:list", Menu: "menu:user", Method: "GET", Path: "/api/v1/users", Sort: 1},
 	{Name: "用户详情", Code: "user:view", Menu: "menu:user", Method: "GET", Path: "/api/v1/users/*", Sort: 2},
 	{Name: "设置准入", Code: "user:setAdmission", Menu: "menu:user", Method: "PUT", Path: "/api/v1/users/*/admission", Sort: 3},
 	{Name: "分配角色", Code: "user:setRoles", Menu: "menu:user", Method: "PUT", Path: "/api/v1/users/*/roles", Sort: 4},
-	{Name: "移除准入", Code: "user:delete", Menu: "menu:user", Method: "DELETE", Path: "/api/v1/users/*", Sort: 5},
-	{Name: "同步平台用户", Code: "user:sync", Menu: "menu:user", Method: "POST", Path: "/api/v1/users/sync", Sort: 6},
-	{Name: "导出用户", Code: "user:export", Menu: "menu:user", Method: "POST", Path: "/api/v1/users/export", Sort: 7},
+	{Name: "移除用户", Code: "user:delete", Menu: "menu:user", Method: "DELETE", Path: "/api/v1/users/*", Sort: 5},
+	{Name: "新增用户", Code: "user:add", Menu: "menu:user", Method: "POST", Path: "/api/v1/users", Sort: 6},
+	{Name: "同步平台成员", Code: "user:sync", Menu: "menu:user", Method: "POST", Path: "/api/v1/users/sync", Sort: 7},
+	{Name: "导出用户", Code: "user:export", Menu: "menu:user", Method: "POST", Path: "/api/v1/users/export", Sort: 8},
 	// 角色管理
 	{Name: "查询角色", Code: "role:list", Menu: "menu:role", Method: "GET", Path: "/api/v1/roles", Sort: 1},
 	{Name: "角色详情", Code: "role:view", Menu: "menu:role", Method: "GET", Path: "/api/v1/roles/*", Sort: 2},

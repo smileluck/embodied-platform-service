@@ -102,6 +102,26 @@ func (r *repo) FindByPlatformUserID(ctx context.Context, platformUserID uint) (*
 	return p, nil
 }
 
+func (r *repo) FindByPlatformUserIDs(ctx context.Context, platformUserIDs []uint) (map[uint]*bizadmission.Projection, error) {
+	out := make(map[uint]*bizadmission.Projection, len(platformUserIDs))
+	if len(platformUserIDs) == 0 {
+		return out, nil
+	}
+	var pos []model.PlatformUserPO
+	if err := r.data.DB.WithContext(ctx).
+		Where("platform_user_id IN ?", platformUserIDs).Find(&pos).Error; err != nil {
+		return nil, err
+	}
+	for i := range pos {
+		p := model.PlatformUserFromPO(&pos[i])
+		if err := loadRoles(ctx, r.data.DB, p); err != nil {
+			return nil, err
+		}
+		out[p.PlatformUserID] = p
+	}
+	return out, nil
+}
+
 func (r *repo) List(ctx context.Context, q bizadmission.Query, page, pageSize int) ([]*bizadmission.Projection, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.PlatformUserPO{})
 	if q.Username != "" {

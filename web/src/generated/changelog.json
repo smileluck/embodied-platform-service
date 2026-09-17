@@ -1,6 +1,20 @@
 {
-  "generatedAt": "2026-09-17T01:40:11.574Z",
+  "generatedAt": "2026-09-17T08:32:06.789Z",
   "commits": [
+    {
+      "hash": "57f8993",
+      "date": "2026-09-17",
+      "type": "docs",
+      "scope": "login",
+      "message": "simplify login page subtitle text"
+    },
+    {
+      "hash": "59852a4",
+      "date": "2026-09-17",
+      "type": "chore",
+      "scope": "config, changelog",
+      "message": "update config and regenerate changelog"
+    },
     {
       "hash": "498af27",
       "date": "2026-09-16",

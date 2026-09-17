@@ -64,15 +64,15 @@ func wireApp() (*server.HTTPServer, func(), error) {
 		return nil, nil, err
 	}
 	repo := admission.NewRepo(dataData)
-	adminClient := platform.NewAdminClient(bootstrap)
-	platformUserReaderAdapter := admission.NewPlatformUserReaderAdapter(adminClient)
-	client, cleanup2, err := data.NewRedisClient(bootstrap)
+	client := platform.NewOpenAPIClient(bootstrap)
+	platformGateway := admission.NewPlatformGateway(client)
+	redisClient, cleanup2, err := data.NewRedisClient(bootstrap)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	rbacCache := data.NewRBACCache(client, bootstrap)
-	usecase := admission2.NewUsecase(repo, platformUserReaderAdapter, rbacCache, bootstrap)
+	rbacCache := data.NewRBACCache(redisClient, bootstrap)
+	usecase := admission2.NewUsecase(repo, platformGateway, rbacCache, bootstrap)
 	permissionRepo := permission.NewRepo(dataData)
 	roleRepo := role.NewRepo(dataData)
 	authUsecase := auth2.NewUsecase(identityAdapter, usecase, permissionRepo, roleRepo)
@@ -114,26 +114,25 @@ func wireApp() (*server.HTTPServer, func(), error) {
 	}
 	exportUsecase := export2.NewUsecase(exportRepo, registry, worker, storageManager, bootstrap)
 	exportService := export3.NewService(exportUsecase)
-	blacklistRepo := blacklist.NewRepo(dataData, client)
+	blacklistRepo := blacklist.NewRepo(dataData, redisClient)
 	blacklistUsecase := blacklist2.NewUsecase(blacklistRepo, blacklistRepo)
 	blacklistService := blacklist3.NewService(blacklistUsecase)
 	tenantRepo := tenant.NewRepo(dataData)
-	sdkClient := platform.NewOpenAPIClient(bootstrap)
-	syncer := tenant.NewSyncer(sdkClient)
+	syncer := tenant.NewSyncer(client)
 	tenantUsecase := tenant2.NewUsecase(tenantRepo, syncer)
 	tenantService := tenant3.NewService(tenantUsecase)
 	appuserRepo := appuser.NewRepo(dataData)
 	tokenIssuer := data.NewAppTokenIssuer(bootstrap)
 	appuserUsecase := appuser2.NewUsecase(appuserRepo, tokenIssuer)
 	appuserService := appuser3.NewService(appuserUsecase)
-	gatewayAdapter := device.NewGatewayAdapter(sdkClient)
+	gatewayAdapter := device.NewGatewayAdapter(client)
 	tenantReader := tenant.NewTenantAvailability(dataData)
 	deviceUsecase := device2.NewUsecase(gatewayAdapter, tenantReader)
 	deviceService := device3.NewService(deviceUsecase)
-	devmodelGatewayAdapter := devmodel.NewGatewayAdapter(sdkClient)
+	devmodelGatewayAdapter := devmodel.NewGatewayAdapter(client)
 	devmodelUsecase := devmodel2.NewUsecase(devmodelGatewayAdapter)
 	devmodelService := devmodel3.NewService(devmodelUsecase)
-	httpServer := server.NewHTTPServer(bootstrap, service, admissionService, usecase, roleService, permissionService, logService, fileService, exportService, blacklistService, tenantService, appuserService, appuserUsecase, tokenIssuer, deviceService, devmodelService, rbacCache, client)
+	httpServer := server.NewHTTPServer(bootstrap, service, admissionService, usecase, roleService, permissionService, logService, fileService, exportService, blacklistService, tenantService, appuserService, appuserUsecase, tokenIssuer, deviceService, devmodelService, rbacCache, redisClient)
 	return httpServer, func() {
 		cleanup4()
 		cleanup3()
@@ -146,7 +145,7 @@ func wireApp() (*server.HTTPServer, func(), error) {
 
 var bizSet = wire.NewSet(admission2.NewUsecase, role2.NewUsecase, permission2.NewUsecase, log2.NewUsecase, file2.NewUsecase, blacklist2.NewUsecase, tenant2.NewUsecase, appuser2.NewUsecase, device2.NewUsecase, devmodel2.NewUsecase, export2.NewUsecase, export2.NewRegistry, export2.NewUserExporter, export2.NewOpLogExporter, auth2.NewUsecase, wire.Bind(new(auth2.AdmissionReader), new(*admission2.Usecase)))
 
-var dataRepoSet = wire.NewSet(data.NewData, data.NewRedisClient, data.NewAppTokenIssuer, data.NewRBACCache, admission.NewRepo, role.NewRepo, permission.NewRepo, log.NewRepo, file.NewRepo, file.NewStorageManager, blacklist.NewRepo, tenant.NewRepo, appuser.NewRepo, export.NewRepo, export.NewWorker, platform.NewAdminClient, platform.NewIdentityClient, platform.NewStorageClient, platform.NewOpenAPIClient, device.NewGatewayAdapter, devmodel.NewGatewayAdapter, tenant.NewSyncer, tenant.NewTenantAvailability, admission.NewPlatformUserReaderAdapter, auth.NewIdentityAdapter, wire.Bind(new(auth2.IdentitySource), new(*auth.IdentityAdapter)), wire.Bind(new(auth2.PermissionReader), new(permission2.Repo)), wire.Bind(new(auth2.RoleNameReader), new(role2.Repo)), wire.Bind(new(log2.Repo), new(*log.Repo)), wire.Bind(new(blacklist2.Repo), new(*blacklist.Repo)), wire.Bind(new(blacklist2.LoginProtector), new(*blacklist.Repo)), wire.Bind(new(export2.Enqueuer), new(*export.Worker)), wire.Bind(new(tenant2.PlatformSyncer), new(*tenant.Syncer)), wire.Bind(new(device2.Gateway), new(*device.GatewayAdapter)), wire.Bind(new(devmodel2.Gateway), new(*devmodel.GatewayAdapter)), wire.Bind(new(admission2.PlatformUserReader), new(*admission.PlatformUserReaderAdapter)), wire.Bind(new(admission2.DecisionCache), new(*data.RBACCache)), wire.Bind(new(role2.DecisionCache), new(*data.RBACCache)))
+var dataRepoSet = wire.NewSet(data.NewData, data.NewRedisClient, data.NewAppTokenIssuer, data.NewRBACCache, admission.NewRepo, role.NewRepo, permission.NewRepo, log.NewRepo, file.NewRepo, file.NewStorageManager, blacklist.NewRepo, tenant.NewRepo, appuser.NewRepo, export.NewRepo, export.NewWorker, platform.NewIdentityClient, platform.NewStorageClient, platform.NewOpenAPIClient, device.NewGatewayAdapter, devmodel.NewGatewayAdapter, tenant.NewSyncer, tenant.NewTenantAvailability, admission.NewPlatformGateway, auth.NewIdentityAdapter, wire.Bind(new(auth2.IdentitySource), new(*auth.IdentityAdapter)), wire.Bind(new(auth2.PermissionReader), new(permission2.Repo)), wire.Bind(new(auth2.RoleNameReader), new(role2.Repo)), wire.Bind(new(log2.Repo), new(*log.Repo)), wire.Bind(new(blacklist2.Repo), new(*blacklist.Repo)), wire.Bind(new(blacklist2.LoginProtector), new(*blacklist.Repo)), wire.Bind(new(export2.Enqueuer), new(*export.Worker)), wire.Bind(new(tenant2.PlatformSyncer), new(*tenant.Syncer)), wire.Bind(new(device2.Gateway), new(*device.GatewayAdapter)), wire.Bind(new(devmodel2.Gateway), new(*devmodel.GatewayAdapter)), wire.Bind(new(admission2.MemberGateway), new(*admission.PlatformGateway)), wire.Bind(new(admission2.DecisionCache), new(*data.RBACCache)), wire.Bind(new(role2.DecisionCache), new(*data.RBACCache)))
 
 var serviceSet = wire.NewSet(auth3.NewService, admission3.NewService, role3.NewService, permission3.NewService, log3.NewService, file3.NewService, blacklist3.NewService, export3.NewService, tenant3.NewService, appuser3.NewService, device3.NewService, devmodel3.NewService)
 

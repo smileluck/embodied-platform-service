@@ -66,8 +66,8 @@ export interface PageResult<T> {
   page: { page: number; page_size: number; total: number }
 }
 
-// 用户准入投影（平台用户在本系统的准入记录）
-export interface AdmissionUser {
+// 用户准入投影（平台用户在本系统的准入记录：开关 + 本地角色）
+export interface AdmissionProjection {
   id: number
   platform_user_id: number
   username: string
@@ -77,6 +77,16 @@ export interface AdmissionUser {
   role_ids: number[] | null
   created_at: string
   updated_at: string
+}
+
+// 成员列表合并行（来源=平台本商户绑定成员 + 本地准入投影可空）
+export interface MemberRow {
+  platform_user_id: number
+  username: string
+  nickname: string
+  platform_status: number // 平台侧账号状态：1 启用 0 禁用（禁用=平台全局）
+  bound_at: string // 平台侧绑定时间
+  projection: AdmissionProjection | null // null=平台已绑定但本系统未准入
 }
 
 // 操作日志（一条写请求审计）

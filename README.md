@@ -49,14 +49,14 @@ embodied-platform（平台 = 唯一身份源 + 设备/存储基础设施）
 ## 部署前置清单（平台侧，对照平台 `docs/dev/integration-guide.md` §11）
 
 1. 平台创建**商户**（`appKey`/`appSecret`）并配置 scopes：`device:*`、`telemetry:read`、`data-event:read`、
-   `tenant:*`、`model:*`、`thing-model:read`（租户同步/型号管理/设备管理全部走商户 HMAC 单一凭证）；
-2. （可选）`platform.admin` 管理账号：**仅**「从平台同步用户」便利功能使用（管理账号列表按平台治理
-   决策不上开放面）；不配置时准入依赖首登懒建，其余功能不受影响；
-3. （可选）平台管理端签发 **storage API Key**（`platform.storage`，目标桶读写 scope）；
-4. 平台 CORS 白名单（`cors.allowedOrigins`）登记本系统前端 Origin（登录直调平台需要）；
-5. NTP 校时（HMAC 时间戳偏差 ≤ 300s）。
+   `tenant:*`、`model:*`、`thing-model:read`、`user:*`（租户同步/型号管理/设备管理/成员管理全部走商户 HMAC 单一凭证）；
+2. （可选）平台管理端签发 **storage API Key**（`platform.storage`，目标桶读写 scope）；
+3. 平台 CORS 白名单（`cors.allowedOrigins`）登记本系统前端 Origin（登录直调平台需要）；
+4. NTP 校时（HMAC 时间戳偏差 ≤ 300s）。
 
 以上凭证填入 `configs/config.yaml` 的 `platform` 段；启动时自动做连通性自检并打日志（失败不阻断启动）。
+注：用户（成员）管理走开放面 `user:*`——列表=平台本商户绑定成员，新增=平台无此账号则创建（初始密码在本系统
+添加用户时设置）有则绑定，删除=解除关联（平台账号保留）；`platform.admin` 管理面通道已移除，无需配置。
 
 ## 快速开始
 

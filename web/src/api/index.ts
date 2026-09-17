@@ -1,7 +1,7 @@
 import request from './request'
 import type {
-  AdmissionUser, AppUser, BlacklistItem, DataEvent, Device, DeviceCommand, DeviceModel, DeviceShadow,
-  ExportRecord, FileInfo, LogPageResult, MenuHit, MenuNode, OperationLogInfo, PageResult, Permission,
+  AdmissionProjection, AppUser, BlacklistItem, DataEvent, Device, DeviceCommand, DeviceModel, DeviceShadow,
+  ExportRecord, FileInfo, LogPageResult, MenuHit, MenuNode, MemberRow, OperationLogInfo, PageResult, Permission,
   R, Role, TelemetryHistory, Tenant, TMNode, TMVersion, UserInfo,
 } from './types'
 
@@ -19,18 +19,22 @@ export const updateProfile = (data: { nickname?: string; email?: string }) =>
 export const changePassword = (data: { old_password: string; new_password: string }) =>
   request.put<R<null>>('/auth/password', data)
 
-// ---- 用户准入（平台是唯一身份源，本地只管准入开关与角色） ----
-export const listUsers = (params: { page: number; page_size: number; username?: string; status?: number }) =>
-  request.get<R<PageResult<AdmissionUser>>>('/users', { params })
-export const getUser = (id: number) => request.get<R<AdmissionUser>>(`/users/${id}`)
+// ---- 用户成员管理（列表=平台本商户绑定成员；新增=推送平台即建即绑；删除=推送平台解绑；
+//      路由 :id 一律为平台用户 ID，本地准入开关/角色存投影） ----
+export const listUsers = (params: { page: number; page_size: number; kw?: string }) =>
+  request.get<R<PageResult<MemberRow>>>('/users', { params })
+// 新增成员：平台无此账号则创建（password 为平台初始密码）并绑定，有则仅绑定；本地同时建准入投影
+export const addUser = (data: { username: string; nickname?: string; password?: string; enabled?: boolean; role_ids?: number[] }) =>
+  request.post<R<{ projection: AdmissionProjection; existed: boolean }>>('/users', data)
+export const getUser = (id: number) => request.get<R<AdmissionProjection>>(`/users/${id}`)
 // 开/关准入（关闭即同步吊销该用户对本系统的访问授权，即时生效）
 export const setUserAdmission = (id: number, enabled: boolean) =>
   request.put<R<null>>(`/users/${id}/admission`, { enabled })
 export const setUserRoles = (id: number, role_ids: number[]) =>
   request.put<R<null>>(`/users/${id}/roles`, { role_ids })
-// 移除准入（删除投影；平台账号不受影响）
+// 移除成员（解除平台侧关联并删除本地投影；平台账号本体保留）
 export const deleteUser = (id: number) => request.delete<R<null>>(`/users/${id}`)
-// 从平台拉取用户列表：预建投影（默认停用）/刷新快照
+// 从平台拉取本商户绑定成员：补建缺失投影（成员=准入开启）/刷新快照
 export const syncUsersFromPlatform = () => request.post<R<{ created: number; refreshed: number }>>('/users/sync')
 
 // ---- 角色 ----
