@@ -11,8 +11,8 @@ var ErrRoleNotFound = errors.New("角色不存在")
 // ErrRoleHasUsers 角色下仍有用户，须先移除
 var ErrRoleHasUsers = errors.New("该角色下存在用户，请先移除用户与该角色的关联")
 
-// ErrSuperRoleLocked 超管角色为系统内置，禁止修改/删除
-var ErrSuperRoleLocked = errors.New("超级管理员角色为系统内置，禁止修改和操作")
+// ErrBuiltinRoleLocked 内置角色（超级管理员/商户管理员）禁止修改/删除/改权限绑定
+var ErrBuiltinRoleLocked = errors.New("内置角色为系统内置，禁止修改和操作")
 
 // Query 角色列表查询条件
 type Query struct {

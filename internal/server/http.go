@@ -565,7 +565,7 @@ func (s *HTTPServer) setRolePermissions(c *gin.Context) {
 
 // roleErr 角色操作错误映射：超管角色保护类返回 403，其余返回 400
 func (s *HTTPServer) roleErr(c *gin.Context, err error) {
-	if isErr(err, role.ErrSuperRoleLocked) {
+	if isErr(err, role.ErrBuiltinRoleLocked) {
 		response.FailI18n(c, http.StatusForbidden, response.CodeForbidden, err)
 		return
 	}

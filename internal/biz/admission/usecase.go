@@ -19,7 +19,14 @@ type PlatformAccount struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
 	Nickname string `json:"nickname"`
-	Status   int    `json:"status"` // 平台侧状态（1 启用 0 禁用；平台禁用=全局）
+	Status   int    `json:"status"`   // 平台侧状态（1 启用 0 禁用；平台禁用=全局）
+	IsAdmin  bool   `json:"is_admin"` // 商户管理员标记（平台侧唯一事实源）
+}
+
+// MerchantIdentity 本商户身份解析（开放面 ping 惰性发现；由 data 层实现）
+type MerchantIdentity interface {
+	// MerchantID 返回本商户的平台 ID；known=false 表示尚未识别成功
+	MerchantID(ctx context.Context) (uint, bool)
 }
 
 // MemberRow 成员列表合并行：平台绑定成员（来源=平台，唯一身份源）+ 本地准入投影（可空）
@@ -52,11 +59,12 @@ type Usecase struct {
 	repo      Repo
 	platform  MemberGateway
 	cache     DecisionCache
-	bootstrap []string // 免准入引导账号（平台用户名）
+	bootstrap []string         // 免准入引导账号（平台用户名）
+	identity  MerchantIdentity // 本商户身份（商户管理员标记匹配用；测试可空）
 }
 
-func NewUsecase(repo Repo, platform MemberGateway, cache DecisionCache, c *conf.Bootstrap) *Usecase {
-	return &Usecase{repo: repo, platform: platform, cache: cache, bootstrap: c.Platform.BootstrapAdmins}
+func NewUsecase(repo Repo, platform MemberGateway, cache DecisionCache, identity MerchantIdentity, c *conf.Bootstrap) *Usecase {
+	return &Usecase{repo: repo, platform: platform, cache: cache, bootstrap: c.Platform.BootstrapAdmins, identity: identity}
 }
 
 // flushDecisions 主动失效决策缓存（禁用/删除/改角色后立即生效；失败仅告警不阻断主流程）
@@ -115,6 +123,80 @@ func (uc *Usecase) EnsureBootstrap(ctx context.Context, platformUserID uint, use
 		uc.flushDecisions(ctx)
 	}
 	return p, nil
+}
+
+// ---- 商户管理员投影（平台标记 → 本地角色 2） ----
+
+// ResolveMerchantAdmin 判定平台身份是否本商户的管理员（平台 /auth/profile 下发的
+// 已准入商户引用 × 本商户 ID）。known=false 表示本商户身份未知（ping 未成功），
+// 调用方须跳过管理员投影自愈，绝不因未知而误解绑。
+func (uc *Usecase) ResolveMerchantAdmin(ctx context.Context, merchants []MerchantRef) (admin, known bool) {
+	if uc.identity == nil {
+		return false, false
+	}
+	mid, ok := uc.identity.MerchantID(ctx)
+	if !ok {
+		return false, false
+	}
+	for _, m := range merchants {
+		if m.ID == mid {
+			return m.IsAdmin, true
+		}
+	}
+	// 身份已知但未绑定本商户（或旧版平台未下发 merchants）：明确非管理员
+	return false, true
+}
+
+// EnsureMerchantAdmin 为平台标记的商户管理员懒建准入投影（Enabled + 角色2）：
+// 平台侧把成员设为管理员后，对方首次请求本系统即自动准入，零人工介入。
+// 已有投影时交由 ReconcileMerchantAdmin 对账，不做整体替换。
+func (uc *Usecase) EnsureMerchantAdmin(ctx context.Context, platformUserID uint, username, nickname string) (*Projection, error) {
+	p, err := uc.repo.FindByPlatformUserID(ctx, platformUserID)
+	if err != nil {
+		return nil, err
+	}
+	if p != nil {
+		return p, nil
+	}
+	if nickname == "" {
+		nickname = username
+	}
+	np := &Projection{
+		PlatformUserID: platformUserID,
+		Username:       username,
+		Nickname:       nickname,
+		Enabled:        true,
+		RoleIDs:        []uint{MerchantAdminRoleID},
+	}
+	if err := uc.repo.Create(ctx, np); err != nil {
+		return nil, err
+	}
+	uc.flushDecisions(ctx)
+	return np, nil
+}
+
+// ReconcileMerchantAdmin 商户管理员绑定自愈：平台标记与本地持有不一致时绑/解角色2
+// 并失效决策缓存（即时生效）。变更延迟受 pid: 自省缓存 TTL（30-60s）兜底，
+// 与「平台禁用/吊销在 TTL 内感知」同口径。幂等：一致时零写入。
+func (uc *Usecase) ReconcileMerchantAdmin(ctx context.Context, p *Projection, isAdmin bool) error {
+	if p == nil {
+		return nil
+	}
+	has := containsRole(p.RoleIDs, MerchantAdminRoleID)
+	if has == isAdmin {
+		return nil
+	}
+	if isAdmin {
+		if err := uc.repo.GrantRole(ctx, p.PlatformUserID, MerchantAdminRoleID); err != nil {
+			return err
+		}
+	} else {
+		if err := uc.repo.RevokeRole(ctx, p.PlatformUserID, MerchantAdminRoleID); err != nil {
+			return err
+		}
+	}
+	uc.flushDecisions(ctx)
+	return nil
 }
 
 // List 准入列表
@@ -267,16 +349,19 @@ func (uc *Usecase) GetByPlatformUser(ctx context.Context, platformUserID uint) (
 }
 
 // SyncFromPlatform 从平台拉取本商户绑定成员：为尚无投影的成员建投影（成员语义=准入开启），
-// 并刷新存量投影的用户名/昵称快照。返回（新建数，刷新数）。
+// 刷新存量投影的用户名/昵称快照，并按平台的商户管理员标记对账本地角色2绑定
+// （标记缺失/被移出成员列表的持有者一并回收）。返回（新建数，刷新数）。
 func (uc *Usecase) SyncFromPlatform(ctx context.Context) (created, refreshed int, err error) {
 	page := 1
 	const size = 100
+	adminMarked := map[uint]bool{}
 	for {
 		accounts, _, err := uc.platform.ListMembers(ctx, "", page, size)
 		if err != nil {
 			return created, refreshed, err
 		}
 		for _, a := range accounts {
+			adminMarked[a.ID] = a.IsAdmin
 			p, _ := uc.repo.FindByPlatformUserID(ctx, a.ID)
 			if p == nil {
 				np := &Projection{
@@ -285,6 +370,9 @@ func (uc *Usecase) SyncFromPlatform(ctx context.Context) (created, refreshed int
 					Nickname:       a.Nickname,
 					Email:          "",
 					Enabled:        true, // 绑定即成员：成员默认准入（角色另行分配）
+				}
+				if a.IsAdmin {
+					np.RoleIDs = []uint{MerchantAdminRoleID}
 				}
 				if cerr := uc.repo.Create(ctx, np); cerr == nil {
 					created++
@@ -297,11 +385,31 @@ func (uc *Usecase) SyncFromPlatform(ctx context.Context) (created, refreshed int
 					refreshed++
 				}
 			}
+			// 管理员标记对账（不一致时绑/解角色2，Reconcile 内部已失效缓存）
+			_ = uc.ReconcileMerchantAdmin(ctx, p, a.IsAdmin)
 		}
 		if len(accounts) < size {
 			break
 		}
 		page++
+	}
+	// 持有角色2但已不在平台成员列表（或未标记）的：回收管理员绑定
+	holders, err := uc.repo.RoleHolderUserIDs(ctx, MerchantAdminRoleID)
+	if err != nil {
+		return created, refreshed, err
+	}
+	revoked := false
+	for _, uid := range holders {
+		if adminMarked[uid] {
+			continue
+		}
+		if err := uc.repo.RevokeRole(ctx, uid, MerchantAdminRoleID); err != nil {
+			return created, refreshed, err
+		}
+		revoked = true
+	}
+	if revoked {
+		uc.flushDecisions(ctx)
 	}
 	return created, refreshed, nil
 }

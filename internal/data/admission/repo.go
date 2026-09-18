@@ -158,7 +158,25 @@ func (r *repo) SetRoles(ctx context.Context, id uint, roleIDs []uint) error {
 		if err := tx.First(&po, id).Error; err != nil {
 			return mapErr(err)
 		}
-		return replaceRoles(ctx, tx, po.PlatformUserID, roleIDs)
+		// 全量替换前保留现持有的内置锁定角色（超管=配置引导、商户管理员=平台标记驱动）：
+		// 手工分配不得增删锁定绑定，请求里显式携带的锁定 ID 一并忽略
+		var lockedRels []model.PlatformUserRolePO
+		if err := tx.Where("platform_user_id = ? AND role_id IN ?", po.PlatformUserID, bizadmission.LockedRoleIDs).
+			Find(&lockedRels).Error; err != nil {
+			return err
+		}
+		kept := make([]uint, 0, len(lockedRels))
+		for _, rel := range lockedRels {
+			kept = append(kept, rel.RoleID)
+		}
+		merged := make([]uint, 0, len(roleIDs)+len(kept))
+		for _, rid := range roleIDs {
+			if !bizadmission.IsLockedRole(rid) {
+				merged = append(merged, rid)
+			}
+		}
+		merged = append(merged, kept...)
+		return replaceRoles(ctx, tx, po.PlatformUserID, merged)
 	})
 }
 
@@ -176,4 +194,29 @@ func replaceRoles(ctx context.Context, tx *gorm.DB, platformUserID uint, roleIDs
 		rels = append(rels, model.PlatformUserRolePO{PlatformUserID: platformUserID, RoleID: rid})
 	}
 	return tx.Create(&rels).Error
+}
+
+// GrantRole 追加单个角色绑定（幂等；唯一索引兜底并发）
+func (r *repo) GrantRole(ctx context.Context, platformUserID, roleID uint) error {
+	po := model.PlatformUserRolePO{PlatformUserID: platformUserID, RoleID: roleID}
+	return r.data.DB.WithContext(ctx).
+		Where("platform_user_id = ? AND role_id = ?", platformUserID, roleID).
+		FirstOrCreate(&po).Error
+}
+
+// RevokeRole 移除单个角色绑定（幂等；未持有视为已达成目标状态）
+func (r *repo) RevokeRole(ctx context.Context, platformUserID, roleID uint) error {
+	return r.data.DB.WithContext(ctx).
+		Where("platform_user_id = ? AND role_id = ?", platformUserID, roleID).
+		Delete(&model.PlatformUserRolePO{}).Error
+}
+
+// RoleHolderUserIDs 持有指定角色的平台用户 ID 集
+func (r *repo) RoleHolderUserIDs(ctx context.Context, roleID uint) ([]uint, error) {
+	var ids []uint
+	if err := r.data.DB.WithContext(ctx).Model(&model.PlatformUserRolePO{}).
+		Where("role_id = ?", roleID).Distinct().Pluck("platform_user_id", &ids).Error; err != nil {
+		return nil, err
+	}
+	return ids, nil
 }

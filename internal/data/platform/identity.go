@@ -19,11 +19,19 @@ var (
 
 // Subject 平台身份主体（来自平台 GET /auth/profile 的 user 部分）
 type Subject struct {
-	UserID   uint   `json:"id"`
-	Username string `json:"username"`
-	Nickname string `json:"nickname"`
-	Email    string `json:"email"`
-	Status   int    `json:"status"`
+	UserID    uint          `json:"id"`
+	Username  string        `json:"username"`
+	Nickname  string        `json:"nickname"`
+	Email     string        `json:"email"`
+	Status    int           `json:"status"`
+	Merchants []MerchantRef `json:"merchants"` // 本人已准入商户（含商户管理员标记；旧版平台无此字段为空）
+}
+
+// MerchantRef 平台 profile 下发的已准入商户引用
+type MerchantRef struct {
+	ID      uint   `json:"id"`
+	Code    string `json:"code"`
+	IsAdmin bool   `json:"is_admin"`
 }
 
 // IdentityClient 平台身份客户端：用「用户本人的平台 token」做自省与自身数据代理。

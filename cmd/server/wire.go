@@ -86,6 +86,7 @@ var dataRepoSet = wire.NewSet(
 	platform.NewIdentityClient,
 	platform.NewStorageClient,
 	platform.NewOpenAPIClient,
+	platform.NewMerchantIdentity,
 	// 平台网关适配器
 	datadevice.NewGatewayAdapter,
 	datadevmodel.NewGatewayAdapter,
@@ -105,6 +106,7 @@ var dataRepoSet = wire.NewSet(
 	wire.Bind(new(bizdevice.Gateway), new(*datadevice.GatewayAdapter)),
 	wire.Bind(new(bizdevmodel.Gateway), new(*datadevmodel.GatewayAdapter)),
 	wire.Bind(new(bizadmission.MemberGateway), new(*dataadmission.PlatformGateway)),
+	wire.Bind(new(bizadmission.MerchantIdentity), new(*platform.MerchantIdentity)),
 	wire.Bind(new(bizadmission.DecisionCache), new(*data.RBACCache)),
 	wire.Bind(new(bizrole.DecisionCache), new(*data.RBACCache)),
 )

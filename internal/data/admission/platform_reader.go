@@ -28,7 +28,7 @@ func (g *PlatformGateway) ListMembers(ctx context.Context, keyword string, page,
 	out := make([]*bizadmission.PlatformAccount, 0, len(users))
 	for _, u := range users {
 		out = append(out, &bizadmission.PlatformAccount{
-			ID: u.ID, Username: u.Username, Nickname: u.Nickname, Status: u.Status,
+			ID: u.ID, Username: u.Username, Nickname: u.Nickname, Status: u.Status, IsAdmin: u.IsAdmin,
 		})
 	}
 	var total int64

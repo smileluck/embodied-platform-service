@@ -8,7 +8,7 @@ export default {
   editRole: '编辑角色',
   assignPermissions: '分配权限',
   builtin: '内置',
-  superRoleProtected: '超级管理员角色为系统内置，禁止修改和操作',
+  superRoleProtected: '内置角色（超级管理员/商户管理员）禁止修改和操作',
   deleteConfirmTitle: '删除确认',
   deleteConfirmContent: '确定删除角色「{name}」吗？该操作不可恢复。',
   permsUpdated: '权限已更新',

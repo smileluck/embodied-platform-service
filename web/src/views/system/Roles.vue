@@ -65,8 +65,9 @@ const saving = ref(false)
 const rows = ref<Role[]>([])
 const query = reactive({ name: '', page: 1, page_size: 10 })
 
-// 超管角色（id=1）系统内置：禁止修改和操作
-const SUPER_ROLE_ID = 1
+// 内置锁定角色（1=超级管理员、2=商户管理员）：系统内置，禁止修改和操作
+const LOCKED_ROLE_IDS = new Set([1, 2])
+const isLockedRole = (id: number) => LOCKED_ROLE_IDS.has(id)
 
 const showModal = ref(false)
 const showPerm = ref(false)
@@ -114,7 +115,7 @@ function openCreate() {
 }
 
 function openEdit(row: Role) {
-  if (row.id === SUPER_ROLE_ID) { message.error(t('role.superRoleProtected')); return }
+  if (isLockedRole(row.id)) { message.error(t('role.superRoleProtected')); return }
   editing.value = true
   editId.value = row.id
   Object.assign(form, { name: row.name, remark: row.remark })
@@ -145,7 +146,7 @@ async function save() {
 }
 
 function confirmDelete(row: Role) {
-  if (row.id === SUPER_ROLE_ID) { message.error(t('role.superRoleProtected')); return }
+  if (isLockedRole(row.id)) { message.error(t('role.superRoleProtected')); return }
   dialog.warning({
     title: t('role.deleteConfirmTitle'),
     content: t('role.deleteConfirmContent', { name: row.name }),
@@ -165,7 +166,7 @@ function confirmDelete(row: Role) {
 
 // 构造权限树：目录 + 菜单 + 按钮权限点统一按 parent_id 组树（按钮自然挂在所属菜单下）
 async function openPerms(row: Role) {
-  if (row.id === SUPER_ROLE_ID) { message.error(t('role.superRoleProtected')); return }
+  if (isLockedRole(row.id)) { message.error(t('role.superRoleProtected')); return }
   editId.value = row.id
   try {
     // 权限树需整表构建，走全量接口（page_size=0），分页会截断子节点
@@ -214,8 +215,8 @@ const columns = computed<DataTableColumns<Role>>(() => [
   {
     title: t('common.operation'), key: 'actions', width: 170,
     render(row) {
-      // 超管角色系统内置：禁止修改和操作，仅展示「内置」标记
-      if (row.id === SUPER_ROLE_ID) {
+      // 内置角色（超管/商户管理员）：禁止修改和操作，仅展示「内置」标记
+      if (isLockedRole(row.id)) {
         return h(NTag, { size: 'small', bordered: false }, { default: () => t('role.builtin') })
       }
       const actions: Array<TableAction | VNode> = []

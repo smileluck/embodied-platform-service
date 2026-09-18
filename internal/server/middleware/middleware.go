@@ -106,10 +106,21 @@ func PlatformAuth(authSrv *authsvc.Service, admissionUC *bizadmission.Usecase, i
 			c.Abort()
 			return
 		}
+		// 商户管理员标记（平台 /auth/profile 下发 × 本商户身份）：投影存在则对账自愈，
+		// 身份未知（ping 未成功）时跳过，绝不因未知而误解绑
+		isAdmin, identityKnown := admissionUC.ResolveMerchantAdmin(c.Request.Context(), sub.Merchants)
 		if proj == nil && admissionUC.IsBootstrap(sub.Username) {
 			proj, err = admissionUC.EnsureBootstrap(c.Request.Context(), sub.UserID, sub.Username)
 			if err != nil {
 				response.ServerError(c, "bootstrap admission failed")
+				c.Abort()
+				return
+			}
+		} else if proj == nil && identityKnown && isAdmin {
+			// 平台标记的商户管理员首登即自动准入（零人工介入）
+			proj, err = admissionUC.EnsureMerchantAdmin(c.Request.Context(), sub.UserID, sub.Username, sub.Nickname)
+			if err != nil {
+				response.ServerError(c, "merchant admin admission failed")
 				c.Abort()
 				return
 			}
@@ -118,6 +129,10 @@ func PlatformAuth(authSrv *authsvc.Service, admissionUC *bizadmission.Usecase, i
 			response.Forbidden(c, "account not admitted to this console")
 			c.Abort()
 			return
+		}
+		if identityKnown {
+			// 绑定对账失败不阻断请求（RBAC 按本地实际绑定判定，偏保守）
+			_ = admissionUC.ReconcileMerchantAdmin(c.Request.Context(), proj, isAdmin)
 		}
 
 		c.Set(ctxSubjectKey, &sub)

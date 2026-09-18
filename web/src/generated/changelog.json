@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-17T08:32:06.789Z",
+  "generatedAt": "2026-09-17T09:59:21.409Z",
   "commits": [
+    {
+      "hash": "3bfc64c",
+      "date": "2026-09-17",
+      "type": "refactor",
+      "scope": "",
+      "message": "移除平台管理面通道，切换成员管理到开放面"
+    },
     {
       "hash": "57f8993",
       "date": "2026-09-17",

@@ -3,6 +3,7 @@ package role
 import (
 	"context"
 
+	"github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
 )
 
@@ -17,9 +18,6 @@ type Usecase struct {
 	cache DecisionCache
 }
 
-// superAdminRoleID 超管角色固定 ID：禁止修改和操作
-const superAdminRoleID uint = 1
-
 func NewUsecase(repo Repo, cache DecisionCache) *Usecase {
 	return &Usecase{repo: repo, cache: cache}
 }
@@ -33,8 +31,8 @@ func (uc *Usecase) Create(ctx context.Context, name, remark string) (*Role, erro
 }
 
 func (uc *Usecase) Update(ctx context.Context, id uint, name, remark string) error {
-	if id == superAdminRoleID {
-		return ErrSuperRoleLocked
+	if admission.IsLockedRole(id) {
+		return ErrBuiltinRoleLocked
 	}
 	r, err := uc.repo.FindByID(ctx, id)
 	if err != nil {
@@ -50,8 +48,8 @@ func (uc *Usecase) Update(ctx context.Context, id uint, name, remark string) err
 }
 
 func (uc *Usecase) Delete(ctx context.Context, id uint) error {
-	if id == superAdminRoleID {
-		return ErrSuperRoleLocked
+	if admission.IsLockedRole(id) {
+		return ErrBuiltinRoleLocked
 	}
 	if n, err := uc.repo.CountUsers(ctx, id); err != nil {
 		return err
@@ -78,8 +76,8 @@ func (uc *Usecase) List(ctx context.Context, q Query, page, pageSize int) ([]*Ro
 
 // SetPermissions 绑定权限（变更后决策缓存失效，权限即时生效）
 func (uc *Usecase) SetPermissions(ctx context.Context, roleID uint, permissionIDs []uint) error {
-	if roleID == superAdminRoleID {
-		return ErrSuperRoleLocked
+	if admission.IsLockedRole(roleID) {
+		return ErrBuiltinRoleLocked
 	}
 	if err := uc.repo.SetPermissions(ctx, roleID, permissionIDs); err != nil {
 		return err

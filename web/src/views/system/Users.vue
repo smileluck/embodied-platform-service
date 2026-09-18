@@ -73,6 +73,8 @@ const exporting = ref(false)
 const rows = ref<MemberRow[]>([])
 const query = reactive({ kw: '', page: 1, page_size: 10 })
 const roleOptions = ref<{ label: string; value: number }[]>([])
+// 内置锁定角色（1=超级管理员、2=商户管理员）由配置/平台标记驱动，不参与手工分配
+const LOCKED_ROLE_IDS = new Set([1, 2])
 
 const { pagination } = usePagination(query, () => load())
 
@@ -202,7 +204,8 @@ const editingId = ref(0)
 
 function openRoles(row: MemberRow) {
   editingId.value = row.platform_user_id
-  roleIds.value = [...(row.projection?.role_ids || [])]
+  // 内置锁定角色不在可选项内，回填时剔除（后端替换时也会保留现持有的锁定绑定）
+  roleIds.value = [...(row.projection?.role_ids || [])].filter((id) => !LOCKED_ROLE_IDS.has(id))
   showRoles.value = true
 }
 
@@ -271,7 +274,7 @@ onMounted(async () => {
   load()
   try {
     const { data: resp } = await listRoles({ page: 1, page_size: 0 })
-    roleOptions.value = (resp.data.list || []).map((r) => ({ label: r.name, value: r.id }))
+    roleOptions.value = (resp.data.list || []).filter((r) => !LOCKED_ROLE_IDS.has(r.id)).map((r) => ({ label: r.name, value: r.id }))
   } catch { /* 角色加载失败不阻断列表 */ }
 })
 </script>

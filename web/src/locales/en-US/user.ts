@@ -8,7 +8,7 @@ export default {
   email: 'Email',
   role: 'Roles',
   setRoles: 'Assign roles',
-  rolesHint: 'Roles decide this user\'s menus and actions in this console (platform-side permissions unaffected)',
+  rolesHint: 'Roles decide the menus and actions available to this user in this console (platform-side permissions unaffected); built-in roles are managed automatically',
   admit: 'Admit',
   suspend: 'Suspend',
   admitSuccess: 'Admission enabled',

@@ -17,7 +17,7 @@ export default {
   nickname: '昵称',
   role: '角色',
   setRoles: '分配角色',
-  rolesHint: '角色决定该用户在本系统的菜单与操作权限（平台侧权限不受影响）',
+  rolesHint: '角色决定该用户在本系统的菜单与操作权限（平台侧权限不受影响）；内置角色由系统自动管理',
   admit: '开启准入',
   suspend: '关闭准入',
   admitSuccess: '已开启准入',

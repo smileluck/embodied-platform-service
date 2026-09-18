@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	"github.com/smilex/smilex-admin-gin/internal/data/platform"
 )
@@ -35,9 +36,17 @@ func (a *IdentityAdapter) Profile(ctx context.Context, token string) (*bizauth.S
 		}
 		return nil, err
 	}
-	return &bizauth.Subject{
+	out := &bizauth.Subject{
 		UserID: s.UserID, Username: s.Username, Nickname: s.Nickname, Email: s.Email,
-	}, nil
+	}
+	// 已准入商户（含商户管理员标记）：穿透 pid: 缓存随 Subject 序列化
+	if len(s.Merchants) > 0 {
+		out.Merchants = make([]admission.MerchantRef, 0, len(s.Merchants))
+		for _, m := range s.Merchants {
+			out.Merchants = append(out.Merchants, admission.MerchantRef{ID: m.ID, Code: m.Code, IsAdmin: m.IsAdmin})
+		}
+	}
+	return out, nil
 }
 
 func (a *IdentityAdapter) UpdateProfile(ctx context.Context, token, nickname, email string) error {

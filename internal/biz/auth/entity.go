@@ -22,12 +22,14 @@ var (
 	ErrPlatformUnavailable = errors.New("platform unavailable")
 )
 
-// Subject 认证主体（平台身份；UserID 为平台用户 ID）
+// Subject 认证主体（平台身份；UserID 为平台用户 ID）。
+// 经 pid: 缓存 JSON 往返，新增字段必须有 json tag 才能穿透缓存。
 type Subject struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
-	Nickname string `json:"nickname"`
-	Email    string `json:"email"`
+	UserID    uint                    `json:"user_id"`
+	Username  string                  `json:"username"`
+	Nickname  string                  `json:"nickname"`
+	Email     string                  `json:"email"`
+	Merchants []admission.MerchantRef `json:"merchants"` // 本人已准入商户（含商户管理员标记）
 }
 
 // IdentitySource 平台身份源接口（data 层实现，依赖倒置）：

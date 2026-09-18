@@ -10,6 +10,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/internal/data/model"
@@ -158,6 +159,11 @@ func (d *Data) migrateAndSeed() error {
 		logger.Info("seeded super admin role (admission: platform.bootstrapAdmins 首登自动放行)")
 	}
 
+	// 商户管理员内置角色（须先于菜单/按钮补齐存在，绑定在两个 ensure 循环中一并落到角色2）
+	if err := d.ensureMerchantAdminRole(); err != nil {
+		return err
+	}
+
 	// 系统菜单幂等补齐（存量库升级路径），需先于按钮补齐执行以解析按钮归属
 	if err := d.ensureSystemMenus(); err != nil {
 		return err
@@ -201,6 +207,43 @@ var systemMenus = []systemMenuDef{
 	{Name: "关于我们", Code: "menu:about", Path: "/about", Icon: "InformationCircleOutline", Sort: 9},
 }
 
+// ensureMerchantAdminRole 商户管理员内置角色（固定 ID=2，幂等）：
+// 由平台侧商户成员的商户管理员标记驱动绑定/解绑（biz/admission 中间件自愈 + 同步对账），
+// 权限 = 全部种子菜单/按钮的显式绑定（非通配 all，可审计、后续可收敛），与超管角色同等锁定。
+// 防御：ID=2 已被非本语义角色占用（老库自建角色）时记错误并禁用其绑定，避免误赋权。
+func (d *Data) ensureMerchantAdminRole() error {
+	const expectedName = "商户管理员"
+	var po model.RolePO
+	err := d.DB.First(&po, bizadmission.MerchantAdminRoleID).Error
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		if err := d.DB.Create(&model.RolePO{
+			ID: bizadmission.MerchantAdminRoleID, Name: expectedName,
+			Remark: "平台商户管理员标记驱动（内置，禁止手工分配）",
+		}).Error; err != nil {
+			return err
+		}
+		logger.Info("seeded merchant admin role (平台商户成员管理员标记驱动)")
+		merchantRoleBound = true
+		return nil
+	case err != nil:
+		return err
+	}
+	if po.Name != expectedName {
+		// 非「商户管理员」语义的存量角色占了 ID=2：不接管、不绑定（管理员投影功能停用）
+		logger.Error("role id 2 occupied by foreign role, merchant admin role disabled",
+			zap.String("name", po.Name))
+		merchantRoleBound = false
+		return nil
+	}
+	merchantRoleBound = true
+	return nil
+}
+
+// merchantRoleBound 商户管理员角色（ID=2）是否可用（种子语义未被占用）；
+// 不可用时所有角色2绑定与投影逻辑跳过（避免把全部权限绑给无关角色）
+var merchantRoleBound bool
+
 // ensureSystemMenus 幂等补齐系统菜单并绑定超管角色（每次启动执行）：
 // 按 code 查找（type 兼容 menu/dir，存量迁移会翻转类型），缺失则插入（父级按 code 解析，缺失时落为顶级菜单），并绑定超管角色 ID=1
 func (d *Data) ensureSystemMenus() error {
@@ -231,21 +274,32 @@ func (d *Data) ensureSystemMenus() error {
 		if err := d.bindSuperRole(po.ID); err != nil {
 			return err
 		}
+		// 商户管理员角色随种子同步持有全部菜单（可用时）
+		if merchantRoleBound {
+			if err := d.bindRole(bizadmission.MerchantAdminRoleID, po.ID); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
 
 // bindSuperRole 将权限绑定到超管角色（ID=1，幂等；超管已有 * 通配，绑定仅为角色权限树回显一致）
 func (d *Data) bindSuperRole(permID uint) error {
+	return d.bindRole(bizadmission.SuperRoleID, permID)
+}
+
+// bindRole 将权限绑定到指定角色（幂等；超管为回显一致，商户管理员为实际生效权限）
+func (d *Data) bindRole(roleID, permID uint) error {
 	var cnt int64
 	if err := d.DB.Model(&model.RolePermissionPO{}).
-		Where("role_id = ? AND permission_id = ?", 1, permID).Count(&cnt).Error; err != nil {
+		Where("role_id = ? AND permission_id = ?", roleID, permID).Count(&cnt).Error; err != nil {
 		return err
 	}
 	if cnt > 0 {
 		return nil
 	}
-	return d.DB.Create(&model.RolePermissionPO{RoleID: 1, PermissionID: permID}).Error
+	return d.DB.Create(&model.RolePermissionPO{RoleID: roleID, PermissionID: permID}).Error
 }
 
 // systemButtonPermDef 系统管理接口权限点定义（code 为幂等键，menu 为所属菜单 code）
@@ -399,6 +453,15 @@ func (d *Data) ensureSystemButtonPerms() error {
 				return err
 			}
 			bound++
+		}
+		// 商户管理员角色随种子同步持有全部按钮权限点（可用时；通配权限 ID=1 不在清单内，
+		// 角色2 永远不会拿到 all 通配）
+		if merchantRoleBound {
+			for _, pid := range permIDs {
+				if err := d.bindRole(bizadmission.MerchantAdminRoleID, pid); err != nil {
+					return err
+				}
+			}
 		}
 	} else if !errors.Is(superErr, gorm.ErrRecordNotFound) {
 		return superErr
