@@ -56,12 +56,12 @@ const commits = changelog.commits
 
 // 核心特性列表（文案见 about.features.*，与 README 特性说明同源）
 const features = computed(() => [
-  t('about.features.arch'),
-  t('about.features.db'),
+  t('about.features.identity'),
+  t('about.features.openapi'),
+  t('about.features.tenant'),
+  t('about.features.storage'),
   t('about.features.rbac'),
-  t('about.features.menu'),
-  t('about.features.token'),
-  t('about.features.i18n'),
+  t('about.features.arch'),
 ])
 
 // 提交类型 -> 标签色（conventional commits），文案见 about.type.*

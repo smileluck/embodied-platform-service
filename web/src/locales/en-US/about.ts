@@ -2,15 +2,15 @@
 export default {
   updateLog: 'Changelog',
   commitMeta: '{n} commits · auto-generated at build time',
-  intro: 'A DDD-driven full-stack admin system: Gin + GORM + Wire on the backend and Vue 3 + Naive UI on the frontend, with multi-database support and RBAC, designed to evolve toward microservices.',
+  intro: 'The business console of embodied-platform (embodied-intelligence device infrastructure): devices, models, tenants and file storage are all delegated to the platform with a unified account system, so the console focuses on merchant-side operations and access control. Backend Gin + GORM + Wire, frontend Vue 3 + Naive UI.',
   featuresTitle: 'Key Features',
   features: {
+    identity: 'Unified identity: log in with the platform token, profile introspection + local admission projection — no local passwords or sessions',
+    openapi: 'Platform open API: devices/tenants/models/thing-models via one merchant HMAC credential with fine-grained scopes',
+    tenant: 'Strongly consistent tenants: platform first, local follows, rollback on failure; app users as a separate system',
+    storage: 'Files via platform storage-gateway: presigned upload / 302 download, automatic local-disk fallback when unconfigured',
+    rbac: 'Local RBAC: roles/permissions/dynamic menus/audit logs/IP blacklist/export kept on the console side',
     arch: 'DDD 4-layer architecture: dependency inversion, repository interfaces in the domain layer, Wire DI isomorphic to Kratos',
-    db: 'Multi-database: switch MySQL / PostgreSQL / SQLite with one config line, auto migration and seed data',
-    rbac: 'RBAC + JWT: user-role-permission model with dual tokens and button-level access control',
-    menu: 'Dynamic menu routes: menus configured in admin and registered at runtime — no code changes',
-    token: 'Silent token renewal: 401 auto-refresh with request replay, seamless to users',
-    i18n: 'Chinese/English i18n: UI text and API messages switch with the language',
   },
   type: {
     feat: 'Feature',

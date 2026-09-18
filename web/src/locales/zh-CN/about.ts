@@ -2,15 +2,15 @@
 export default {
   updateLog: '更新记录',
   commitMeta: '{n} 条提交 · 构建时自动生成',
-  intro: 'DDD 驱动的全栈后台管理系统：后端 Gin + GORM + Wire，前端 Vue 3 + Naive UI，支持多数据库与 RBAC 权限体系，架构预留微服务演进能力。',
+  intro: 'embodied-platform（具身智能设备基础设施平台）的业务管理端：设备、型号、租户与文件存储全部委外给平台，账号体系统一到平台，专注商户侧业务运营与权限管理。后端 Gin + GORM + Wire，前端 Vue 3 + Naive UI。',
   featuresTitle: '核心特性',
   features: {
+    identity: '统一身份：平台 token 直接登录，profile 自省 + 本地准入投影，无本地密码/会话',
+    openapi: '平台开放面：设备/租户/型号/物模型走商户 HMAC 单一凭证，scope 精细授权',
+    tenant: '租户强一致同步：平台先行、本地跟随，失败整体回滚；应用用户为独立体系',
+    storage: '文件走平台 storage-gateway：预签名上传/302 下载，平台未配置自动降级本地磁盘',
+    rbac: '本地 RBAC：角色/权限/动态菜单/操作日志/IP 黑名单/导出保留在业务侧',
     arch: 'DDD 四层架构：依赖倒置，仓储接口在领域层，Wire 注入与 Kratos 同构',
-    db: '多数据库：MySQL / PostgreSQL / SQLite 配置一行切换，自动建表与种子数据',
-    rbac: 'RBAC + JWT：用户-角色-权限三级模型，双令牌与按钮级权限控制',
-    menu: '动态菜单路由：菜单后台配置、运行时注册，改菜单不改代码',
-    token: 'Token 静默续期：401 自动刷新并重放请求，用户无感',
-    i18n: '中英文国际化：界面文案与接口提示按语言自动切换',
   },
   type: {
     feat: '新增',
