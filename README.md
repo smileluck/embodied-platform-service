@@ -17,17 +17,17 @@ Gin · GORM · Wire · Vue3 · TypeScript · Naive UI · 平台 SDK
 
 ```
 embodied-platform（平台 = 唯一身份源 + 设备/存储基础设施）
-   ▲ ①登录/token 双用         ▲ ②商户 HMAC 开放面                ▲ ③管理面 JWT（可选）      ▲ ④storage-gateway API Key
-   │ (浏览器直调)              │ /open-api/v1                      │ 仅「从平台同步用户」      │ :27091 文件存取
-   │                          │ 设备域+租户域+型号域+物模型只读     │                          │
-   │
-┌─┴───────────────────────────┴───────────────────────────────────┴──────────────────────────┴───────────────────────┐
-│ embodied-platform-service（本系统）                                                                                │
-│ · 认证：平台 token + profile 自省（缓存 30-60s）+ 本地准入投影（开关+本地角色），无本地密码/JWT/会话                   │
-│ · 保留：角色/权限(RBAC)、菜单、操作日志、手工 IP 黑名单、导出、租户(+开放面租户域同步)、应用用户(独立体系)             │
-│ · 移除：商户模块、本地登录/会话/验证码/登录日志/在线用户、多云存储驱动（oss/cos/tos/minio）                            │
-│ · 新增：设备管理（开放面代理）、型号管理（开放面型号域 + 物模型只读选择器）                                            │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+   ▲ ①登录/token 双用                                  ▲ ②商户 HMAC 开放面                     ▲ ③storage-gateway
+   │ (浏览器直调；后端持同一                           │ /open-api/v1                          │ API Key 文件存取
+   │   token 自省/代理资料)                            │ 设备域+租户域+型号域+物模型只读       │ (:27091)
+   │                                                   │ +用户域(成员/准入)                    │
+┌──┴───────────────────────────────────────────────────┴───────────────────────────────────────┴─────────────────┐
+│ embodied-platform-service（本系统）                                                                            │
+│ · 认证：平台 token + profile 自省（缓存 30-60s）+ 本地准入投影（开关+本地角色），无本地密码/JWT/会话           │
+│ · 保留：角色/权限(RBAC)、菜单、操作日志、手工 IP 黑名单、导出、租户(+开放面租户域同步)、应用用户(独立体系)     │
+│ · 移除：商户模块、本地登录/会话/验证码/登录日志/在线用户、多云存储驱动(oss/cos/tos/minio)、平台管理面通道      │
+│ · 新增：设备管理（开放面代理）、型号管理（开放面型号域 + 物模型只读选择器）                                    │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 关键设计：
@@ -43,6 +43,9 @@ embodied-platform（平台 = 唯一身份源 + 设备/存储基础设施）
 - **租户与平台强一致同步**：本地租户创建/更新/删除平台先行、本地跟随（失败整体失败/回滚）。
   2026-09-16 起走平台开放面**租户域**（商户 HMAC，scope `tenant:*`）：创建时商户归属由平台服务端
   注入调用方（同步即自动进入本商户租户集，开放面设备注册随即覆盖）；存量租户可单条「同步至平台」补链。
+  租户 `code` 唯一性=**商户内**（2026-09-18 起平台侧收敛为商户内复合唯一）：他商户同 code 不构成冲突。
+  本地删除为软删，且删时改写 `name`/`code`（后缀 `#del#<id>`）释放单列唯一索引槽位，
+  软删后同 code/name 重建不会误报重复（避免误触发 Create 回滚平台侧的连锁）。
 - **型号管理走平台开放面型号域**（scope `model:*`）+ 物模型只读选择器（`thing-model:read`，
   版本仅 published）——与租户同步一样不再依赖管理面服务账号。
 - **文件存储走平台 storage-gateway**：上传=后端中转（presign → PUT → complete）；下载=302 预签名 URL；
@@ -102,11 +105,11 @@ replace github.com/smilex/smilex-admin-gin/sdk => ../embodied-platform/sdk
 | GET | /auth/profile | 本人信息（平台身份 + 准入状态 + 本地权限） |
 | PUT | /auth/profile、/auth/password | 本人改资料/改密（以本人平台 token 代理到平台） |
 | GET | /menus、/menus/search | 本人菜单树 / 菜单搜索 |
-| GET/PUT/DELETE | /users、/users/:id/admission、/users/:id/roles、/users/sync | 准入管理（列表/开关/角色/移除/从平台同步） |
+| GET/POST/PUT/DELETE | /users、/users/:id/admission、/users/:id/roles、/users/sync | 准入管理（列表/新增/开关/角色/移除/从平台同步） |
 | GET/POST/PUT/DELETE | /roles、/permissions | 角色 / 菜单权限（本地 RBAC） |
 | GET/POST/PUT/DELETE | /tenants、/tenants/:id/status、/tenants/:id/sync | 租户（与平台强一致同步 + 存量补链） |
 | GET/POST | /devices、/devices/:id(/shadow//commands//telemetry//data-events)、/device-commands/:id | 设备域（开放面代理） |
-| GET/POST/PUT/DELETE | /device-models、/thing-models、/thing-models/:id/versions | 型号管理 + 物模型只读选择器（管理面代理） |
+| GET/POST/PUT/DELETE | /device-models、/thing-models、/thing-models/:id/versions | 型号管理（开放面型号域）+ 物模型只读选择器 |
 | GET/POST/DELETE | /files、/files/:id/raw | 文件（平台存储；下载 302 预签名） |
 | GET/POST/DELETE | /app-users、/app-auth/* | 应用用户（本系统独立 C 端体系，未接入平台） |
 | GET/DELETE | /operation-logs、/ip-blacklist | 操作日志 / 手工 IP 黑名单 |
@@ -119,8 +122,8 @@ replace github.com/smilex/smilex-admin-gin/sdk => ../embodied-platform/sdk
 ```
 cmd/server/            入口 + wire 注入（启动含平台连通性自检）
 internal/biz/          领域层：admission(准入)/auth(平台身份自省)/role/permission/log/file/export/
-                       blacklist/tenant(平台同步)/device(开放面代理)/devmodel(管理面代理)/appuser
-internal/data/         基础设施：GORM 仓储 + platform/(三类凭证客户端) + file/(platform/local 存储驱动)
+                       blacklist/tenant(平台同步)/device(开放面代理)/devmodel(开放面代理)/appuser
+internal/data/         基础设施：GORM 仓储 + platform/(商户 HMAC 开放面/用户 token 自省/storage 客户端) + file/(platform/local 存储驱动)
 internal/service/      应用层（薄用例）
 internal/server/       传输层（Gin 路由/PlatformAuth 中间件/SPA 托管）
 web/                   前端（Vue3 + TS + Naive UI；登录直调平台 web/src/api/platform.ts）
