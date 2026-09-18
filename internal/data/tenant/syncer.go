@@ -57,7 +57,8 @@ func (s *Syncer) SetStatusOnPlatform(ctx context.Context, platformID uint, enabl
 
 // LinkOrCreateOnPlatform 存量补链：本商户绑定集内按 code 精确查找——
 // 找到则更新资料（绑定已属本商户，无需再绑）；没有则创建。
-// 注意：他商户的同 code 租户在开放面不可见，若平台上已被占用，创建将 409（提示换码）。
+// 平台租户唯一性=商户内（2026-09-18 起）：他商户同 code 不构成冲突；
+// 仅本商户内已有同 code 才 409（该场景已被上面的查找先行命中，正常不会走到）。
 func (s *Syncer) LinkOrCreateOnPlatform(ctx context.Context, t *biztenant.Tenant) (uint, error) {
 	if pt, err := s.client.FindTenantByCode(ctx, t.Code); err != nil {
 		return 0, err

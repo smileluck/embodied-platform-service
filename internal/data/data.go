@@ -324,6 +324,7 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "编辑型号", Code: "model:update", Menu: "menu:deviceModel", Method: "PUT", Path: "/api/v1/device-models/*", Sort: 4},
 	{Name: "删除型号", Code: "model:delete", Menu: "menu:deviceModel", Method: "DELETE", Path: "/api/v1/device-models/*", Sort: 5},
 	{Name: "物模型选择器", Code: "model:tmPicker", Menu: "menu:deviceModel", Method: "GET", Path: "/api/v1/thing-models", Sort: 6},
+	{Name: "物模型版本选择器", Code: "model:tmVersion", Menu: "menu:deviceModel", Method: "GET", Path: "/api/v1/thing-models/*/versions", Sort: 7},
 	// 日志管理
 	{Name: "查询操作日志", Code: "log:op:list", Menu: "menu:opLog", Method: "GET", Path: "/api/v1/operation-logs", Sort: 1},
 	{Name: "清理操作日志", Code: "log:op:clear", Menu: "menu:opLog", Method: "DELETE", Path: "/api/v1/operation-logs", Sort: 2},

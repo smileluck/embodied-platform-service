@@ -4,7 +4,10 @@ package tenant
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
+	"time"
+	"unicode/utf8"
 
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	"github.com/smilex/smilex-admin-gin/internal/data"
@@ -74,7 +77,9 @@ func (r *repo) Update(ctx context.Context, t *biztenant.Tenant) error {
 	return nil
 }
 
-// Delete 删除租户：存在关联应用用户（app_user_tenants 有直接计数，避免跨上下文依赖）时拒绝
+// Delete 删除租户：存在关联应用用户（app_user_tenants 有直接计数，避免跨上下文依赖）时拒绝。
+// 软删行仍占用本地唯一索引（name/code 单列唯一）——删除时改写释放槽位（后缀 #del#<id>），
+// 否则本地重建同 code/name 租户会误报重复（进而触发 Create 回滚平台侧的连锁）
 func (r *repo) Delete(ctx context.Context, id uint) error {
 	var refCnt int64
 	if err := r.data.DB.WithContext(ctx).Model(&model.AppUserTenantPO{}).
@@ -84,7 +89,16 @@ func (r *repo) Delete(ctx context.Context, id uint) error {
 	if refCnt > 0 {
 		return biztenant.ErrTenantInUse
 	}
-	res := r.data.DB.WithContext(ctx).Delete(&model.TenantPO{}, id)
+	var po model.TenantPO
+	if err := r.data.DB.WithContext(ctx).First(&po, id).Error; err != nil {
+		return mapErr(err)
+	}
+	res := r.data.DB.WithContext(ctx).Model(&model.TenantPO{}).Where("id = ?", id).
+		Updates(map[string]any{
+			"code":       freeUniqueSlot(po.Code, id),
+			"name":       freeUniqueSlot(po.Name, id),
+			"deleted_at": time.Now(),
+		})
 	if res.Error != nil {
 		return res.Error
 	}
@@ -92,6 +106,16 @@ func (r *repo) Delete(ctx context.Context, id uint) error {
 		return biztenant.ErrTenantNotFound
 	}
 	return nil
+}
+
+// freeUniqueSlot 软删时释放唯一槽位：<原值>#del#<id>；超列宽（64 字符）按 rune 截头保留后缀
+func freeUniqueSlot(v string, id uint) string {
+	const width = 64
+	suffix := fmt.Sprintf("#del#%d", id)
+	if utf8.RuneCountInString(v)+len(suffix) <= width {
+		return v + suffix
+	}
+	return string([]rune(v)[:width-len(suffix)]) + suffix
 }
 
 func (r *repo) Get(ctx context.Context, id uint) (*biztenant.Tenant, error) {
