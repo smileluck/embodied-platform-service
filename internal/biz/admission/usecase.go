@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
 )
 
@@ -56,15 +55,14 @@ type MemberGateway interface {
 
 // Usecase 准入领域用例
 type Usecase struct {
-	repo      Repo
-	platform  MemberGateway
-	cache     DecisionCache
-	bootstrap []string         // 免准入引导账号（平台用户名）
-	identity  MerchantIdentity // 本商户身份（商户管理员标记匹配用；测试可空）
+	repo     Repo
+	platform MemberGateway
+	cache    DecisionCache
+	identity MerchantIdentity // 本商户身份（成员/管理员判定用；测试可空）
 }
 
-func NewUsecase(repo Repo, platform MemberGateway, cache DecisionCache, identity MerchantIdentity, c *conf.Bootstrap) *Usecase {
-	return &Usecase{repo: repo, platform: platform, cache: cache, bootstrap: c.Platform.BootstrapAdmins, identity: identity}
+func NewUsecase(repo Repo, platform MemberGateway, cache DecisionCache, identity MerchantIdentity) *Usecase {
+	return &Usecase{repo: repo, platform: platform, cache: cache, identity: identity}
 }
 
 // flushDecisions 主动失效决策缓存（禁用/删除/改角色后立即生效；失败仅告警不阻断主流程）
@@ -79,72 +77,32 @@ func (uc *Usecase) Admission(ctx context.Context, platformUserID uint) (*Project
 	return uc.repo.FindByPlatformUserID(ctx, platformUserID)
 }
 
-// IsBootstrap 是否免准入引导账号
-func (uc *Usecase) IsBootstrap(username string) bool {
-	for _, u := range uc.bootstrap {
-		if u == username {
-			return true
-		}
-	}
-	return false
+// ---- 商户成员/管理员判定与投影（平台标记 → 本地角色 2） ----
+
+// MerchantStatus 平台身份与本商户的关系判定
+type MerchantStatus struct {
+	Known   bool // 本商户身份是否已知（ping 未成功=false：调用方须跳过成员闸门与管理员自愈，绝不因未知而误拒/误绑）
+	Member  bool // 是否本商户绑定成员（平台 merchant_users 唯一事实源；false=平台侧已解绑，本地授权同步吊销）
+	IsAdmin bool // 是否本商户管理员（Member 隐含 true 时才有意义）
 }
 
-// EnsureBootstrap 为引导账号建投影：已存在则直接返回（并确保已开启+绑超管角色）；
-// 不存在则创建并绑定超管角色。冷启动时让配置内的平台管理员能进入本系统完成初始化。
-// 注意 repo 契约：未建投影返回 (nil, nil)（非错误），须先判 nil 再解引用。
-func (uc *Usecase) EnsureBootstrap(ctx context.Context, platformUserID uint, username string) (*Projection, error) {
-	p, err := uc.repo.FindByPlatformUserID(ctx, platformUserID)
-	if err != nil {
-		return nil, err
-	}
-	if p == nil {
-		np := &Projection{
-			PlatformUserID: platformUserID,
-			Username:       username,
-			Nickname:       username,
-			Enabled:        true,
-			RoleIDs:        []uint{SuperRoleID},
-		}
-		if err := uc.repo.Create(ctx, np); err != nil {
-			return nil, err
-		}
-		uc.flushDecisions(ctx)
-		return np, nil
-	}
-	if !p.Enabled || !containsRole(p.RoleIDs, SuperRoleID) {
-		p.Enabled = true
-		roles := append(p.RoleIDs, SuperRoleID)
-		if err := uc.repo.Update(ctx, p); err != nil {
-			return nil, err
-		}
-		if err := uc.repo.SetRoles(ctx, p.ID, unique(roles)); err != nil {
-			return nil, err
-		}
-		uc.flushDecisions(ctx)
-	}
-	return p, nil
-}
-
-// ---- 商户管理员投影（平台标记 → 本地角色 2） ----
-
-// ResolveMerchantAdmin 判定平台身份是否本商户的管理员（平台 /auth/profile 下发的
-// 已准入商户引用 × 本商户 ID）。known=false 表示本商户身份未知（ping 未成功），
-// 调用方须跳过管理员投影自愈，绝不因未知而误解绑。
-func (uc *Usecase) ResolveMerchantAdmin(ctx context.Context, merchants []MerchantRef) (admin, known bool) {
+// ResolveMerchantStatus 判定平台身份与本商户的关系（平台 /auth/profile 下发的
+// 已准入商户引用 × 本商户 ID）。
+func (uc *Usecase) ResolveMerchantStatus(ctx context.Context, merchants []MerchantRef) MerchantStatus {
 	if uc.identity == nil {
-		return false, false
+		return MerchantStatus{}
 	}
 	mid, ok := uc.identity.MerchantID(ctx)
 	if !ok {
-		return false, false
+		return MerchantStatus{}
 	}
 	for _, m := range merchants {
 		if m.ID == mid {
-			return m.IsAdmin, true
+			return MerchantStatus{Known: true, Member: true, IsAdmin: m.IsAdmin}
 		}
 	}
-	// 身份已知但未绑定本商户（或旧版平台未下发 merchants）：明确非管理员
-	return false, true
+	// 身份已知但未绑定本商户（或旧版平台未下发 merchants）：明确非成员
+	return MerchantStatus{Known: true}
 }
 
 // EnsureMerchantAdmin 为平台标记的商户管理员懒建准入投影（Enabled + 角色2）：
@@ -421,17 +379,4 @@ func containsRole(ids []uint, id uint) bool {
 		}
 	}
 	return false
-}
-
-func unique(ids []uint) []uint {
-	seen := make(map[uint]struct{}, len(ids))
-	out := make([]uint, 0, len(ids))
-	for _, v := range ids {
-		if _, ok := seen[v]; ok {
-			continue
-		}
-		seen[v] = struct{}{}
-		out = append(out, v)
-	}
-	return out
 }

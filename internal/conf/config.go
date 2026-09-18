@@ -94,8 +94,6 @@ type Platform struct {
 	AppSecret string `mapstructure:"appSecret"`
 	// Storage storage-gateway 直连（文件存储后端；API Key 由平台管理端 /api/v1/storage/api-keys 签发）
 	Storage PlatformStorage `mapstructure:"storage"`
-	// BootstrapAdmins 免准入引导账号（平台用户名）：首次登录自动创建投影并绑定超管角色，解决冷启动
-	BootstrapAdmins []string `mapstructure:"bootstrapAdmins"`
 	// TimeoutSeconds 调用平台的 HTTP 超时（秒）
 	TimeoutSeconds int `mapstructure:"timeoutSeconds"`
 }

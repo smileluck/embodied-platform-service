@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-17T09:59:21.409Z",
+  "generatedAt": "2026-09-18T03:44:48.202Z",
   "commits": [
+    {
+      "hash": "ab49e10",
+      "date": "2026-09-18",
+      "type": "feat",
+      "scope": "",
+      "message": "add merchant admin role and auto-admission logic"
+    },
     {
       "hash": "3bfc64c",
       "date": "2026-09-17",

@@ -63,10 +63,7 @@ platform:
     apiKeyId: ""
     apiSecret: ""
     bucket: default
-  bootstrapAdmins: # 免准入引导账号（平台用户名，首登自动放行并绑超管角色）
-    - admin
-    - ego
-  timeoutSeconds: 15
+  timeoutSeconds: 15 # 平台无本地引导账号（准入唯一来源=平台商户成员绑定/商户管理员标记）
 
 log:
   retentionDays: 90 # 登录/操作日志保留天数，超期每日自动清理；0 表示永久保留

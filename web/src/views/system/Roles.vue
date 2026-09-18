@@ -65,8 +65,8 @@ const saving = ref(false)
 const rows = ref<Role[]>([])
 const query = reactive({ name: '', page: 1, page_size: 10 })
 
-// 内置锁定角色（1=超级管理员、2=商户管理员）：系统内置，禁止修改和操作
-const LOCKED_ROLE_IDS = new Set([1, 2])
+// 内置锁定角色（2=商户管理员，平台标记驱动）：系统内置，禁止修改和操作
+const LOCKED_ROLE_IDS = new Set([2])
 const isLockedRole = (id: number) => LOCKED_ROLE_IDS.has(id)
 
 const showModal = ref(false)
@@ -215,7 +215,7 @@ const columns = computed<DataTableColumns<Role>>(() => [
   {
     title: t('common.operation'), key: 'actions', width: 170,
     render(row) {
-      // 内置角色（超管/商户管理员）：禁止修改和操作，仅展示「内置」标记
+      // 内置角色（商户管理员）：禁止修改和操作，仅展示「内置」标记
       if (isLockedRole(row.id)) {
         return h(NTag, { size: 'small', bordered: false }, { default: () => t('role.builtin') })
       }

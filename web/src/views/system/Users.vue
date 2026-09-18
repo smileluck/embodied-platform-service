@@ -73,8 +73,8 @@ const exporting = ref(false)
 const rows = ref<MemberRow[]>([])
 const query = reactive({ kw: '', page: 1, page_size: 10 })
 const roleOptions = ref<{ label: string; value: number }[]>([])
-// 内置锁定角色（1=超级管理员、2=商户管理员）由配置/平台标记驱动，不参与手工分配
-const LOCKED_ROLE_IDS = new Set([1, 2])
+// 内置锁定角色（2=商户管理员，平台标记驱动）不参与手工分配
+const LOCKED_ROLE_IDS = new Set([2])
 
 const { pagination } = usePagination(query, () => load())
 

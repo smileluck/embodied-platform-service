@@ -52,11 +52,15 @@ const ctxTokenKey = "auth.token"
 // PlatformAuth 平台认证：Bearer 平台 token →（缓存）平台 profile 自省 → 本地准入投影校验。
 //
 // 平台是唯一身份源（token 由前端直调平台登录取得，双用于两系统）：
-//   - 自省结果（平台用户 ID/用户名等不可变身份）按 token 哈希缓存 30-60s，
-//     平台侧吊销/改密在缓存 TTL 内感知（与平台统一账号决策一致）；
+//   - 自省结果（平台用户 ID/用户名/已准入商户等身份）按 token 哈希缓存 30-60s，
+//     平台侧吊销/改密/解绑在缓存 TTL 内感知（与平台统一账号决策一致）；
 //   - 准入状态每请求查本地投影：禁用/删除投影后立即 403（无缓存，即时生效）；
-//   - 平台不可达时 fail-closed（503），不降级放行；
-//   - bootstrapAdmins 内的平台账号首登自动建投影并绑超管角色（冷启动引导）。
+//   - 商户成员闸门：平台侧已解绑本商户（merchant_users 无绑定）一律 403——
+//     平台成员关系是准入的唯一事实源，本地投影只是缓存与开关；
+//   - 平台标记的商户管理员首登自动建投影并绑内置「商户管理员」角色；
+//     标记与本地绑定每请求对账自愈（撤标记 30-60s 内回收）；
+//   - 平台不可达时 fail-closed（503），不降级放行；本商户身份未识别时
+//     跳过成员闸门与管理员自愈（不因未知误拒/误绑）。
 func PlatformAuth(authSrv *authsvc.Service, admissionUC *bizadmission.Usecase, idCache *cache.TwoLevel) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h := c.GetHeader("Authorization")
@@ -99,25 +103,22 @@ func PlatformAuth(authSrv *authsvc.Service, admissionUC *bizadmission.Usecase, i
 			return
 		}
 
-		// 本地准入：未建投影的引导账号自动放行（幂等），其余未投影/被停用一律 403
+		// 平台身份与本商户的关系（成员/管理员；身份未知时跳过闸门与自愈）
+		st := admissionUC.ResolveMerchantStatus(c.Request.Context(), sub.Merchants)
+		if st.Known && !st.Member {
+			response.Forbidden(c, "account not bound to this merchant")
+			c.Abort()
+			return
+		}
+
+		// 本地准入：未建投影一律 403（唯一例外：平台标记的商户管理员首登自动准入）
 		proj, err := admissionUC.Admission(c.Request.Context(), sub.UserID)
 		if err != nil {
 			response.ServerError(c, "admission lookup failed")
 			c.Abort()
 			return
 		}
-		// 商户管理员标记（平台 /auth/profile 下发 × 本商户身份）：投影存在则对账自愈，
-		// 身份未知（ping 未成功）时跳过，绝不因未知而误解绑
-		isAdmin, identityKnown := admissionUC.ResolveMerchantAdmin(c.Request.Context(), sub.Merchants)
-		if proj == nil && admissionUC.IsBootstrap(sub.Username) {
-			proj, err = admissionUC.EnsureBootstrap(c.Request.Context(), sub.UserID, sub.Username)
-			if err != nil {
-				response.ServerError(c, "bootstrap admission failed")
-				c.Abort()
-				return
-			}
-		} else if proj == nil && identityKnown && isAdmin {
-			// 平台标记的商户管理员首登即自动准入（零人工介入）
+		if proj == nil && st.Known && st.IsAdmin {
 			proj, err = admissionUC.EnsureMerchantAdmin(c.Request.Context(), sub.UserID, sub.Username, sub.Nickname)
 			if err != nil {
 				response.ServerError(c, "merchant admin admission failed")
@@ -130,9 +131,9 @@ func PlatformAuth(authSrv *authsvc.Service, admissionUC *bizadmission.Usecase, i
 			c.Abort()
 			return
 		}
-		if identityKnown {
-			// 绑定对账失败不阻断请求（RBAC 按本地实际绑定判定，偏保守）
-			_ = admissionUC.ReconcileMerchantAdmin(c.Request.Context(), proj, isAdmin)
+		if st.Known {
+			// 管理员标记对账（绑/解内置角色）；失败不阻断请求（RBAC 按本地实际绑定判定，偏保守）
+			_ = admissionUC.ReconcileMerchantAdmin(c.Request.Context(), proj, st.IsAdmin)
 		}
 
 		c.Set(ctxSubjectKey, &sub)

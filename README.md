@@ -34,8 +34,10 @@ embodied-platform（平台 = 唯一身份源 + 设备/存储基础设施）
 
 - **一个账户登录多个平台**：登录页由浏览器直调平台 `POST /api/v1/auth/login`（token 双用，既调本系统也直调平台）；
   本系统后端拿 token 调平台 `GET /auth/profile` 自省（平台侧吊销/改密在 30-60s 缓存 TTL 内感知）。
-- **准入在业务平台侧**：本地 `platform_users` 投影表（`platform_user_id` 唯一 + 准入开关 + 本地角色），首登懒建、
-  默认关闭；`platform.bootstrapAdmins` 内的平台账号首登自动放行并绑超管角色（冷启动引导）。
+- **准入在业务平台侧**：本地 `platform_users` 投影表（`platform_user_id` 唯一 + 准入开关 + 本地角色）。
+  准入唯一事实源=平台商户成员绑定：成员经「用户同步/新增成员」建投影；平台标记的商户管理员首登自动准入；
+  平台侧解绑本商户（含管理台移除准入接入方）后 30-60s 内本地同步拒绝（随身份自省缓存 TTL）。
+  本系统无本地超管/引导账号（bootstrapAdmins 机制已移除）。
 - **禁用/删除 = 同步吊销本地授权**：关闭准入/删除投影/调整角色时整体失效准入与 RBAC 决策缓存，
   该用户的存量平台 token 对本系统**立即** 403；平台侧账号不受影响（三层开关：平台禁用=全局、准入=项目×个人）。
 - **租户与平台强一致同步**：本地租户创建/更新/删除平台先行、本地跟随（失败整体失败/回滚）。
@@ -69,7 +71,7 @@ embodied-platform（平台 = 唯一身份源 + 设备/存储基础设施）
 # 前置：本机可达的 embodied-platform 主服务(27080)与 storage-gateway(27091)，并完成上面的清单
 # 前端平台地址：web/.env.development 的 VITE_PLATFORM_API（默认 http://localhost:27080）
 make web-install web-build run   # 打开 http://localhost:28180
-# 用「平台侧的」管理员账号登录（默认引导账号 admin，见 platform.bootstrapAdmins）
+# 登录账号=平台侧标记的「商户管理员」（平台商户管理 → 成员 → 开管理员标记，首登自动准入）
 ```
 
 开发热更新（前后端）：

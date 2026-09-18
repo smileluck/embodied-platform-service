@@ -119,8 +119,9 @@ func ensurePostgresDatabase(c conf.Postgres) {
 }
 
 // migrateAndSeed 自动建表 + 存量迁移 + 种子数据。
-// 平台是唯一身份源：本地不再种子超管账号，冷启动由 platform.bootstrapAdmins
-// 内的平台账号首登自动建准入投影并绑超管角色（见 biz/admission.EnsureBootstrap）。
+// 平台是唯一身份源：本地不种子任何账号/超管角色——准入唯一来源是平台商户成员绑定
+// （/users/sync 拉取建投影），内置「商户管理员」角色由平台的商户管理员标记驱动绑定
+// （见 biz/admission）。冷启动：平台把某成员设为商户管理员后，其首次请求即自动准入。
 func (d *Data) migrateAndSeed() error {
 	if err := d.DB.AutoMigrate(
 		&model.PlatformUserPO{}, &model.PlatformUserRolePO{},
@@ -136,29 +137,6 @@ func (d *Data) migrateAndSeed() error {
 		return err
 	}
 
-	var roleCount int64
-	if err := d.DB.Model(&model.RolePO{}).Count(&roleCount).Error; err != nil {
-		return err
-	}
-	if roleCount == 0 {
-		// 超管角色 + 通配权限（button 绑定 */*，参与 RBAC 匹配）；
-		// 菜单与按钮权限点由 ensureSystemMenus / ensureSystemButtonPerms 统一补齐
-		rolePO := model.RolePO{ID: 1, Name: "超级管理员", Remark: "拥有全部权限"}
-		permPO := model.PermissionPO{ID: 1, Name: "全部权限", Code: "all", Type: string(permission.TypeButton), Method: "*", Path: "*"}
-		if err := d.DB.Transaction(func(tx *gorm.DB) error {
-			if err := tx.Create(&permPO).Error; err != nil {
-				return err
-			}
-			if err := tx.Create(&rolePO).Error; err != nil {
-				return err
-			}
-			return tx.Create(&model.RolePermissionPO{RoleID: 1, PermissionID: 1}).Error
-		}); err != nil {
-			return err
-		}
-		logger.Info("seeded super admin role (admission: platform.bootstrapAdmins 首登自动放行)")
-	}
-
 	// 商户管理员内置角色（须先于菜单/按钮补齐存在，绑定在两个 ensure 循环中一并落到角色2）
 	if err := d.ensureMerchantAdminRole(); err != nil {
 		return err
@@ -168,7 +146,7 @@ func (d *Data) migrateAndSeed() error {
 	if err := d.ensureSystemMenus(); err != nil {
 		return err
 	}
-	// 系统管理接口权限点补齐并绑定超管角色（存量库/全新库统一走此路径，幂等）
+	// 系统管理接口权限点补齐并绑定商户管理员角色（存量库/全新库统一走此路径，幂等）
 	return d.ensureSystemButtonPerms()
 }
 
@@ -244,8 +222,8 @@ func (d *Data) ensureMerchantAdminRole() error {
 // 不可用时所有角色2绑定与投影逻辑跳过（避免把全部权限绑给无关角色）
 var merchantRoleBound bool
 
-// ensureSystemMenus 幂等补齐系统菜单并绑定超管角色（每次启动执行）：
-// 按 code 查找（type 兼容 menu/dir，存量迁移会翻转类型），缺失则插入（父级按 code 解析，缺失时落为顶级菜单），并绑定超管角色 ID=1
+// ensureSystemMenus 幂等补齐系统菜单并绑定商户管理员角色（每次启动执行）：
+// 按 code 查找（type 兼容 menu/dir，存量迁移会翻转类型），缺失则插入（父级按 code 解析，缺失时落为顶级菜单）
 func (d *Data) ensureSystemMenus() error {
 	for _, m := range systemMenus {
 		var po model.PermissionPO
@@ -271,9 +249,6 @@ func (d *Data) ensureSystemMenus() error {
 			}
 			logger.Info("ensured system menu", zap.String("code", m.Code))
 		}
-		if err := d.bindSuperRole(po.ID); err != nil {
-			return err
-		}
 		// 商户管理员角色随种子同步持有全部菜单（可用时）
 		if merchantRoleBound {
 			if err := d.bindRole(bizadmission.MerchantAdminRoleID, po.ID); err != nil {
@@ -284,12 +259,7 @@ func (d *Data) ensureSystemMenus() error {
 	return nil
 }
 
-// bindSuperRole 将权限绑定到超管角色（ID=1，幂等；超管已有 * 通配，绑定仅为角色权限树回显一致）
-func (d *Data) bindSuperRole(permID uint) error {
-	return d.bindRole(bizadmission.SuperRoleID, permID)
-}
-
-// bindRole 将权限绑定到指定角色（幂等；超管为回显一致，商户管理员为实际生效权限）
+// bindRole 将权限绑定到指定角色（幂等；商户管理员为实际生效权限的唯一内置角色）
 func (d *Data) bindRole(roleID, permID uint) error {
 	var cnt int64
 	if err := d.DB.Model(&model.RolePermissionPO{}).
@@ -384,10 +354,10 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "重置密码", Code: "appUser:resetPwd", Menu: "menu:appUser", Method: "PUT", Path: "/api/v1/app-users/*/password", Sort: 6},
 }
 
-// ensureSystemButtonPerms 幂等补齐系统管理接口权限点并绑定超管角色（每次启动执行）：
+// ensureSystemButtonPerms 幂等补齐系统管理接口权限点并绑定商户管理员角色（每次启动执行）：
 //   - 按 code 查找，缺失则插入（自增 ID，避免与用户自建记录冲突）；
 //   - 已存在（含软删残留）也同步校正为规范定义，自愈名称/接口归属变化（如菜单被删建后按钮成为孤儿节点）；
-//   - 绑定超管角色（ID=1）：超管已有 * 通配实际全通过，绑定仅为角色权限树回显一致。
+//   - 绑定商户管理员角色（ID=2，可用时）：内置角色的实际生效权限即来源于此。
 func (d *Data) ensureSystemButtonPerms() error {
 	// 菜单 code -> ID（存量库菜单 ID 可能与种子不同，按 code 解析；菜单缺失时 ParentID 落 0，不影响 RBAC）
 	menuIDs := map[string]uint{}
@@ -401,10 +371,6 @@ func (d *Data) ensureSystemButtonPerms() error {
 			menuIDs[code] = menu.ID
 		}
 	}
-
-	// 超管角色固定 ID=1
-	var superRole model.RolePO
-	superErr := d.DB.First(&superRole, 1).Error
 
 	permIDs := make([]uint, 0, len(systemButtonPerms))
 	inserted := 0
@@ -438,38 +404,18 @@ func (d *Data) ensureSystemButtonPerms() error {
 		permIDs = append(permIDs, po.ID)
 	}
 
-	bound := 0
-	if superErr == nil {
+	// 商户管理员角色随种子同步持有全部按钮权限点（可用时；通配权限不在种子清单内，
+	// 角色2 永远不会拿到 all 通配）
+	if merchantRoleBound {
 		for _, pid := range permIDs {
-			var cnt int64
-			if err := d.DB.Model(&model.RolePermissionPO{}).
-				Where("role_id = ? AND permission_id = ?", superRole.ID, pid).Count(&cnt).Error; err != nil {
+			if err := d.bindRole(bizadmission.MerchantAdminRoleID, pid); err != nil {
 				return err
 			}
-			if cnt > 0 {
-				continue
-			}
-			if err := d.DB.Create(&model.RolePermissionPO{RoleID: superRole.ID, PermissionID: pid}).Error; err != nil {
-				return err
-			}
-			bound++
 		}
-		// 商户管理员角色随种子同步持有全部按钮权限点（可用时；通配权限 ID=1 不在清单内，
-		// 角色2 永远不会拿到 all 通配）
-		if merchantRoleBound {
-			for _, pid := range permIDs {
-				if err := d.bindRole(bizadmission.MerchantAdminRoleID, pid); err != nil {
-					return err
-				}
-			}
-		}
-	} else if !errors.Is(superErr, gorm.ErrRecordNotFound) {
-		return superErr
 	}
 
-	if inserted > 0 || bound > 0 {
-		logger.Info("ensured system button permissions",
-			zap.Int("inserted", inserted), zap.Int("bound_to_super_admin", bound))
+	if inserted > 0 {
+		logger.Info("ensured system button permissions", zap.Int("inserted", inserted))
 	}
 	return nil
 }
@@ -492,7 +438,9 @@ var obsoletePermCodes = []string{
 //  3. 「菜单与权限」更名「菜单管理」、「用户管理」更名「用户准入」；
 //  4. 目录类型显式化：含菜单/目录子级的 menu 转为 dir（仅按钮子级的不算，避免页面菜单被误判为分组）；
 //  5. 删除已废弃的 roles.code 列（AutoMigrate 不会删列，删列时唯一索引随之删除）；
-//  6. 物理删除本次改造废弃的菜单/按钮权限点及其角色绑定（在线用户/登录日志/商户/开放API 等）。
+//  6. 物理删除本次改造废弃的菜单/按钮权限点及其角色绑定（在线用户/登录日志/商户/开放API 等）；
+//  7. 物理删除已废弃的内置超管角色（ID=1）及其用户/权限绑定与 all 通配权限行
+//     （bootstrapAdmins 引导机制移除，商户管理员成为唯一内置角色）。
 func (d *Data) migrateLegacy() error {
 	if err := d.DB.Model(&model.PermissionPO{}).Where("type = ?", "api").
 		Update("type", "button").Error; err != nil {
@@ -548,6 +496,35 @@ func (d *Data) migrateLegacy() error {
 			}
 			logger.Info("dropped obsolete permissions (merchant/online/login-log/local-account)", zap.Int("count", len(ids)))
 		}
+	}
+
+	// 内置超管角色（ID=1）随 bootstrapAdmins 机制移除：删除角色行、用户绑定、权限绑定与 all 通配权限。
+	// 原引导账号的准入投影保留（可由商户管理员在用户准入页管理），本地角色绑定同步吊销。
+	var allPermIDs []uint
+	if err := d.DB.Unscoped().Model(&model.PermissionPO{}).
+		Where("code = ?", "all").Pluck("id", &allPermIDs).Error; err != nil {
+		return err
+	}
+	if err := d.DB.Unscoped().Where("role_id = ?", uint(1)).Delete(&model.PlatformUserRolePO{}).Error; err != nil {
+		return err
+	}
+	if err := d.DB.Unscoped().Where("role_id = ?", uint(1)).Delete(&model.RolePermissionPO{}).Error; err != nil {
+		return err
+	}
+	if len(allPermIDs) > 0 {
+		if err := d.DB.Unscoped().Where("permission_id IN ?", allPermIDs).Delete(&model.RolePermissionPO{}).Error; err != nil {
+			return err
+		}
+		if err := d.DB.Unscoped().Where("id IN ?", allPermIDs).Delete(&model.PermissionPO{}).Error; err != nil {
+			return err
+		}
+	}
+	res := d.DB.Unscoped().Where("id = ?", uint(1)).Delete(&model.RolePO{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected > 0 {
+		logger.Info("dropped legacy super admin role (bootstrapAdmins removed; merchant admin is the only built-in role)")
 	}
 	return nil
 }

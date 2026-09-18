@@ -73,7 +73,7 @@ func wireApp() (*server.HTTPServer, func(), error) {
 	}
 	rbacCache := data.NewRBACCache(redisClient, bootstrap)
 	merchantIdentity := platform.NewMerchantIdentity(client)
-	usecase := admission2.NewUsecase(repo, platformGateway, rbacCache, merchantIdentity, bootstrap)
+	usecase := admission2.NewUsecase(repo, platformGateway, rbacCache, merchantIdentity)
 	permissionRepo := permission.NewRepo(dataData)
 	roleRepo := role.NewRepo(dataData)
 	authUsecase := auth2.NewUsecase(identityAdapter, usecase, permissionRepo, roleRepo)

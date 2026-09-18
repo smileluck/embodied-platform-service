@@ -23,20 +23,18 @@ type Projection struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
-// SuperRoleID 本地超管角色固定 ID（种子数据约定，与角色上下文的锁定规则共用）
-const SuperRoleID uint = 1
-
 // MerchantAdminRoleID 商户管理员内置角色固定 ID（平台侧商户成员的商户管理员
-// 标记驱动绑定/解绑，与超管角色同等锁定、不参与手工分配；见 usecase 的投影逻辑）
+// 标记驱动绑定/解绑，是本系统唯一的内置角色；锁定、不参与手工分配，
+// 见 usecase 的投影逻辑）
 const MerchantAdminRoleID uint = 2
 
-// LockedRoleIDs 内置锁定角色集（超管=配置引导、商户管理员=平台标记驱动；
+// LockedRoleIDs 内置锁定角色集（商户管理员=平台标记驱动；
 // 手工全量分配角色时保留现持有绑定，不接受增删）
-var LockedRoleIDs = []uint{SuperRoleID, MerchantAdminRoleID}
+var LockedRoleIDs = []uint{MerchantAdminRoleID}
 
 // IsLockedRole 是否内置锁定角色
 func IsLockedRole(id uint) bool {
-	return id == SuperRoleID || id == MerchantAdminRoleID
+	return id == MerchantAdminRoleID
 }
 
 // MerchantRef 本人已准入的商户引用（来自平台 /auth/profile 的 user.merchants；

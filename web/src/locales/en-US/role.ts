@@ -8,7 +8,7 @@ export default {
   editRole: 'Edit Role',
   assignPermissions: 'Assign Permissions',
   builtin: 'Built-in',
-  superRoleProtected: 'The super administrator role is built-in and cannot be modified or operated on',
+  superRoleProtected: 'The merchant admin role is built-in and cannot be modified or operated on',
   deleteConfirmTitle: 'Delete Confirmation',
   deleteConfirmContent: 'Delete role "{name}"? This cannot be undone.',
   permsUpdated: 'Permissions updated',
