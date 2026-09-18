@@ -92,6 +92,7 @@ import { useI18n } from 'vue-i18n'
 import { NForm, NFormItem, NInput, NButton, NCheckbox, NDropdown, NIcon, useMessage, type FormInst, type DropdownOption } from 'naive-ui'
 import { LanguageOutline } from '@vicons/ionicons5'
 import { platformCaptcha } from '../../api/platform'
+import { setupDynamicRoutes } from '../../router/dynamic'
 import { useUserStore } from '../../stores/user'
 import { getLocale, setLocale, type AppLocale } from '../../locales'
 import EgoUnit from './EgoUnit.vue'
@@ -190,10 +191,25 @@ async function onLogin() {
     // 登录直调平台（token 双用：既调本系统也直调平台）
     await userStore.login(form.username, form.password, captchaId.value, form.captchaCode)
     persistRemembered()
+    // 平台登录成功 ≠ 可进入本系统：先加载本系统上下文（profile/菜单/动态路由）验证准入，
+    // 403（非本商户成员/未准入）时清态留在登录页——绝不先弹「登录成功」再被拦下
+    let firstPath: string
+    try {
+      firstPath = await setupDynamicRoutes()
+    } catch (e: any) {
+      userStore.clearAuth()
+      if (e?.response?.status === 403) {
+        message.error(t('login.notAdmitted'))
+      } else {
+        // 本系统后端不可用（平台身份本身有效）
+        message.error(t('login.contextLoadFailed'))
+      }
+      loadCaptcha()
+      return
+    }
     message.success(t('login.loginSuccess'))
-    // 不在这里 loadUserContext——交由路由守卫统一加载并注册动态路由
-    // （若本系统准入未开启，守卫会捕获 403 并回登录页提示「未准入」）
-    router.push('/')
+    // 路由已在此注册完成，直接进入首个菜单（守卫对 routesLoaded=true 不再转换 '/'）
+    router.push(firstPath)
   } catch (e: any) {
     // 平台直调 fetch 失败（平台未启动/CORS 拒绝）：无 response 且 message 为浏览器原生 fetch 报错，
     // 显示本地化的可行动提示而非 "Failed to fetch" 原文

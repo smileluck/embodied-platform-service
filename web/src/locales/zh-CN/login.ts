@@ -20,5 +20,7 @@ export default {
   platformUnreachable: '无法连接平台服务，请确认平台已启动、且用 localhost 访问本页面后重试',
   captchaError: '验证码错误，请重新输入',
   sessionExpired: '登录已失效，请重新登录',
-  notAdmitted: '账号尚未获准进入本系统，请联系管理员开启准入',
+  // 平台身份有效但本系统拒绝进入（非本商户成员 / 未开通准入，均 403）
+  notAdmitted: '该账号无权进入本系统：需为平台侧本商户的成员并开通准入（请联系平台管理员）',
+  contextLoadFailed: '平台账号验证通过，但本系统服务暂时不可用，请稍后重试',
 }

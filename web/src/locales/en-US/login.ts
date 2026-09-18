@@ -20,5 +20,7 @@ export default {
   platformUnreachable: 'Cannot reach the platform service — make sure it is running and open this page via localhost, then retry',
   captchaError: 'Incorrect captcha, please try again',
   sessionExpired: 'Your session has expired, please sign in again',
-  notAdmitted: 'Your account has not been admitted to this console yet, contact an administrator',
+  // Platform identity valid but this console rejected the request (not a merchant member / not admitted, both 403)
+  notAdmitted: 'This account cannot enter this console: it must be a member of this merchant on the platform and admitted (contact a platform administrator)',
+  contextLoadFailed: 'Platform identity verified, but this console is temporarily unavailable — try again later',
 }
