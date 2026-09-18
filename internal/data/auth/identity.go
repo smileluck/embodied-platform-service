@@ -43,7 +43,7 @@ func (a *IdentityAdapter) Profile(ctx context.Context, token string) (*bizauth.S
 	if len(s.Merchants) > 0 {
 		out.Merchants = make([]admission.MerchantRef, 0, len(s.Merchants))
 		for _, m := range s.Merchants {
-			out.Merchants = append(out.Merchants, admission.MerchantRef{ID: m.ID, Code: m.Code, IsAdmin: m.IsAdmin})
+			out.Merchants = append(out.Merchants, admission.MerchantRef{ID: m.ID, Code: m.Code, IsAdmin: m.IsAdmin, Admitted: m.Admitted})
 		}
 	}
 	return out, nil

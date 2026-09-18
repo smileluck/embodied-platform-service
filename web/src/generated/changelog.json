@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-18T03:56:00.947Z",
+  "generatedAt": "2026-09-18T08:50:59.876Z",
   "commits": [
+    {
+      "hash": "528de76",
+      "date": "2026-09-18",
+      "type": "refactor",
+      "scope": "login",
+      "message": "移除本地引导超管逻辑，更新登录提示与流程"
+    },
     {
       "hash": "7d6a423",
       "date": "2026-09-18",

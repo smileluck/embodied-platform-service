@@ -40,7 +40,8 @@ func IsLockedRole(id uint) bool {
 // MerchantRef 本人已准入的商户引用（来自平台 /auth/profile 的 user.merchants；
 // IsAdmin 即平台的商户管理员标记——本系统据此把标记投影为本地商户管理员角色）
 type MerchantRef struct {
-	ID      uint   `json:"id"`
-	Code    string `json:"code"`
-	IsAdmin bool   `json:"is_admin"`
+	ID       uint   `json:"id"`
+	Code     string `json:"code"`
+	IsAdmin  bool   `json:"is_admin"`
+	Admitted bool   `json:"admitted"` // 业务端准入状态（平台侧事实源，本端开关写回）
 }

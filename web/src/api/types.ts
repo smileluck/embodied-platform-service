@@ -85,6 +85,8 @@ export interface MemberRow {
   username: string
   nickname: string
   platform_status: number // 平台侧账号状态：1 启用 0 禁用（禁用=平台全局）
+  is_admin: boolean // 平台侧商户管理员标记（实时事实源；本地角色2在其登录/同步后对齐）
+  admitted: boolean // 业务端准入状态（平台侧实时事实源；本端开关写回）
   bound_at: string // 平台侧绑定时间
   projection: AdmissionProjection | null // null=平台已绑定但本系统未准入
 }

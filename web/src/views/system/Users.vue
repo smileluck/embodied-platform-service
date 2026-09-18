@@ -91,16 +91,37 @@ const columns: DataTableColumns<MemberRow> = [
         { default: () => (row.platform_status === 1 ? t('user.platformActive') : t('user.platformDisabled')) }),
   },
   {
+    // 准入状态：平台侧事实源（本端开/关即写回平台）；无本地投影=尚未准入本系统
     title: t('user.admissionStatus'),
-    key: 'projection',
+    key: 'admission',
     width: 110,
     render: (row) => {
-      const p = row.projection
-      if (!p) {
+      if (!row.projection) {
         return h(NTag, { type: 'default', size: 'small', bordered: false }, { default: () => t('user.notAdmitted') })
       }
-      return h(NTag, { type: p.enabled ? 'success' : 'warning', size: 'small', bordered: false },
-        { default: () => (p.enabled ? t('user.admitted') : t('user.suspended')) })
+      return h(NTag, { type: row.admitted ? 'success' : 'warning', size: 'small', bordered: false },
+        { default: () => (row.admitted ? t('user.admitted') : t('user.suspended')) })
+    },
+  },
+  {
+    // 角色：商户管理员标签=平台侧实时标记（事实源）；其余为本地已分配角色（分配角色弹窗维护）
+    title: t('user.role'),
+    key: 'roles',
+    width: 200,
+    render: (row) => {
+      const tags = []
+      if (row.is_admin) {
+        tags.push(h(NTag, { type: 'info', size: 'small', bordered: false }, { default: () => t('user.merchantAdmin') }))
+      }
+      const roleIDs = row.projection?.role_ids || []
+      for (const id of roleIDs) {
+        if (LOCKED_ROLE_IDS.has(id)) continue // 内置角色已由上方管理员标签表达
+        const opt = roleOptions.value.find((o) => o.value === id)
+        if (opt) tags.push(h(NTag, { size: 'small', bordered: false }, { default: () => opt.label }))
+      }
+      return tags.length
+        ? h('div', { style: 'display: flex; gap: 4px; flex-wrap: wrap' }, tags)
+        : h('span', { style: 'color: var(--sx-muted)' }, '—')
     },
   },
   { title: t('user.boundAt'), key: 'bound_at', width: 170 },

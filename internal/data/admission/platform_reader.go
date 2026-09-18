@@ -28,7 +28,7 @@ func (g *PlatformGateway) ListMembers(ctx context.Context, keyword string, page,
 	out := make([]*bizadmission.PlatformAccount, 0, len(users))
 	for _, u := range users {
 		out = append(out, &bizadmission.PlatformAccount{
-			ID: u.ID, Username: u.Username, Nickname: u.Nickname, Status: u.Status, IsAdmin: u.IsAdmin,
+			ID: u.ID, Username: u.Username, Nickname: u.Nickname, Status: u.Status, IsAdmin: u.IsAdmin, Admitted: u.Admitted,
 		})
 	}
 	var total int64
@@ -49,6 +49,16 @@ func (g *PlatformGateway) CreateOrBind(ctx context.Context, username, nickname, 
 		return 0, res.Existed, errors.New("platform: create user returned no user")
 	}
 	return res.User.ID, res.Existed, nil
+}
+
+// SetAdmission 开/关成员准入（写回平台事实源）；404 映射为 ErrPlatformNotBound
+func (g *PlatformGateway) SetAdmission(ctx context.Context, platformUserID uint, admitted bool) error {
+	err := g.client.SetUserAdmission(ctx, platformUserID, admitted)
+	var perr *sdk.Error
+	if errors.As(err, &perr) && perr.HTTPStatus == 404 {
+		return bizadmission.ErrPlatformNotBound
+	}
+	return err
 }
 
 // Unbind 解除平台侧绑定；404（未绑定/账号不存在）映射为 ErrPlatformNotBound（解绑幂等语义）

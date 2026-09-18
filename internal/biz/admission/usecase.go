@@ -20,6 +20,7 @@ type PlatformAccount struct {
 	Nickname string `json:"nickname"`
 	Status   int    `json:"status"`   // 平台侧状态（1 启用 0 禁用；平台禁用=全局）
 	IsAdmin  bool   `json:"is_admin"` // 商户管理员标记（平台侧唯一事实源）
+	Admitted bool   `json:"admitted"` // 业务端准入状态（平台侧事实源，本端开关写回）
 }
 
 // MerchantIdentity 本商户身份解析（开放面 ping 惰性发现；由 data 层实现）
@@ -34,6 +35,8 @@ type MemberRow struct {
 	Username       string `json:"username"`
 	Nickname       string `json:"nickname"`
 	PlatformStatus int    `json:"platform_status"` // 平台侧账号状态（禁用=平台全局封禁）
+	IsAdmin        bool   `json:"is_admin"`        // 平台侧商户管理员标记（实时；本地角色2在其登录/同步后对齐）
+	Admitted       bool   `json:"admitted"`        // 业务端准入状态（平台侧实时事实源）
 	BoundAt        string `json:"bound_at"`        // 平台侧绑定时间（平台格式化文本）
 	// Projection 本地准入投影；nil=平台已绑定但本系统尚未准入（先「同步成员」或重新添加）
 	Projection *Projection `json:"projection"`
@@ -51,6 +54,8 @@ type MemberGateway interface {
 	CreateOrBind(ctx context.Context, username, nickname, password string) (platformUserID uint, existed bool, err error)
 	// Unbind 解除平台侧绑定；未绑定/不存在返回 ErrPlatformNotBound（解绑幂等）
 	Unbind(ctx context.Context, platformUserID uint) error
+	// SetAdmission 开/关成员准入（写回平台事实源；未绑定返回 ErrPlatformNotBound）
+	SetAdmission(ctx context.Context, platformUserID uint, admitted bool) error
 }
 
 // Usecase 准入领域用例
@@ -81,9 +86,10 @@ func (uc *Usecase) Admission(ctx context.Context, platformUserID uint) (*Project
 
 // MerchantStatus 平台身份与本商户的关系判定
 type MerchantStatus struct {
-	Known   bool // 本商户身份是否已知（ping 未成功=false：调用方须跳过成员闸门与管理员自愈，绝不因未知而误拒/误绑）
-	Member  bool // 是否本商户绑定成员（平台 merchant_users 唯一事实源；false=平台侧已解绑，本地授权同步吊销）
-	IsAdmin bool // 是否本商户管理员（Member 隐含 true 时才有意义）
+	Known    bool // 本商户身份是否已知（ping 未成功=false：调用方须跳过成员闸门与管理员自愈，绝不因未知而误拒/误绑）
+	Member   bool // 是否本商户绑定成员（平台 merchant_users 唯一事实源；false=平台侧已解绑，本地授权同步吊销）
+	Admitted bool // 业务端准入状态（平台侧事实源，本端开关写回；false=已暂停）
+	IsAdmin  bool // 是否本商户管理员（Member 隐含 true 时才有意义）
 }
 
 // ResolveMerchantStatus 判定平台身份与本商户的关系（平台 /auth/profile 下发的
@@ -98,7 +104,7 @@ func (uc *Usecase) ResolveMerchantStatus(ctx context.Context, merchants []Mercha
 	}
 	for _, m := range merchants {
 		if m.ID == mid {
-			return MerchantStatus{Known: true, Member: true, IsAdmin: m.IsAdmin}
+			return MerchantStatus{Known: true, Member: true, Admitted: m.Admitted, IsAdmin: m.IsAdmin}
 		}
 	}
 	// 身份已知但未绑定本商户（或旧版平台未下发 merchants）：明确非成员
@@ -220,7 +226,7 @@ func (uc *Usecase) ListFromPlatform(ctx context.Context, keyword string, page, p
 	for _, a := range accounts {
 		rows = append(rows, &MemberRow{
 			PlatformUserID: a.ID, Username: a.Username, Nickname: a.Nickname,
-			PlatformStatus: a.Status, Projection: projections[a.ID],
+			PlatformStatus: a.Status, IsAdmin: a.IsAdmin, Admitted: a.Admitted, Projection: projections[a.ID],
 		})
 	}
 	return rows, pagination.Page{Page: page, PageSize: pageSize, Total: total}, nil
@@ -283,8 +289,12 @@ func (uc *Usecase) resolveByPlatformUser(ctx context.Context, platformUserID uin
 	return p, nil
 }
 
-// SetEnabledByPlatformUser 开/关准入（按平台用户 ID；关闭即同步吊销本地授权，即时生效）
+// SetEnabledByPlatformUser 开/关准入（按平台用户 ID）。平台先行：准入状态先写回平台
+// （merchant_users 事实源，经开放面），失败整体失败；成功后本地投影跟随并即时吊销/恢复本地授权。
 func (uc *Usecase) SetEnabledByPlatformUser(ctx context.Context, platformUserID uint, enabled bool) error {
+	if err := uc.platform.SetAdmission(ctx, platformUserID, enabled); err != nil {
+		return err
+	}
 	p, err := uc.resolveByPlatformUser(ctx, platformUserID)
 	if err != nil {
 		return err
@@ -337,8 +347,9 @@ func (uc *Usecase) SyncFromPlatform(ctx context.Context) (created, refreshed int
 				}
 				continue
 			}
-			if p.Username != a.Username || p.Nickname != a.Nickname {
+			if p.Username != a.Username || p.Nickname != a.Nickname || p.Enabled != a.Admitted {
 				p.Username, p.Nickname = a.Username, a.Nickname
+				p.Enabled = a.Admitted // 准入状态以平台为事实源（漂移自愈）
 				if uerr := uc.repo.Update(ctx, p); uerr == nil {
 					refreshed++
 				}

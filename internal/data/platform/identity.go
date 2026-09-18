@@ -29,9 +29,10 @@ type Subject struct {
 
 // MerchantRef 平台 profile 下发的已准入商户引用
 type MerchantRef struct {
-	ID      uint   `json:"id"`
-	Code    string `json:"code"`
-	IsAdmin bool   `json:"is_admin"`
+	ID       uint   `json:"id"`
+	Code     string `json:"code"`
+	IsAdmin  bool   `json:"is_admin"`
+	Admitted bool   `json:"admitted"`
 }
 
 // IdentityClient 平台身份客户端：用「用户本人的平台 token」做自省与自身数据代理。

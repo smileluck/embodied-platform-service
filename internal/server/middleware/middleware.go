@@ -110,6 +110,12 @@ func PlatformAuth(authSrv *authsvc.Service, admissionUC *bizadmission.Usecase, i
 			c.Abort()
 			return
 		}
+		if st.Known && !st.Admitted {
+			// 准入已在平台侧暂停（本端开关写回的事实源；TTL 内同步拒绝）
+			response.Forbidden(c, "account not admitted to this console")
+			c.Abort()
+			return
+		}
 
 		// 本地准入：未建投影一律 403（唯一例外：平台标记的商户管理员首登自动准入）
 		proj, err := admissionUC.Admission(c.Request.Context(), sub.UserID)
