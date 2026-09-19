@@ -2,6 +2,8 @@
 package conf
 
 import (
+	"strings"
+
 	"github.com/spf13/viper"
 )
 
@@ -153,6 +155,12 @@ type LocalStorage struct {
 func Load(path string) (*Bootstrap, error) {
 	v := viper.New()
 	v.SetConfigFile(path)
+	// 环境变量覆盖：APP_ 前缀 + 配置路径下划线拼接（. → _），
+	// 如 APP_DB_MYSQL_HOST 覆盖 db.mysql.host、APP_JWT_SECRET 覆盖 jwt.secret，
+	// 优先级高于配置文件，供容器部署注入连接信息与密钥
+	v.SetEnvPrefix("APP")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
 	// 默认值：验证码默认开启，未配置时行为不变
 	v.SetDefault("auth.captchaEnabled", true)
 	// 默认值：二级缓存（Redis）默认开启

@@ -1,0 +1,108 @@
+# SmileX-Admin-Gin 容器编排：app（后端+前端 SPA）+ MySQL + Redis
+# 使用前：cp .env.example .env 并填写密钥；然后 docker compose up -d
+name: smilex-admin
+
+services:
+  app:
+    build: .
+    image: smilex-admin-gin
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      TZ: Asia/Shanghai
+      # ---- 服务 ----
+      APP_SERVER_MODE: release # 生产模式（日志 info、关闭调试路由行为）
+      # ---- 数据库：默认 MySQL；改 DB_DRIVER=postgres 需放开下方 postgres 服务 ----
+      APP_DB_DRIVER: ${DB_DRIVER:-mysql}
+      APP_DB_AUTOMIGRATE: "true"
+      APP_DB_MYSQL_HOST: mysql
+      APP_DB_MYSQL_PORT: "3306"
+      APP_DB_MYSQL_USER: ${MYSQL_USER:-smilex}
+      APP_DB_MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请在 .env 中设置 MYSQL_PASSWORD}
+      APP_DB_MYSQL_DBNAME: ${MYSQL_DATABASE:-smilex_admin_gin}
+      APP_DB_POSTGRES_HOST: postgres
+      APP_DB_POSTGRES_PORT: "5432"
+      APP_DB_POSTGRES_USER: ${POSTGRES_USER:-smilex}
+      APP_DB_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      APP_DB_POSTGRES_DBNAME: ${POSTGRES_DB:-smilex_admin_gin}
+      APP_DB_SQLITE_PATH: /app/data/smilex.db
+      # ---- Redis ----
+      APP_REDIS_ADDR: redis:6379
+      APP_REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # ---- 安全（必改）----
+      APP_JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET（openssl rand -base64 32）}
+      APP_AUTH_CAPTCHAENABLED: "true" # 生产强制开启登录验证码
+      # ---- 首次播种：留空则随机生成超管密码（启动日志打印一次）----
+      APP_SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      # ---- 容器内日志同时输出到控制台，便于 docker logs 查看 ----
+      APP_LOG_CONSOLE: "true"
+    volumes:
+      - app-data:/app/data # 上传文件 / 导出产物 / sqlite（若启用）
+      - app-logs:/app/logs # 按日滚动的应用日志
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # / 为 SPA index.html（无需鉴权），探活足够
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s # 首次启动含建表 + 种子数据，放宽探测宽限期
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-smilex_admin_gin}
+      MYSQL_USER: ${MYSQL_USER:-smilex}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请在 .env 中设置 MYSQL_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # 如需 Postgres：DB_DRIVER=postgres 并放开本服务，同时可移除 mysql
+  # postgres:
+  #   image: postgres:16-alpine
+  #   restart: unless-stopped
+  #   environment:
+  #     TZ: Asia/Shanghai
+  #     POSTGRES_USER: ${POSTGRES_USER:-smilex}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 中设置 POSTGRES_PASSWORD}
+  #     POSTGRES_DB: ${POSTGRES_DB:-smilex_admin_gin}
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smilex}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  app-data:
+  app-logs:
+  mysql-data:
+  # postgres-data:
+  redis-data:

@@ -1,6 +1,6 @@
 AIR ?= $(shell go env GOPATH)/bin/air
 
-.PHONY: build run dev wire tidy test web web-dev web-build clean
+.PHONY: build run dev wire tidy test web web-dev web-build docker-up docker-down docker-logs docker-rebuild clean
 
 build:
 	go build -o bin/server ./cmd/server
@@ -36,6 +36,19 @@ web-build:
 
 web-install:
 	cd web && npm install
+
+# ---- Docker 部署（app + MySQL + Redis，见 docker-compose.yml）----
+docker-up:
+	docker compose up -d --build
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f app
+
+docker-rebuild:
+	docker compose build --no-cache app
 
 clean:
 	rm -rf bin data web/dist

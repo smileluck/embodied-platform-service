@@ -1,0 +1,37 @@
+# ---- AI / 工具 ----
+.zcode/
+gui-test-screenshots/
+
+# ---- Git ----
+.git/
+.gitignore
+
+# ---- Go 构建产物 ----
+bin/
+tmp/
+*.test
+*.out
+coverage.*
+
+# ---- 前端依赖与本地产物（容器内重新构建）----
+web/node_modules/
+web/dist/
+
+# ---- 运行时数据（不打进镜像）----
+data/
+logs/
+*.db
+*.sqlite
+*.log
+
+# ---- 本地开发配置与密钥 ----
+.env
+.env.*
+docker-compose*.yml
+configs/config.local.yaml
+
+# ---- 文档与其他 ----
+README.md
+Makefile
+Dockerfile
+.dockerignore

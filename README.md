@@ -105,6 +105,27 @@ replace github.com/smilex/smilex-admin-gin/sdk => ../embodied-platform/sdk
 
 正式部署经 GOPRIVATE 拉取（见 `embodied-platform/sdk/README.md`），删除 replace 即可。
 
+## 🐳 Docker 部署（docker compose）
+
+一条命令拉起完整服务（app + MySQL + Redis），首次启动自动建表 + 种子数据：
+
+```bash
+cp .env.example .env          # 并填写 MYSQL 密码与 JWT_SECRET
+docker compose up -d          # 构建镜像并启动
+# 打开 http://localhost:8080
+```
+
+说明：
+
+- **多阶段构建**：Node 构建前端 dist → Go 编译单二进制（含 CGO，三种数据库驱动均可用）→ Alpine 运行时，镜像内已含 SPA 托管，无需 Nginx
+- **配置注入**：所有配置项支持 `APP_` 前缀环境变量覆盖（`.` → `_`，如 `APP_DB_MYSQL_HOST` 覆盖 `db.mysql.host`），优先级高于镜像内置的 config.yaml；改完 `docker compose up -d` 重建即生效
+- **数据持久化**：named volume——`app-data`（上传/导出/sqlite）、`app-logs`（应用日志）、`mysql-data`、`redis-data`
+- **换数据库**：`.env` 里 `DB_DRIVER=postgres` 并放开 docker-compose.yml 中的 postgres 服务；`DB_DRIVER=sqlite` 则零外部依赖（数据落 `app-data` 卷）
+- **默认生产语义**：release 模式、登录验证码开启、日志同时输出控制台（`docker logs`）
+- **端口冲突**：宿主机 8080 已被占用（如本地开发后端）时，在 `.env` 中改 `APP_PORT` 换对外端口
+- 常用命令：`make docker-up` / `make docker-down` / `make docker-logs` / `make docker-rebuild`
+- **平台 SDK 依赖**：本服务依赖 `github.com/smilex/smilex-admin-gin/sdk`（联调期 replace 到本地 `../embodied-platform/sdk`）；镜像构建前需先移除 replace，改走 GOPRIVATE 拉取
+
 ## API（/api/v1，平台 token 认证）
 
 | 方法 | 路径 | 说明 |
@@ -146,6 +167,8 @@ make wire        # 重新生成 DI（改 Provider 后执行）
 make test        # 测试
 make web-dev     # 前端开发（热更新）
 make web-build   # 前端构建（产物 web/dist，由后端静态托管）
+make docker-up   # Docker 构建并启动完整服务（app + MySQL + Redis）
+make docker-down # 停止并移除容器
 ```
 
 ## 旧数据说明
