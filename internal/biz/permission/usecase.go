@@ -21,8 +21,6 @@ var (
 	ErrParentIsSelf = errors.New("父级不能是自身")
 	// ErrParentIsDescendant 父级不能是自身的子级
 	ErrParentIsDescendant = errors.New("父级不能是自身的子级")
-	// ErrWildcardLocked 超管通配权限禁止删除
-	ErrWildcardLocked = errors.New("超管通配权限禁止删除")
 )
 
 // Usecase 权限领域用例
@@ -50,7 +48,7 @@ func (uc *Usecase) Create(ctx context.Context, name, code string, t Type, method
 
 // validateParentType 按节点类型校验父级层级（dir → menu → button 三级模型）：
 // dir 只能挂在顶级；menu 父级必须是 dir；button 父级必须是 menu。menu/button 允许顶级
-// （顶级页面菜单、超管通配权限点等场景）。
+// （顶级页面菜单等场景）。
 func (uc *Usecase) validateParentType(ctx context.Context, t Type, parentID uint) error {
 	if t == TypeDir {
 		if parentID != 0 {
@@ -127,11 +125,8 @@ func (uc *Usecase) validateParent(ctx context.Context, id, parentID uint) error 
 	return nil
 }
 
-// Delete 删除权限：超管通配权限（id=1）禁止删除；存在子级时须先删子级
+// Delete 删除权限：存在子级时须先删子级
 func (uc *Usecase) Delete(ctx context.Context, id uint) error {
-	if id == 1 {
-		return ErrWildcardLocked
-	}
 	n, err := uc.repo.CountByParentID(ctx, id)
 	if err != nil {
 		return err

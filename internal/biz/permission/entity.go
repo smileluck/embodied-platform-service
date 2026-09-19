@@ -40,9 +40,6 @@ func (p *Permission) Match(method, path string) bool {
 	if p.Type == TypeMenu || p.Method == "" || p.Path == "" {
 		return false
 	}
-	if p.Path == "*" {
-		return true
-	}
 	if p.Method != "*" && p.Method != method {
 		return false
 	}

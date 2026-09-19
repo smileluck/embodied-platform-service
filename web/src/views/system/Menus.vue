@@ -131,9 +131,6 @@ const editing = ref(false)
 const editId = ref(0)
 const formRef = ref<FormInst | null>(null)
 
-// 超管通配权限（id=1，code=all）禁止删除
-const WILDCARD_PERM_ID = 1
-
 // form.type 区分目录 / 菜单 / 按钮权限点三种表单（dir → menu → button 三级模型）
 const form = reactive({
   name: '', code: '', type: 'menu' as 'dir' | 'menu' | 'button',
@@ -291,7 +288,6 @@ async function save() {
 }
 
 async function remove(row: any) {
-  if (row.id === WILDCARD_PERM_ID) { message.error(t('permMenu.wildcardForbidden')); return }
   if (all.value.some((p) => p.parent_id === row.id)) {
     message.warning(t('permMenu.hasChildren'))
     return
@@ -362,8 +358,7 @@ const columns = computed<DataTableColumns<any>>(() => [
       if (row.type === 'menu' && userStore.has('menu:create')) {
         actions.push({ label: t('permMenu.addPermPoint'), onClick: () => openCreate(row.id, 'button') })
       }
-      // 超管通配权限（all）禁止删除，不展示删除按钮
-      if (row.id !== WILDCARD_PERM_ID && userStore.has('menu:delete')) {
+      if (userStore.has('menu:delete')) {
         actions.push({ label: t('common.delete'), danger: true, onClick: () => remove(row) })
       }
       return renderActions(actions)

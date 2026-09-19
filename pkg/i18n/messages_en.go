@@ -24,7 +24,6 @@ var messagesEn = map[string]string{
 	"permission.button_parent_menu": "A button permission's parent must be a menu",
 	"permission.parent_self":        "The parent cannot be the node itself",
 	"permission.parent_descendant":  "The parent cannot be a descendant of the node itself",
-	"permission.wildcard_locked":    "The super admin wildcard permission cannot be deleted",
 	// 文件
 	"file.not_found":           "File not found",
 	"file.too_large":           "File size exceeds the limit (max %dMB)",

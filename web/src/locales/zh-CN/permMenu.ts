@@ -36,7 +36,6 @@ export default {
   saveSuccessNote: '保存成功（菜单变更刷新页面后生效路由）',
   saveFailed: '保存失败',
   deleteFailed: '删除失败',
-  wildcardForbidden: '超管通配权限禁止删除',
   hasChildren: '该节点下存在子级，请先删除子级节点',
   deleteConfirmTitle: '删除确认',
   deleteConfirmContent: '确定删除「{name}（{code}）」吗？该操作不可恢复。',

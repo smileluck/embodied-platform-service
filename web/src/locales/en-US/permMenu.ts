@@ -36,7 +36,6 @@ export default {
   saveSuccessNote: 'Saved (menu changes take effect on routes after refreshing the page)',
   saveFailed: 'Failed to save',
   deleteFailed: 'Failed to delete',
-  wildcardForbidden: 'The super admin wildcard permission cannot be deleted',
   hasChildren: 'This node has children; delete the child nodes first',
   deleteConfirmTitle: 'Delete Confirmation',
   deleteConfirmContent: 'Delete "{name} ({code})"? This cannot be undone.',

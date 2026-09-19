@@ -58,11 +58,9 @@ CREATE TABLE IF NOT EXISTS role_permissions (
 );
 
 -- 种子数据（密码哈希由程序启动时自动补全，此处的哈希对应 123456）
--- INSERT INTO permissions (id, name, code, type, method, path) VALUES (1, '全部权限', 'all', 'api', '*', '*');
 -- INSERT INTO roles (id, name, remark) VALUES (1, '超级管理员', '拥有全部权限');
 -- INSERT INTO users (id, username, password, nickname, status) VALUES (1, 'admin', '$2a$10$...', '超级管理员', 1);
 -- INSERT INTO user_roles VALUES (1, 1);
--- INSERT INTO role_permissions VALUES (1, 1);
 
 -- 文件元数据表（对象本体在 driver 对应的存储后端）
 CREATE TABLE IF NOT EXISTS files (

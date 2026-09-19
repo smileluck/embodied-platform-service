@@ -40,7 +40,6 @@ var errKeys = []struct {
 	{bizperm.ErrButtonParentNotMenu, "permission.button_parent_menu"},
 	{bizperm.ErrParentIsSelf, "permission.parent_self"},
 	{bizperm.ErrParentIsDescendant, "permission.parent_descendant"},
-	{bizperm.ErrWildcardLocked, "permission.wildcard_locked"},
 	// 文件
 	{bizfile.ErrFileNotFound, "file.not_found"},
 	{bizfile.ErrFileTypeDenied, "file.type_denied"},

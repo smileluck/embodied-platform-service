@@ -24,7 +24,6 @@ var messagesZh = map[string]string{
 	"permission.button_parent_menu": "权限点的父级必须是菜单",
 	"permission.parent_self":        "父级不能是自身",
 	"permission.parent_descendant":  "父级不能是自身的子级",
-	"permission.wildcard_locked":    "超管通配权限禁止删除",
 	// 文件
 	"file.not_found":           "文件不存在",
 	"file.too_large":           "文件大小超出限制（上限 %dMB）",
