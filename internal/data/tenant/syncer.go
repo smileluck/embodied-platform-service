@@ -2,6 +2,8 @@ package tenant
 
 import (
 	"context"
+	"errors"
+	"net/http"
 
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	sdk "github.com/smilex/smilex-admin-gin/sdk"
@@ -41,18 +43,28 @@ func (s *Syncer) CreateOnPlatform(ctx context.Context, t *biztenant.Tenant) (uin
 }
 
 func (s *Syncer) UpdateOnPlatform(ctx context.Context, t *biztenant.Tenant) error {
-	return s.client.UpdateTenant(ctx, t.PlatformID, sdk.TenantUpdateRequest{
+	return platformGone(s.client.UpdateTenant(ctx, t.PlatformID, sdk.TenantUpdateRequest{
 		Name: t.Name, ContactName: t.ContactName, ContactPhone: t.ContactPhone,
 		Remark: t.Remark,
-	})
+	}))
 }
 
 func (s *Syncer) DeleteFromPlatform(ctx context.Context, platformID uint) error {
-	return s.client.DeleteTenant(ctx, platformID)
+	return platformGone(s.client.DeleteTenant(ctx, platformID))
 }
 
 func (s *Syncer) SetStatusOnPlatform(ctx context.Context, platformID uint, enabled bool) error {
-	return s.client.SetTenantStatus(ctx, platformID, enabled)
+	return platformGone(s.client.SetTenantStatus(ctx, platformID, enabled))
+}
+
+// platformGone 平台侧 404（开放面对不存在与越权统一 404）映射为 ErrPlatformTenantGone，
+// 供用例层做幂等删除（按已删处理）与补链重建自愈；其余错误原样返回
+func platformGone(err error) error {
+	var se *sdk.Error
+	if errors.As(err, &se) && se.HTTPStatus == http.StatusNotFound {
+		return biztenant.ErrPlatformTenantGone
+	}
+	return err
 }
 
 // LinkOrCreateOnPlatform 存量补链：本商户绑定集内按 code 精确查找——

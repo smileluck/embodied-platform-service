@@ -3,6 +3,7 @@ package tenant
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,12 +13,13 @@ import (
 )
 
 // fakePlatformOpenAPI 假平台开放面（租户域）：校验 HMAC 签名头存在即可，
-// 行为按用例脚本化（create 冲突/成功、findByCode 命中/未命中）。
+// 行为按用例脚本化（create 冲突/成功、findByCode 命中/未命中、/tenants/:id 类 404/500）。
 type fakePlatformOpenAPI struct {
 	t        *testing.T
 	existing []*sdk.Tenant // 已有租户（列表返回）
 	created  *sdk.Tenant   // 记录创建请求
 	failNext int           // 接下来 N 个写请求返回 500
+	gone     bool          // /tenants/:id 类请求恒返回 404（平台侧已删）
 }
 
 func (f *fakePlatformOpenAPI) handler() http.Handler {
@@ -59,6 +61,11 @@ func (f *fakePlatformOpenAPI) handler() http.Handler {
 		}
 	})
 	mux.HandleFunc("/open-api/v1/tenants/", func(w http.ResponseWriter, r *http.Request) {
+		if f.gone {
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]any{"code": 1, "msg": "租户不存在"})
+			return
+		}
 		if f.failNext > 0 {
 			f.failNext--
 			w.WriteHeader(http.StatusInternalServerError)
@@ -165,6 +172,32 @@ func TestSyncer_UpdateDeleteStatus(t *testing.T) {
 	f.failNext = 1
 	if err := syncer.DeleteFromPlatform(ctx, 9); err == nil {
 		t.Fatal("平台故障应透传错误")
+	}
+}
+
+// TestSyncer_PlatformGoneMapping 平台侧 404（开放面对不存在/越权统一 404）→
+// ErrPlatformTenantGone（更新/删除/启停）；非 404 错误原样透传
+func TestSyncer_PlatformGoneMapping(t *testing.T) {
+	f := &fakePlatformOpenAPI{t: t, gone: true}
+	syncer, srv := newTestSyncer(f)
+	defer srv.Close()
+	ctx := context.Background()
+
+	if err := syncer.UpdateOnPlatform(ctx, &biztenant.Tenant{PlatformID: 5, Name: "n"}); !errors.Is(err, biztenant.ErrPlatformTenantGone) {
+		t.Fatalf("update 404 应映射 ErrPlatformTenantGone, got %v", err)
+	}
+	if err := syncer.DeleteFromPlatform(ctx, 5); !errors.Is(err, biztenant.ErrPlatformTenantGone) {
+		t.Fatalf("delete 404 应映射 ErrPlatformTenantGone, got %v", err)
+	}
+	if err := syncer.SetStatusOnPlatform(ctx, 5, false); !errors.Is(err, biztenant.ErrPlatformTenantGone) {
+		t.Fatalf("status 404 应映射 ErrPlatformTenantGone, got %v", err)
+	}
+
+	f2 := &fakePlatformOpenAPI{t: t, failNext: 1}
+	syncer2, srv2 := newTestSyncer(f2)
+	defer srv2.Close()
+	if err := syncer2.DeleteFromPlatform(ctx, 5); err == nil || errors.Is(err, biztenant.ErrPlatformTenantGone) {
+		t.Fatalf("非 404 错误应原样透传, got %v", err)
 	}
 }
 
