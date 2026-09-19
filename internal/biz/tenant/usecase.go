@@ -144,3 +144,20 @@ func (uc *Usecase) SyncExisting(ctx context.Context, id uint) (*Tenant, error) {
 	}
 	return t, nil
 }
+
+// RelinkByPlatformID 按平台租户 ID 定位本地租户并补链重建（设备注册自愈用，
+// 实现 bizdevice.TenantRelinker）。LinkOrCreate 幂等：平台侧活租户按 code 命中即更新，
+// 已删则同 code 重建；返回（可能更新的）平台租户 ID
+func (uc *Usecase) RelinkByPlatformID(ctx context.Context, platformTenantID uint) (uint, error) {
+	t, err := uc.repo.GetByPlatformID(ctx, platformTenantID)
+	if err != nil {
+		return 0, err
+	}
+	if err := uc.relink(ctx, t); err != nil {
+		return 0, err
+	}
+	if err := uc.repo.Update(ctx, t); err != nil {
+		return 0, err
+	}
+	return t.PlatformID, nil
+}

@@ -44,11 +44,31 @@ func NewRepo(d *data.Data, rdb *redis.Client) *Repo {
 	return &Repo{data: d, rdb: rdb}
 }
 
+// Create 手工封禁：生效中记录已存在 → ErrIPExists；软删（解封留痕）记录复活刷新，
+// 不撞 ip 唯一索引（否则永久封禁解封后手工重封同 IP 必 1062 裸错误）
 func (r *Repo) Create(ctx context.Context, b *bizblacklist.IPBlacklist) error {
-	po := model.IPBlacklistToPO(b)
-	po.CreatedAt = time.Now()
-	po.UpdatedAt = po.CreatedAt
-	return r.data.DB.WithContext(ctx).Create(po).Error
+	var po model.IPBlacklistPO
+	err := r.data.DB.WithContext(ctx).Unscoped().Where("ip = ?", b.IP).First(&po).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		npo := model.IPBlacklistToPO(b)
+		npo.CreatedAt = time.Now()
+		npo.UpdatedAt = npo.CreatedAt
+		return r.data.DB.WithContext(ctx).Create(npo).Error
+	}
+	if err != nil {
+		return err
+	}
+	if !po.DeletedAt.Valid {
+		return bizblacklist.ErrIPExists
+	}
+	return r.data.DB.WithContext(ctx).Unscoped().Model(&model.IPBlacklistPO{}).Where("id = ?", po.ID).
+		Updates(map[string]interface{}{
+			"reason":     b.Reason,
+			"source":     bizblacklist.SourceManual,
+			"expire_at":  b.ExpireAt,
+			"deleted_at": nil, // 复活软删记录
+			"updated_at": time.Now(),
+		}).Error
 }
 
 func (r *Repo) Delete(ctx context.Context, id uint) error {

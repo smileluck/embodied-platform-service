@@ -4,7 +4,6 @@ package appuser
 import (
 	"context"
 	"errors"
-	"strings"
 
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/data"
@@ -18,22 +17,10 @@ func mapErr(err error) error {
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		return bizappuser.ErrAppUserNotFound
-	case isUniqueViolation(err):
+	case data.IsUniqueViolation(err):
 		return bizappuser.ErrDuplicateUsername
 	}
 	return err
-}
-
-// isUniqueViolation 各数据库唯一约束冲突文案判断：
-// MySQL Error 1062、Postgres 23505（duplicate key value）、SQLite UNIQUE constraint failed
-func isUniqueViolation(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := err.Error()
-	return strings.Contains(msg, "Error 1062") ||
-		strings.Contains(msg, "duplicate key value") ||
-		strings.Contains(msg, "UNIQUE constraint failed")
 }
 
 type repo struct {
@@ -92,16 +79,26 @@ func (r *repo) ReplaceTenants(ctx context.Context, id uint, tenantIDs []uint) er
 	})
 }
 
+// Delete 删除应用用户（软删）。软删行仍占 username 唯一索引——墓碑改写释放
+// （否则删后重建同 username 用户误报「已存在」）；租户关联物理清理（不阻断租户删除保护计数）
 func (r *repo) Delete(ctx context.Context, id uint) error {
+	var po model.AppUserPO
+	if err := r.data.DB.WithContext(ctx).First(&po, id).Error; err != nil {
+		return mapErr(err)
+	}
+	now := r.data.DB.NowFunc()
 	return r.data.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		res := tx.Delete(&model.AppUserPO{}, id)
+		res := tx.Model(&model.AppUserPO{}).Where("id = ?", id).
+			Updates(map[string]interface{}{
+				"username":   data.TombstoneCode(po.Username, id, now),
+				"deleted_at": now,
+			})
 		if res.Error != nil {
 			return res.Error
 		}
 		if res.RowsAffected == 0 {
 			return bizappuser.ErrAppUserNotFound
 		}
-		// 关联随用户一并清理（物理删除，避免阻断租户删除保护计数）
 		return tx.Unscoped().Where("app_user_id = ?", id).Delete(&model.AppUserTenantPO{}).Error
 	})
 }

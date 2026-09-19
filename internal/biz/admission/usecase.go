@@ -317,19 +317,21 @@ func (uc *Usecase) GetByPlatformUser(ctx context.Context, platformUserID uint) (
 }
 
 // SyncFromPlatform 从平台拉取本商户绑定成员：为尚无投影的成员建投影（成员语义=准入开启），
-// 刷新存量投影的用户名/昵称快照，并按平台的商户管理员标记对账本地角色2绑定
-// （标记缺失/被移出成员列表的持有者一并回收）。返回（新建数，刷新数）。
+// 刷新存量投影的用户名/昵称快照，按平台的商户管理员标记对账本地角色2绑定
+// （标记缺失/被移出成员列表的持有者一并回收），并回收孤儿投影——本地有投影、
+// 平台成员列表已无此人（平台删号/解绑后未感知），删除投影同步吊销本地授权，
+// 避免幽灵持有角色阻塞角色删除。返回（新建数，刷新数）。
 func (uc *Usecase) SyncFromPlatform(ctx context.Context) (created, refreshed int, err error) {
 	page := 1
 	const size = 100
-	adminMarked := map[uint]bool{}
+	memberIDs := map[uint]bool{} // 平台成员全集（值=是否标记管理员）
 	for {
 		accounts, _, err := uc.platform.ListMembers(ctx, "", page, size)
 		if err != nil {
 			return created, refreshed, err
 		}
 		for _, a := range accounts {
-			adminMarked[a.ID] = a.IsAdmin
+			memberIDs[a.ID] = a.IsAdmin
 			p, _ := uc.repo.FindByPlatformUserID(ctx, a.ID)
 			if p == nil {
 				np := &Projection{
@@ -369,11 +371,31 @@ func (uc *Usecase) SyncFromPlatform(ctx context.Context) (created, refreshed int
 	}
 	revoked := false
 	for _, uid := range holders {
-		if adminMarked[uid] {
+		if memberIDs[uid] {
 			continue
 		}
 		if err := uc.repo.RevokeRole(ctx, uid, MerchantAdminRoleID); err != nil {
 			return created, refreshed, err
+		}
+		revoked = true
+	}
+	// 孤儿投影回收：本地有投影、平台成员列表已无此人（平台删号/解绑后未感知）。
+	// 不删会成为隐形孤儿——成员列表不显示（列表源=平台）、UI 删不掉，
+	// 且幽灵持有的角色绑定会阻塞角色删除
+	localIDs, err := uc.repo.ListPlatformUserIDs(ctx)
+	if err != nil {
+		return created, refreshed, err
+	}
+	for _, uid := range localIDs {
+		if _, ok := memberIDs[uid]; ok { // 注意：按存在性判断，值（是否管理员）在此无意义
+			continue
+		}
+		p, err := uc.repo.FindByPlatformUserID(ctx, uid)
+		if err != nil || p == nil {
+			continue
+		}
+		if derr := uc.repo.Delete(ctx, p.ID); derr != nil {
+			return created, refreshed, derr
 		}
 		revoked = true
 	}

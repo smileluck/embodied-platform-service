@@ -19,8 +19,11 @@ type repo struct {
 func NewRepo(d *data.Data) bizperm.Repo { return &repo{data: d} }
 
 func mapErr(err error) error {
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
 		return bizperm.ErrPermissionNotFound
+	case data.IsUniqueViolation(err):
+		return bizperm.ErrDuplicateCode
 	}
 	return err
 }
@@ -28,7 +31,7 @@ func mapErr(err error) error {
 func (r *repo) Create(ctx context.Context, m *bizperm.Permission) error {
 	po := model.PermissionToPO(m)
 	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
-		return err
+		return mapErr(err)
 	}
 	// 回写自增主键与时间戳，供应用层返回给前端
 	m.ID, m.CreatedAt, m.UpdatedAt = po.ID, po.CreatedAt, po.UpdatedAt
@@ -40,9 +43,20 @@ func (r *repo) Update(ctx context.Context, m *bizperm.Permission) error {
 		Updates(map[string]interface{}{"name": m.Name, "method": m.Method, "path": m.Path, "icon": m.Icon, "sort": m.Sort, "parent_id": m.ParentID}).Error
 }
 
+// Delete 删除权限点（软删）。软删行仍占 code 唯一索引——墓碑改写释放
+// （否则删后重建同 code 权限点 1062 裸错误；系统权限 code 由启动种子自愈，不受影响）
 func (r *repo) Delete(ctx context.Context, id uint) error {
+	var po model.PermissionPO
+	if err := r.data.DB.WithContext(ctx).First(&po, id).Error; err != nil {
+		return mapErr(err)
+	}
+	now := r.data.DB.NowFunc()
 	return r.data.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		res := tx.Delete(&model.PermissionPO{}, id)
+		res := tx.Model(&model.PermissionPO{}).Where("id = ?", id).
+			Updates(map[string]interface{}{
+				"code":       data.TombstoneCode(po.Code, id, now),
+				"deleted_at": now,
+			})
 		if res.Error != nil {
 			return res.Error
 		}

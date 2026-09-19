@@ -88,6 +88,15 @@ func (r *memRepo) Get(ctx context.Context, id uint) (*Tenant, error) {
 	}
 	return nil, ErrTenantNotFound
 }
+func (r *memRepo) GetByPlatformID(ctx context.Context, platformID uint) (*Tenant, error) {
+	for _, t := range r.tenants {
+		if t.PlatformID == platformID {
+			cp := *t
+			return &cp, nil
+		}
+	}
+	return nil, ErrTenantNotFound
+}
 func (r *memRepo) List(ctx context.Context, q Query, page, pageSize int) ([]*Tenant, int64, error) {
 	return nil, 0, nil
 }
@@ -155,5 +164,27 @@ func TestSetStatus_PlatformGoneHeals(t *testing.T) {
 	}
 	if enabled, ok := syncer.statusTo[88]; !ok || enabled {
 		t.Fatalf("应对新平台 ID 重试 SetStatus(false): %+v", syncer.statusTo)
+	}
+}
+
+// TestRelinkByPlatformID 设备注册自愈入口：按平台租户 ID 定位本地租户补链并回填新 platform_id
+func TestRelinkByPlatformID(t *testing.T) {
+	repo := newMemRepo(&Tenant{ID: 1, Name: "悬挂", Code: "dangle", PlatformID: 55, Status: StatusEnabled})
+	syncer := &fakeSyncer{linkPID: 77}
+	uc := NewUsecase(repo, syncer)
+
+	pid, err := uc.RelinkByPlatformID(context.Background(), 55)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pid != 77 || syncer.linkCalled != 1 {
+		t.Fatalf("应补链到新平台 ID 77, got %d (link called %d)", pid, syncer.linkCalled)
+	}
+	got, _ := repo.Get(context.Background(), 1)
+	if got.PlatformID != 77 {
+		t.Fatalf("本地投影应回填新平台 ID: %+v", got)
+	}
+	if _, err := uc.RelinkByPlatformID(context.Background(), 404); !errors.Is(err, ErrTenantNotFound) {
+		t.Fatalf("本地无此平台租户应报 ErrTenantNotFound, got %v", err)
 	}
 }

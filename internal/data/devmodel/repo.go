@@ -5,6 +5,8 @@ package devmodel
 
 import (
 	"context"
+	"errors"
+	"net/http"
 
 	bizdevmodel "github.com/smilex/smilex-admin-gin/internal/biz/devmodel"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
@@ -83,7 +85,13 @@ func (a *GatewayAdapter) UpdateModel(ctx context.Context, id uint, req bizdevmod
 }
 
 func (a *GatewayAdapter) DeleteModel(ctx context.Context, id uint) error {
-	return a.client.DeleteDeviceModel(ctx, id)
+	err := a.client.DeleteDeviceModel(ctx, id)
+	// 平台侧已删（404）幂等放行——型号为纯代理无本地状态，重复删除视为目标已达成
+	var se *sdk.Error
+	if errors.As(err, &se) && se.HTTPStatus == http.StatusNotFound {
+		return nil
+	}
+	return err
 }
 
 func (a *GatewayAdapter) ListTMNodes(ctx context.Context, layer, kw string) ([]*bizdevmodel.TMNode, error) {

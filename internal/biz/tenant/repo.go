@@ -36,6 +36,8 @@ type Repo interface {
 	Update(ctx context.Context, t *Tenant) error
 	Delete(ctx context.Context, id uint) error
 	Get(ctx context.Context, id uint) (*Tenant, error)
+	// GetByPlatformID 按平台租户 ID 查本地租户（设备注册自愈定位用）
+	GetByPlatformID(ctx context.Context, platformID uint) (*Tenant, error)
 	List(ctx context.Context, q Query, page, pageSize int) ([]*Tenant, int64, error)
 	// ListUnsynced 列出尚未与平台同步（platform_id=0）的租户（存量补链用）
 	ListUnsynced(ctx context.Context) ([]*Tenant, error)

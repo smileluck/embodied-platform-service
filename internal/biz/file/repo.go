@@ -14,6 +14,9 @@ var ErrFileTooLarge = errors.New("文件大小超出限制")
 // ErrFileTypeDenied 文件类型被禁止上传
 var ErrFileTypeDenied = errors.New("该类型文件禁止上传")
 
+// ErrFileGone 文件已失效（本地元数据在、平台存储对象已被清理/桶被删）
+var ErrFileGone = errors.New("文件已失效（存储对象不存在），请重新上传")
+
 // Query 文件列表查询条件
 type Query struct {
 	Name string // 文件名模糊

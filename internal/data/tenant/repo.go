@@ -4,10 +4,7 @@ package tenant
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
-	"time"
-	"unicode/utf8"
 
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	"github.com/smilex/smilex-admin-gin/internal/data"
@@ -93,11 +90,12 @@ func (r *repo) Delete(ctx context.Context, id uint) error {
 	if err := r.data.DB.WithContext(ctx).First(&po, id).Error; err != nil {
 		return mapErr(err)
 	}
+	now := r.data.DB.NowFunc()
 	res := r.data.DB.WithContext(ctx).Model(&model.TenantPO{}).Where("id = ?", id).
 		Updates(map[string]any{
-			"code":       freeUniqueSlot(po.Code, id),
-			"name":       freeUniqueSlot(po.Name, id),
-			"deleted_at": time.Now(),
+			"code":       data.TombstoneCode(po.Code, id, now),
+			"name":       data.TombstoneCode(po.Name, id, now),
+			"deleted_at": now,
 		})
 	if res.Error != nil {
 		return res.Error
@@ -108,19 +106,18 @@ func (r *repo) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
-// freeUniqueSlot 软删时释放唯一槽位：<原值>#del#<id>；超列宽（64 字符）按 rune 截头保留后缀
-func freeUniqueSlot(v string, id uint) string {
-	const width = 64
-	suffix := fmt.Sprintf("#del#%d", id)
-	if utf8.RuneCountInString(v)+len(suffix) <= width {
-		return v + suffix
-	}
-	return string([]rune(v)[:width-len(suffix)]) + suffix
-}
-
 func (r *repo) Get(ctx context.Context, id uint) (*biztenant.Tenant, error) {
 	var po model.TenantPO
 	if err := r.data.DB.WithContext(ctx).First(&po, id).Error; err != nil {
+		return nil, mapErr(err)
+	}
+	return model.TenantFromPO(&po), nil
+}
+
+// GetByPlatformID 按平台租户 ID 查（设备注册自愈定位本地租户用）
+func (r *repo) GetByPlatformID(ctx context.Context, platformID uint) (*biztenant.Tenant, error) {
+	var po model.TenantPO
+	if err := r.data.DB.WithContext(ctx).Where("platform_id = ?", platformID).First(&po).Error; err != nil {
 		return nil, mapErr(err)
 	}
 	return model.TenantFromPO(&po), nil

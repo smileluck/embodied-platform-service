@@ -152,6 +152,16 @@ func (r *repo) List(ctx context.Context, q bizadmission.Query, page, pageSize in
 	return out, total, nil
 }
 
+// ListPlatformUserIDs 全部投影的平台用户 ID 集（孤儿投影对账回收用）
+func (r *repo) ListPlatformUserIDs(ctx context.Context) ([]uint, error) {
+	var ids []uint
+	if err := r.data.DB.WithContext(ctx).Model(&model.PlatformUserPO{}).
+		Order("id").Pluck("platform_user_id", &ids).Error; err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
 func (r *repo) SetRoles(ctx context.Context, id uint, roleIDs []uint) error {
 	return r.data.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var po model.PlatformUserPO

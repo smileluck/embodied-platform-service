@@ -46,6 +46,7 @@ var errKeys = []struct {
 	{bizfile.ErrFileTypeDenied, "file.type_denied"},
 	{bizfile.ErrPresignUnsupported, "file.presign_unsupported"},
 	{bizfile.ErrDriverUnavailable, "file.driver_unavailable"},
+	{bizfile.ErrFileGone, "file.gone"},
 	// 异步导出
 	{bizexport.ErrQueueFull, "export.queue_full"},
 	{bizexport.ErrUnsupportedBiz, "export.unsupported_biz"},

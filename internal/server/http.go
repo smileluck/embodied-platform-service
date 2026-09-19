@@ -597,6 +597,10 @@ func (s *HTTPServer) createPerm(c *gin.Context) {
 	}
 	p, err := s.perm.Create(c.Request.Context(), req)
 	if err != nil {
+		if isErr(err, bizperm.ErrDuplicateCode) {
+			response.FailI18n(c, http.StatusConflict, response.CodeErr, err)
+			return
+		}
 		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 		return
 	}
@@ -760,7 +764,8 @@ func (s *HTTPServer) deleteFile(c *gin.Context) {
 	response.OK(c, nil)
 }
 
-// fileErr 文件操作错误映射：不存在 404，入参类 400，存储后端未配置 503，其余 500
+// fileErr 文件操作错误映射：不存在 404，入参类 400，存储后端未配置 503，
+// 平台存储对象已清理（platform 404）→ 404「文件已失效」，其余 500
 func (s *HTTPServer) fileErr(c *gin.Context, err error) {
 	switch {
 	case isErr(err, bizfile.ErrFileNotFound):
@@ -773,6 +778,11 @@ func (s *HTTPServer) fileErr(c *gin.Context, err error) {
 	case isErr(err, bizfile.ErrDriverUnavailable):
 		response.FailI18n(c, http.StatusServiceUnavailable, response.CodeErr, err)
 	default:
+		var perr *platformError
+		if errorsAs(err, &perr) && perr.HTTPStatus == http.StatusNotFound {
+			response.FailI18n(c, http.StatusNotFound, response.CodeErr, bizfile.ErrFileGone)
+			return
+		}
 		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
 	}
 }
@@ -803,6 +813,10 @@ func (s *HTTPServer) createIPBlacklist(c *gin.Context) {
 	}
 	vo, err := s.blacklist.Create(c.Request.Context(), req, sub.UserID, sub.Username)
 	if err != nil {
+		if isErr(err, bizblacklist.ErrIPExists) {
+			response.FailI18n(c, http.StatusConflict, response.CodeErr, err)
+			return
+		}
 		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 		return
 	}
@@ -1200,7 +1214,8 @@ func (s *HTTPServer) deleteExport(c *gin.Context) {
 	response.OK(c, nil)
 }
 
-// exportErr 导出操作错误映射：不存在 404，越权 403，未完成 409，队列满 429，存储后端未配置 503，其余 500
+// exportErr 导出操作错误映射：不存在 404，越权 403，未完成 409，队列满 429，存储后端未配置 503，
+// 平台存储对象已清理（platform 404）→ 404「文件已失效」，其余 500
 func (s *HTTPServer) exportErr(c *gin.Context, err error) {
 	switch {
 	case isErr(err, bizexport.ErrNotFound):
@@ -1214,6 +1229,11 @@ func (s *HTTPServer) exportErr(c *gin.Context, err error) {
 	case isErr(err, bizfile.ErrDriverUnavailable):
 		response.FailI18n(c, http.StatusServiceUnavailable, response.CodeErr, err)
 	default:
+		var perr *platformError
+		if errorsAs(err, &perr) && perr.HTTPStatus == http.StatusNotFound {
+			response.FailI18n(c, http.StatusNotFound, response.CodeErr, bizfile.ErrFileGone)
+			return
+		}
 		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
 	}
 }

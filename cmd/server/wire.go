@@ -64,6 +64,8 @@ var bizSet = wire.NewSet(
 	auth.NewUsecase,
 	// 跨上下文最小依赖接口绑定（provider 与 bind 需同 set）
 	wire.Bind(new(auth.AdmissionReader), new(*bizadmission.Usecase)),
+	// 设备注册自愈：平台 403 时经租户用例补链重建（LinkOrCreate 幂等）
+	wire.Bind(new(bizdevice.TenantRelinker), new(*biztenant.Usecase)),
 )
 
 var dataRepoSet = wire.NewSet(
