@@ -21,7 +21,8 @@ type Config struct {
 	Console    bool   // 是否同时输出到控制台（release 默认 false，debug 默认 true）
 }
 
-var L *zap.Logger
+// L 全局日志器；Init 之前默认 Nop，防止初始化早期/测试环境调用日志函数 panic
+var L *zap.Logger = zap.NewNop()
 
 func Init(mode string, cfg Config) error {
 	dev := mode != "release"
