@@ -30,6 +30,7 @@ import (
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
 	monitorsvc "github.com/smilex/smilex-admin-gin/internal/service/monitor"
+	noticesvc "github.com/smilex/smilex-admin-gin/internal/service/notice"
 	permsvc "github.com/smilex/smilex-admin-gin/internal/service/permission"
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
 	syssvc "github.com/smilex/smilex-admin-gin/internal/service/sysconfig"
@@ -58,6 +59,7 @@ type HTTPServer struct {
 	agent         *agentsvc.Service
 	dict          *dictsvc.Service
 	syscfg        *syssvc.Service
+	notice        *noticesvc.Service
 	tenant        *tenantsvc.Service
 	appuser       *appusersvc.Service
 	appuserUC     *bizappuser.Usecase    // AppJWT 中间件直连领域用例（校验用户启用状态）
@@ -79,6 +81,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	tenant *tenantsvc.Service, appuser *appusersvc.Service, appuserUC *bizappuser.Usecase,
 	appIssuer bizappuser.TokenIssuer, device *devicesvc.Service, devmodel *devmodelsvc.Service,
 	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service, syscfg *syssvc.Service,
+	notice *noticesvc.Service,
 	rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
 	gin.SetMode(cfg.Server.Mode)
 	e := gin.New()
@@ -102,6 +105,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 		file: file, export: export, blacklist: blacklist, tenant: tenant,
 		appuser: appuser, appuserUC: appuserUC, appIssuer: appIssuer,
 		device: device, devmodel: devmodel, monitor: monitor, agent: agent, dict: dict, syscfg: syscfg,
+		notice:    notice,
 		rdb:       rdb,
 		rbacCache: rbacCache.TwoLevel, identityCache: identityCache, engine: e,
 	}
@@ -206,6 +210,9 @@ func (s *HTTPServer) registerRoutes() {
 		})
 
 		basic.GET("/dicts/:code/items", s.listDictItemsByCode)
+		basic.GET("/notices/active", s.listActiveNotices)
+		basic.GET("/notices/unread-count", s.unreadNoticeCount)
+		basic.POST("/notices/:id/read", s.readNotice)
 		// 异步导出：记录归属当前用户，列表/下载/删除均强制按平台用户 ID 过滤（biz 层校验），
 		// 与 profile/menus 同属自身数据接口，故仅认证不走 RBAC；导出入口（POST */export）在 protected 组按按钮权限点控制
 		exports := basic.Group("/exports")
@@ -332,6 +339,16 @@ func (s *HTTPServer) registerRoutes() {
 		agentModels.PUT("/:id", s.updateAgentModel)
 		agentModels.DELETE("/:id", s.deleteAgentModel)
 		agentModels.POST("/:id/test", s.testAgentModel)
+	}
+
+	// ---- 通知公告（管理端） ----
+	notices := protected.Group("/notices")
+	{
+		notices.GET("", s.listNotices)
+		notices.POST("", s.createNotice)
+		notices.GET("/:id", s.getNotice)
+		notices.PUT("/:id", s.updateNotice)
+		notices.DELETE("/:id", s.deleteNotice)
 	}
 
 	// ---- 系统参数（运行时可调） ----

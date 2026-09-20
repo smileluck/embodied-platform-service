@@ -96,6 +96,8 @@ var messagesZh = map[string]string{
 	"sysconfig.key_exists":               "参数键已存在，请更换",
 	"sysconfig.bad_value":                "参数值与类型不匹配",
 	"sysconfig.key_invalid":              "参数键只能包含字母、数字、下划线、点",
+	"notice.not_found":                   "公告不存在",
+	"notice.inactive":                    "公告不存在或未生效",
 	// 开放 API 验签中间件
 	"openapi.missing_sign_headers": "缺少签名请求头",
 	"openapi.invalid_timestamp":    "时间戳无效或超出允许偏差",

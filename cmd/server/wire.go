@@ -17,6 +17,7 @@ import (
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
+	biznotice "github.com/smilex/smilex-admin-gin/internal/biz/notice"
 	bizsys "github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
 
 	bizmonitor "github.com/smilex/smilex-admin-gin/internal/biz/monitor"
@@ -36,6 +37,7 @@ import (
 	dataexport "github.com/smilex/smilex-admin-gin/internal/data/export"
 	datafile "github.com/smilex/smilex-admin-gin/internal/data/file"
 	datalog "github.com/smilex/smilex-admin-gin/internal/data/log"
+	datanotice "github.com/smilex/smilex-admin-gin/internal/data/notice"
 	dataperm "github.com/smilex/smilex-admin-gin/internal/data/permission"
 	"github.com/smilex/smilex-admin-gin/internal/data/platform"
 	datarole "github.com/smilex/smilex-admin-gin/internal/data/role"
@@ -54,6 +56,7 @@ import (
 	exportsvc "github.com/smilex/smilex-admin-gin/internal/service/export"
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
+	noticesvc "github.com/smilex/smilex-admin-gin/internal/service/notice"
 	syssvc "github.com/smilex/smilex-admin-gin/internal/service/sysconfig"
 
 	monitorsvc "github.com/smilex/smilex-admin-gin/internal/service/monitor"
@@ -75,6 +78,7 @@ var bizSet = wire.NewSet(
 	bizdevmodel.NewUsecase,
 	bizdict.NewUsecase,
 	bizsys.NewUsecase,
+	biznotice.NewUsecase,
 	bizmonitor.NewUsecase,
 	bizagent.NewUsecase,
 	bizexport.NewUsecase,
@@ -110,6 +114,8 @@ var dataRepoSet = wire.NewSet(
 	datadict.NewRepo,
 
 	datasys.NewRepo,
+
+	datanotice.NewRepo,
 	dataexport.NewRepo,
 	dataexport.NewWorker,
 	// 平台集成层（商户 HMAC 开放面 + 身份自省 + 存储）
@@ -158,6 +164,7 @@ var serviceSet = wire.NewSet(
 	agentsvc.NewService,
 	dictsvc.NewService,
 	syssvc.NewService,
+	noticesvc.NewService,
 )
 
 var providerSet = wire.NewSet(bizSet, dataRepoSet, serviceSet, ProvideConfig, server.NewHTTPServer)

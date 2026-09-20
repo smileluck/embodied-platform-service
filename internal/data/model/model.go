@@ -14,6 +14,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/biz/export"
 	"github.com/smilex/smilex-admin-gin/internal/biz/file"
 	"github.com/smilex/smilex-admin-gin/internal/biz/log"
+	"github.com/smilex/smilex-admin-gin/internal/biz/notice"
 	"github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/role"
 	"github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
@@ -639,4 +640,48 @@ func SysConfigToPO(c *sysconfig.Config) *SysConfigPO {
 
 func SysConfigFromPO(p *SysConfigPO) *sysconfig.Config {
 	return &sysconfig.Config{Key: p.Key, Value: p.Value, Type: sysconfig.ValueType(p.Type), Description: p.Description, UpdatedAt: p.UpdatedAt}
+}
+
+// NoticePO 通知公告表
+type NoticePO struct {
+	ID          uint      `gorm:"primaryKey"`
+	Title       string    `gorm:"size:100"`
+	Content     string    `gorm:"type:text"` // markdown
+	Level       string    `gorm:"size:16"`   // info | warning | important
+	PublishAt   time.Time `gorm:"index"`
+	ExpireAt    *time.Time
+	CreatorID   uint
+	CreatorName string `gorm:"size:20"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   gorm.DeletedAt `gorm:"index"`
+}
+
+func (NoticePO) TableName() string { return "notices" }
+
+// NoticeReadPO 公告已读记录（用户+公告 唯一）
+type NoticeReadPO struct {
+	ID        uint `gorm:"primaryKey"`
+	UserID    uint `gorm:"uniqueIndex:uk_notice_read"`
+	NoticeID  uint `gorm:"uniqueIndex:uk_notice_read"`
+	CreatedAt time.Time
+}
+
+func (NoticeReadPO) TableName() string { return "notice_reads" }
+
+func NoticeToPO(n *notice.Notice) *NoticePO {
+	return &NoticePO{
+		ID: n.ID, Title: n.Title, Content: n.Content, Level: string(n.Level),
+		PublishAt: n.PublishAt, ExpireAt: n.ExpireAt,
+		CreatorID: n.CreatorID, CreatorName: n.CreatorName,
+	}
+}
+
+func NoticeFromPO(p *NoticePO) *notice.Notice {
+	return &notice.Notice{
+		ID: p.ID, Title: p.Title, Content: p.Content, Level: notice.Level(p.Level),
+		PublishAt: p.PublishAt, ExpireAt: p.ExpireAt,
+		CreatorID: p.CreatorID, CreatorName: p.CreatorName,
+		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
 }

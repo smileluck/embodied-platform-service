@@ -96,6 +96,8 @@ var messagesEn = map[string]string{
 	"sysconfig.key_exists":               "Config key already exists",
 	"sysconfig.bad_value":                "Value does not match the type",
 	"sysconfig.key_invalid":              "Key allows letters, digits, underscore and dot only",
+	"notice.not_found":                   "Notice not found",
+	"notice.inactive":                    "Notice not found or inactive",
 	// Open API sign middleware
 	"openapi.missing_sign_headers": "Missing signature headers",
 	"openapi.invalid_timestamp":    "Timestamp is invalid or out of the allowed skew",
