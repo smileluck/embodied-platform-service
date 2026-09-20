@@ -15,6 +15,8 @@ import type {
   DeviceCommand,
   DeviceModel,
   DeviceShadow,
+  DictItem,
+  DictType,
   ExportRecord,
   FileInfo,
   LogPageResult,
@@ -273,3 +275,17 @@ export const listAgentConversationMessages = (id: number, params: { page: number
 export const getAgentUsage = (days = 7) => request.get<R<UsageStats>>('/agent/usage', { params: { days } })
 
 export const listAgentTools = () => request.get<R<string[]>>('/agent/tools')
+
+// ---- 数据字典 ----
+
+export const listDictTypes = (params: { page: number; page_size: number; name?: string; code?: string }) =>
+  request.get<R<PageResult<DictType>>>('/dict-types', { params })
+export const createDictType = (data: Partial<DictType>) => request.post<R<DictType>>('/dict-types', data)
+export const updateDictType = (id: number, data: Partial<DictType>) => request.put<R<null>>(`/dict-types/${id}`, data)
+export const deleteDictType = (id: number) => request.delete<R<null>>(`/dict-types/${id}`)
+export const listDictItems = (typeID: number, params: { page: number; page_size: number }) =>
+  request.get<R<PageResult<DictItem>>>(`/dict-types/${typeID}/items`, { params })
+export const createDictItem = (typeID: number, data: Partial<DictItem>) => request.post<R<DictItem>>(`/dict-types/${typeID}/items`, data)
+export const updateDictItem = (id: number, data: Partial<DictItem>) => request.put<R<null>>(`/dict-items/${id}`, data)
+export const deleteDictItem = (id: number) => request.delete<R<null>>(`/dict-items/${id}`)
+export const getDictItemsByCode = (code: string) => request.get<R<DictItem[]>>(`/dicts/${code}/items`)

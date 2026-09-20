@@ -18,6 +18,7 @@ import profile from './profile'
 import about from './about'
 import monitor from './monitor'
 import agent from './agent'
+import dict from './dict'
 import errorPage from './errorPage'
 
 export default {
@@ -41,5 +42,6 @@ export default {
   about,
   monitor,
   agent,
+  dict,
   errorPage,
 }

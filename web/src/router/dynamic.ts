@@ -23,6 +23,7 @@ const viewModules: Record<string, () => Promise<any>> = {
   'menu:tenant': () => import('../views/tenant/Tenants.vue'),
   'menu:appUser': () => import('../views/tenant/AppUsers.vue'),
   'menu:about': () => import('../views/about/About.vue'),
+  'menu:dict': () => import('../views/system/Dicts.vue'),
   'menu:agentProvider': () => import('../views/agent/Providers.vue'),
   'menu:agentList': () => import('../views/agent/Agents.vue'),
   'menu:agentChat': () => import('../views/agent/Chat.vue'),

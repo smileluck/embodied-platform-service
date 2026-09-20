@@ -105,11 +105,16 @@ func (s *HTTPServer) listDictItems(c *gin.Context) {
 }
 
 func (s *HTTPServer) createDictItem(c *gin.Context) {
+	typeID, ok := idParam(c)
+	if !ok {
+		return
+	}
 	var req dictsvc.ItemCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
 		return
 	}
+	req.TypeID = typeID // 归属类型以路径为准
 	i, err := s.dict.CreateItem(c.Request.Context(), req)
 	if err != nil {
 		s.dictErr(c, err)

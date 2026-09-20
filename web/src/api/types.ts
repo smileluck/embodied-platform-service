@@ -451,3 +451,26 @@ export interface UsageStats {
   tokens: number
   cost: number
 }
+
+// 数据字典
+export interface DictType {
+  id: number
+  name: string
+  code: string
+  remark: string
+  status: number
+  created_at: string
+  updated_at: string
+}
+
+export interface DictItem {
+  id: number
+  type_id: number
+  label: string
+  value: string
+  sort: number
+  remark: string
+  status: number
+  created_at: string
+  updated_at: string
+}
