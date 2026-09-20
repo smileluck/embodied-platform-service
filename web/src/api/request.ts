@@ -4,7 +4,16 @@ import router from '../router'
 import { getLocale } from '../locales'
 import { deepTrim } from '../utils/trim'
 
-const request = axios.create({ baseURL: '/api/v1', timeout: 15000 })
+import { createDiscreteApi } from 'naive-ui'
+import { i18n } from '../locales'
+
+// 组件树外的全局 toast（网络层/5xx 兜底提示用；页面自行 catch 的 4xx 业务错误不重复提示）
+const { message: globalMessage } = createDiscreteApi(['message'])
+
+const request = axios.create({
+  baseURL: '/api/v1',
+  timeout: 15000,
+})
 
 // 请求拦截：附带 token 与当前语言（后端按 Accept-Language 返回本地化 msg/菜单名）；
 // 提交文本统一深度去首尾空格（密码类字段与文件除外，见 utils/trim）
@@ -49,6 +58,15 @@ request.interceptors.response.use(
       if (router.currentRoute.value.path !== '/login') {
         router.replace({ path: '/login', query: { reason: 'expired' } })
       }
+    }
+    // 全局错误兜底：网络层错误（断网/超时）与 5xx 统一提示；
+    // 4xx 业务错误由各页面 catch 展示（现状已覆盖），此处不重复 toast。
+    // 轮询/静默场景可在请求 config 传 silent: true 抑制
+    if (!config?.silent && response?.status !== 401 && (response?.status === undefined || response.status >= 500)) {
+      const t = i18n.global.t
+      globalMessage.error(
+        response?.data?.msg || (response ? t('common.serverError') : t('common.networkError')) + (error.code === 'ECONNABORTED' ? `（${t('common.timeout')}）` : ''),
+      )
     }
     return Promise.reject(error)
   },
