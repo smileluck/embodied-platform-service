@@ -20,6 +20,7 @@ import monitor from './monitor'
 import agent from './agent'
 import dict from './dict'
 import sysconfig from './sysconfig'
+import notice from './notice'
 import errorPage from './errorPage'
 
 export default {
@@ -45,5 +46,6 @@ export default {
   agent,
   dict,
   sysconfig,
+  notice,
   errorPage,
 }

@@ -26,6 +26,7 @@ import type {
   MenuNode,
   Merchant,
   MerchantAPILog,
+  NoticeInfo,
   OnlineSession,
   OperationLogInfo,
   PageResult,
@@ -299,3 +300,16 @@ export const createSysConfig = (data: Partial<SysConfig>) => request.post<R<SysC
 export const updateSysConfig = (key: string, data: { value: string }) =>
   request.put<R<SysConfig>>(`/sys-configs/${key}`, data)
 export const deleteSysConfig = (key: string) => request.delete<R<null>>(`/sys-configs/${key}`)
+
+// ---- 通知公告 ----
+
+export const listNotices = (params: { page: number; page_size: number; title?: string; level?: string; status?: string }) =>
+  request.get<R<PageResult<NoticeInfo>>>('/notices', { params })
+export const createNotice = (data: Partial<NoticeInfo>) => request.post<R<NoticeInfo>>('/notices', data)
+export const getNotice = (id: number) => request.get<R<NoticeInfo>>(`/notices/${id}`)
+export const updateNotice = (id: number, data: Partial<NoticeInfo>) => request.put<R<null>>(`/notices/${id}`, data)
+export const deleteNotice = (id: number) => request.delete<R<null>>(`/notices/${id}`)
+// 消费端（basic）
+export const listActiveNotices = () => request.get<R<NoticeInfo[]>>('/notices/active')
+export const getUnreadNoticeCount = () => request.get<R<{ count: number }>>('/notices/unread-count')
+export const markNoticeRead = (id: number) => request.post<R<null>>(`/notices/${id}/read`)

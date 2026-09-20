@@ -1,5 +1,6 @@
 // 主布局：顶栏 / 侧边栏 / 用户下拉 / 修改密码弹窗 / 搜索命令面板 / 导出悬浮框
 export default {
+  notice: { title: '通知公告', empty: '暂无公告', new: '新' },
   toggleSider: '折叠/展开侧边栏',
   searchMenu: '搜索菜单页面',
   language: '语言',

@@ -1,0 +1,23 @@
+// Notice module messages
+export default {
+  title: 'Notices',
+  new: 'Publish',
+  edit: 'Edit Notice',
+  titleField: 'Title',
+  level: 'Level',
+  levelInfo: 'Info',
+  levelWarning: 'Warning',
+  levelImportant: 'Important',
+  content: 'Content (Markdown)',
+  publishAt: 'Publish At',
+  expireAt: 'Expire At',
+  status: 'Status',
+  statusActive: 'Active',
+  statusPending: 'Pending',
+  statusExpired: 'Expired',
+  longTerm: 'Long-term',
+  creator: 'Publisher',
+  titleRequired: 'Please enter the title',
+  contentRequired: 'Please enter the content',
+  deleteConfirm: 'Delete notice "{title}"?',
+}

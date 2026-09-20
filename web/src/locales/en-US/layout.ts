@@ -1,5 +1,6 @@
 // Main layout: header / sider / user dropdown / change-password modal / search palette / exports popover
 export default {
+  notice: { title: 'Notices', empty: 'No notices', new: 'NEW' },
   toggleSider: 'Toggle sidebar',
   searchMenu: 'Search menu pages',
   language: 'Language',

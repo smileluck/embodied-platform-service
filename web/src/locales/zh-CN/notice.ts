@@ -1,0 +1,23 @@
+// 通知公告模块文案
+export default {
+  title: '通知公告',
+  new: '发布公告',
+  edit: '编辑公告',
+  titleField: '标题',
+  level: '级别',
+  levelInfo: '普通',
+  levelWarning: '提醒',
+  levelImportant: '重要',
+  content: '正文（Markdown）',
+  publishAt: '发布时间',
+  expireAt: '过期时间',
+  status: '状态',
+  statusActive: '生效中',
+  statusPending: '待发布',
+  statusExpired: '已过期',
+  longTerm: '长期',
+  creator: '发布人',
+  titleRequired: '请输入标题',
+  contentRequired: '请输入正文',
+  deleteConfirm: '确定删除公告「{title}」吗？',
+}

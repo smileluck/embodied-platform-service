@@ -55,6 +55,29 @@
               <n-icon :component="SearchOutline" />
             </template>
           </n-button>
+          <n-popover v-model:show="showNotices" trigger="click" :width="380" @update:show="onNoticesToggle">
+            <template #trigger>
+              <n-badge :value="noticeUnread" :max="99" :show="noticeUnread > 0">
+                <n-button class="notice-trigger" quaternary circle :focusable="false" :aria-label="t('layout.notice.title')">
+                  <template #icon>
+                    <n-icon :component="NotificationsOutline" />
+                  </template>
+                </n-button>
+              </n-badge>
+            </template>
+            <div class="notice-panel">
+              <div v-if="!noticeRows.length" class="export-empty">{{ t('layout.notice.empty') }}</div>
+              <div v-for="n in noticeRows" :key="n.id" class="notice-item" :class="{ unread: !n.has_read }" @click="readNotice(n)">
+                <div class="notice-item-head">
+                  <span class="notice-dot" :class="n.level"></span>
+                  <span class="notice-item-title">{{ n.title }}</span>
+                  <span v-if="!n.has_read" class="notice-item-flag">{{ t('layout.notice.new') }}</span>
+                </div>
+                <div v-if="expandedNotice === n.id" class="notice-item-body" v-html="renderNoticeBody(n.content)"></div>
+                <div class="notice-item-time mono">{{ n.publish_at?.slice(0, 16).replace('T', ' ') }}</div>
+              </div>
+            </div>
+          </n-popover>
           <n-popover v-model:show="showExports" trigger="click" :width="360" @update:show="onExportsToggle">
             <template #trigger>
               <n-button class="export-trigger" quaternary circle :focusable="false" :aria-label="t('menu.exportRecords')">
@@ -185,15 +208,17 @@ import {
   NLayout, NLayoutSider, NLayoutHeader, NLayoutContent, NMenu, NDropdown, NButton, NIcon,
   NModal, NForm, NFormItem, NInput, NPopover, NTag, useMessage,
   type DropdownOption, type FormInst, type FormRules, type TagProps,
+  NBadge,
 } from 'naive-ui'
-import { MenuOutline, SearchOutline, DownloadOutline, LanguageOutline } from '@vicons/ionicons5'
+import { MenuOutline, SearchOutline, DownloadOutline, LanguageOutline, NotificationsOutline } from '@vicons/ionicons5'
 import { useUserStore } from '../stores/user'
 import { renderMenuIcon } from '../utils/menuIcon'
-import { changePassword, searchMenus, listRecentExports, getExportBlob } from '../api'
+import { changePassword, searchMenus, listRecentExports, getExportBlob, listActiveNotices, getUnreadNoticeCount, markNoticeRead } from '../api'
 import { saveBlob, parseDispositionFilename } from '../utils/download'
 import { getLocale, setLocale, type AppLocale } from '../locales'
 import { refreshRouteTitles } from '../router/dynamic'
-import type { ExportRecord, MenuHit, MenuNode } from '../api/types'
+import type { ExportRecord, MenuHit, MenuNode, NoticeInfo } from '../api/types'
+import { renderMarkdown } from '../utils/markdown'
 
 const route = useRoute()
 const router = useRouter()
@@ -524,6 +549,46 @@ function onGlobalKeydown(e: KeyboardEvent) {
 }
 
 // ---- 顶栏导出记录悬浮框（打开时拉取近期 5 条；有进行中任务时每 5s 轮询） ----
+// ---- 顶栏通知公告：未读角标 + 弹层（打开时拉取，点击展开正文并上报已读） ----
+const showNotices = ref(false)
+const noticeRows = ref<NoticeInfo[]>([])
+const noticeUnread = ref(0)
+const expandedNotice = ref(0)
+
+async function refreshUnread() {
+  try {
+    const res = await getUnreadNoticeCount()
+    noticeUnread.value = res.data.data.count
+  } catch { /* 静默 */ }
+}
+
+async function loadNotices() {
+  try {
+    const res = await listActiveNotices()
+    noticeRows.value = res.data.data
+  } catch { /* 静默 */ }
+}
+
+function onNoticesToggle(show: boolean) {
+  if (show) {
+    loadNotices()
+    refreshUnread()
+  }
+}
+
+async function readNotice(n: NoticeInfo) {
+  expandedNotice.value = expandedNotice.value === n.id ? 0 : n.id
+  if (!n.has_read) {
+    n.has_read = true
+    noticeUnread.value = Math.max(0, noticeUnread.value - 1)
+    try { await markNoticeRead(n.id) } catch { /* 已读上报失败不影响浏览 */ }
+  }
+}
+
+function renderNoticeBody(md: string): string {
+  return renderMarkdown(md)
+}
+
 const showExports = ref(false)
 const exportRows = ref<ExportRecord[]>([])
 const downloadingId = ref(0)
@@ -585,7 +650,10 @@ function gotoExports() {
   router.push('/exports')
 }
 
-onMounted(() => window.addEventListener('keydown', onGlobalKeydown))
+onMounted(() => {
+  refreshUnread()
+  window.addEventListener('keydown', onGlobalKeydown)
+})
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKeydown)
   document.removeEventListener('click', onSearchOverlayClick, true)
@@ -775,6 +843,70 @@ onUnmounted(() => {
 }
 
 /* 顶栏右侧：语言切换 + 搜索图标 + 用户区 */
+.notice-panel {
+  max-height: 420px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.notice-item {
+  padding: 8px 10px;
+  border: 1px solid var(--sx-line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.notice-item.unread {
+  border-color: var(--sx-accent);
+  background: rgba(63, 117, 171, 0.05);
+}
+.notice-item-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.notice-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--sx-accent);
+}
+.notice-dot.warning { background: #d9903f; }
+.notice-dot.important { background: var(--sx-danger, #c9553d); }
+.notice-item-title {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notice-item-flag {
+  font-size: 11px;
+  color: var(--sx-accent);
+  flex: none;
+}
+.notice-item-time {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--sx-muted);
+}
+.notice-item-body {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  border-top: 1px dashed var(--sx-line);
+  padding-top: 6px;
+}
+.notice-item-body :deep(p) { margin: 0 0 4px; }
+.notice-item-body :deep(p:last-child) { margin: 0; }
+.notice-item-body :deep(code) {
+  font-family: var(--sx-font-mono);
+  background: rgba(63, 117, 171, 0.08);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
 .header-right {
   display: flex;
   align-items: center;

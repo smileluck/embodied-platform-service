@@ -483,3 +483,17 @@ export interface SysConfig {
   description: string
   updated_at: string
 }
+
+// 通知公告
+export interface NoticeInfo {
+  id: number
+  title: string
+  content: string // markdown
+  level: 'info' | 'warning' | 'important'
+  publish_at: string
+  expire_at?: string | null
+  creator_name: string
+  created_at: string
+  updated_at: string
+  has_read?: boolean
+}
