@@ -271,3 +271,5 @@ export const listAgentConversationMessages = (id: number, params: { page: number
   request.get<R<PageResult<AgentConversationMessage>>>(`/agent/conversations/${id}/messages`, { params })
 
 export const getAgentUsage = (days = 7) => request.get<R<UsageStats>>('/agent/usage', { params: { days } })
+
+export const listAgentTools = () => request.get<R<string[]>>('/agent/tools')

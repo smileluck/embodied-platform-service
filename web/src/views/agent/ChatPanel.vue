@@ -15,6 +15,19 @@
             v-if="m.content" class="bubble-copy" size="tiny" quaternary
             :title="t('agent.playground.copy')" @click="copyText(m.content)"
           >⧉</n-button>
+          <div v-for="(tc, j) in m.toolCalls || []" :key="'t' + j" class="tool-card">
+            <button type="button" class="tool-head" @click="m.toolOpen = !m.toolOpen">
+              <span class="tool-name mono">🔧 {{ tc.name }}</span>
+              <span class="tool-flag" :class="{ err: !!tc.error }">{{ tc.error ? t('agent.playground.toolFailed') : t('agent.playground.toolDone') }}</span>
+              <span class="tool-arrow">{{ m.toolOpen ? '▾' : '▸' }}</span>
+            </button>
+            <div v-show="m.toolOpen" class="tool-body mono">
+              <div class="tool-sec">{{ t('agent.playground.toolArgs') }}</div>
+              <div class="tool-args">{{ tc.arguments || '{}' }}</div>
+              <div class="tool-sec">{{ t('agent.playground.toolResult') }}</div>
+              <div class="tool-result" :class="{ err: !!tc.error }">{{ tc.error || tc.result }}</div>
+            </div>
+          </div>
           <div v-if="m.role === 'assistant'" class="chat-text md" v-html="renderMd(m)"></div>
           <div v-else class="chat-text">{{ m.content }}</div>
           <div v-if="m.error" class="chat-error">{{ m.error }}</div>
@@ -48,12 +61,22 @@ import { listAgentConversationMessages } from '../../api'
 import { useUserStore } from '../../stores/user'
 import { renderMarkdown } from '../../utils/markdown'
 
+interface ToolCallResult {
+  id: string
+  name: string
+  arguments: string
+  result: string
+  error?: string
+}
+
 interface ChatMsg {
   role: 'user' | 'assistant'
   content: string
   streaming?: boolean
   error?: string
   usage?: { total_tokens: number }
+  toolCalls?: ToolCallResult[] // 工具调用过程（function calling）
+  toolOpen?: boolean // 过程卡片展开态
 }
 
 const props = withDefaults(defineProps<{
@@ -224,6 +247,11 @@ function handleSSEFrame(frame: string, assistant: ChatMsg) {
   } else if (event === 'delta') {
     if (data?.delta) assistant.content += data.delta
     if (data?.usage) assistant.usage = data.usage
+  } else if (event === 'tool') {
+    // 工具调用执行结果（function calling 过程）
+    const calls: ToolCallResult[] = data?.tool_calls ?? []
+    assistant.toolCalls = [...(assistant.toolCalls ?? []), ...calls]
+    assistant.toolOpen = true
   } else if (event === 'error') {
     assistant.error = data?.message || t('agent.playground.error')
   }
@@ -314,6 +342,62 @@ function handleSSEFrame(frame: string, assistant: ChatMsg) {
 }
 .mono {
   font-family: var(--sx-font-mono);
+}
+
+/* 工具调用过程卡片（可折叠） */
+.tool-card {
+  margin: 4px 0;
+  border: 1px dashed var(--sx-line);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12px;
+}
+.tool-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: none;
+  background: rgba(63, 117, 171, 0.06);
+  cursor: pointer;
+  color: inherit;
+}
+.tool-name {
+  font-size: 12px;
+  color: var(--sx-muted);
+}
+.tool-flag {
+  font-size: 11px;
+  color: #4c9a6d;
+}
+.tool-flag.err {
+  color: var(--sx-danger);
+}
+.tool-arrow {
+  margin-left: auto;
+  color: var(--sx-muted);
+  font-size: 11px;
+}
+.tool-body {
+  padding: 8px 10px;
+  border-top: 1px dashed var(--sx-line);
+  max-height: 220px;
+  overflow: auto;
+}
+.tool-sec {
+  font-size: 11px;
+  color: var(--sx-muted);
+  margin: 2px 0;
+}
+.tool-args, .tool-result {
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.tool-result.err {
+  color: var(--sx-danger);
 }
 
 /* 消息级复制按钮：hover 气泡时浮现 */

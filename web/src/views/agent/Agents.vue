@@ -54,6 +54,12 @@
       <n-form-item :label="t('agent.agent.maxTokens')">
         <n-input-number v-model:value="form.max_tokens" :min="0" :max="131072" :step="256" style="width: 100%" :placeholder="t('agent.agent.maxTokensPlaceholder')" />
       </n-form-item>
+      <n-form-item :label="t('agent.agent.tools')">
+        <n-select
+          v-model:value="form.tools" :options="toolOptions" multiple clearable
+          :placeholder="t('agent.agent.toolsPlaceholder')"
+        />
+      </n-form-item>
       <n-form-item :label="t('common.remark')">
         <n-input v-model:value="form.remark" :maxlength="200" show-word-limit :placeholder="t('role.remarkPlaceholder')" />
       </n-form-item>
@@ -91,7 +97,7 @@ import { useI18n } from 'vue-i18n'
 import { usePagination } from '../../utils/pagination'
 import { useUserStore } from '../../stores/user'
 import {
-  createAgent, deleteAgent, listAgentModels, listAgentProviders, listAgents, updateAgent,
+  createAgent, deleteAgent, listAgentModels, listAgentProviders, listAgentTools, listAgents, updateAgent,
 } from '../../api'
 import type { AgentInfo, AgentModel, AgentProvider } from '../../api/types'
 import ChatPanel from './ChatPanel.vue'
@@ -148,7 +154,7 @@ const showModal = ref(false)
 const editing = ref(false)
 const editId = ref(0)
 const form = reactive({
-  name: '', code: '', provider_id: 0, model_id: 0,
+  name: '', code: '', provider_id: 0, model_id: 0, tools: [] as string[],
   system_prompt: '', temperature: 0.7, top_p: 0, max_tokens: 0, remark: '', status: 1,
 })
 const formRef = ref<FormInst | null>(null)
@@ -178,7 +184,7 @@ const modelOptions = computed(() =>
 function openCreate() {
   editing.value = false
   Object.assign(form, {
-    name: '', code: '', provider_id: 0, model_id: 0,
+    name: '', code: '', provider_id: 0, model_id: 0, tools: [],
     system_prompt: '', temperature: 0.7, top_p: 0, max_tokens: 0, remark: '', status: 1,
   })
   showModal.value = true
@@ -190,7 +196,7 @@ function openEdit(row: AgentInfo) {
   const m = modelById.value.get(row.model_id)
   Object.assign(form, {
     name: row.name, code: row.code,
-    provider_id: m?.provider_id ?? 0, model_id: row.model_id,
+    provider_id: m?.provider_id ?? 0, model_id: row.model_id, tools: row.tools ?? [],
     system_prompt: row.system_prompt, temperature: row.temperature || 0.7,
     top_p: row.top_p, max_tokens: row.max_tokens, remark: row.remark, status: row.status,
   })
@@ -206,7 +212,7 @@ async function save() {
   saving.value = true
   try {
     const payload = {
-      name: form.name.trim(), code: form.code.trim(), model_id: form.model_id,
+      name: form.name.trim(), code: form.code.trim(), model_id: form.model_id, tools: form.tools,
       system_prompt: form.system_prompt.trim(), temperature: form.temperature, top_p: form.top_p,
       max_tokens: form.max_tokens, remark: form.remark.trim(), status: form.status,
     }
@@ -305,9 +311,18 @@ function openPlayground(row: AgentInfo) {
   showPlayground.value = true
 }
 
+// 可绑定的本地工具清单（function calling）
+const toolOptions = ref<{ label: string; value: string }[]>([])
+
 onMounted(async () => {
   await loadRefs()
   load()
+  if (userStore.has('agent:tool:list')) {
+    try {
+      const res = await listAgentTools()
+      toolOptions.value = (res.data.data ?? []).map((n: string) => ({ label: n, value: n }))
+    } catch { /* 工具清单加载失败不阻断页面 */ }
+  }
 })
 </script>
 

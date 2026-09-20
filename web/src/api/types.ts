@@ -291,6 +291,7 @@ export interface AgentInfo {
   temperature: number // 0~2；0=上游默认
   top_p: number // 0~1；0=上游默认
   max_tokens: number // 0=上游默认
+  tools: string[] // 绑定的本地工具名（function calling）
   remark: string
   status: number
   created_at: string
