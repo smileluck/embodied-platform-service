@@ -13,6 +13,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/biz/dict"
 	"github.com/smilex/smilex-admin-gin/internal/biz/export"
 	"github.com/smilex/smilex-admin-gin/internal/biz/file"
+	"github.com/smilex/smilex-admin-gin/internal/biz/job"
 	"github.com/smilex/smilex-admin-gin/internal/biz/log"
 	"github.com/smilex/smilex-admin-gin/internal/biz/notice"
 	"github.com/smilex/smilex-admin-gin/internal/biz/permission"
@@ -683,5 +684,65 @@ func NoticeFromPO(p *NoticePO) *notice.Notice {
 		PublishAt: p.PublishAt, ExpireAt: p.ExpireAt,
 		CreatorID: p.CreatorID, CreatorName: p.CreatorName,
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+}
+
+// JobPO 定时任务表
+type JobPO struct {
+	ID         uint   `gorm:"primaryKey"`
+	Name       string `gorm:"size:20"`
+	Cron       string `gorm:"size:32"`
+	HandlerKey string `gorm:"size:64"`
+	Params     string `gorm:"size:512"`
+	Remark     string `gorm:"size:200"`
+	Status     int    // 1 启用 0 停用
+	LastRunAt  *time.Time
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	DeletedAt  gorm.DeletedAt `gorm:"index"`
+}
+
+func (JobPO) TableName() string { return "jobs" }
+
+// JobLogPO 任务执行记录表（追加流水）
+type JobLogPO struct {
+	ID         uint   `gorm:"primaryKey"`
+	JobID      uint   `gorm:"index"`
+	JobName    string `gorm:"size:20"`
+	HandlerKey string `gorm:"size:64"`
+	Status     string `gorm:"size:16"` // success | failed
+	Output     string `gorm:"size:2000"`
+	DurationMs int64
+	StartedAt  time.Time `gorm:"index"`
+}
+
+func (JobLogPO) TableName() string { return "job_logs" }
+
+func JobToPO(j *job.Job) *JobPO {
+	return &JobPO{
+		ID: j.ID, Name: j.Name, Cron: j.Cron, HandlerKey: j.HandlerKey,
+		Params: j.Params, Remark: j.Remark, Status: int(j.Status), LastRunAt: j.LastRunAt,
+	}
+}
+
+func JobFromPO(p *JobPO) *job.Job {
+	return &job.Job{
+		ID: p.ID, Name: p.Name, Cron: p.Cron, HandlerKey: p.HandlerKey,
+		Params: p.Params, Remark: p.Remark, Status: job.Status(p.Status),
+		LastRunAt: p.LastRunAt, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+}
+
+func JobLogToPO(l *job.JobLog) *JobLogPO {
+	return &JobLogPO{
+		ID: l.ID, JobID: l.JobID, JobName: l.JobName, HandlerKey: l.HandlerKey,
+		Status: l.Status, Output: l.Output, DurationMs: l.DurationMs, StartedAt: l.StartedAt,
+	}
+}
+
+func JobLogFromPO(p *JobLogPO) *job.JobLog {
+	return &job.JobLog{
+		ID: p.ID, JobID: p.JobID, JobName: p.JobName, HandlerKey: p.HandlerKey,
+		Status: p.Status, Output: p.Output, DurationMs: p.DurationMs, StartedAt: p.StartedAt,
 	}
 }

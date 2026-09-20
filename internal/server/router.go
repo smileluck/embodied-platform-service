@@ -28,6 +28,7 @@ import (
 	dictsvc "github.com/smilex/smilex-admin-gin/internal/service/dict"
 	exportsvc "github.com/smilex/smilex-admin-gin/internal/service/export"
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
+	jobsvc "github.com/smilex/smilex-admin-gin/internal/service/job"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
 	monitorsvc "github.com/smilex/smilex-admin-gin/internal/service/monitor"
 	noticesvc "github.com/smilex/smilex-admin-gin/internal/service/notice"
@@ -60,6 +61,7 @@ type HTTPServer struct {
 	dict          *dictsvc.Service
 	syscfg        *syssvc.Service
 	notice        *noticesvc.Service
+	job           *jobsvc.Service
 	tenant        *tenantsvc.Service
 	appuser       *appusersvc.Service
 	appuserUC     *bizappuser.Usecase    // AppJWT 中间件直连领域用例（校验用户启用状态）
@@ -81,7 +83,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	tenant *tenantsvc.Service, appuser *appusersvc.Service, appuserUC *bizappuser.Usecase,
 	appIssuer bizappuser.TokenIssuer, device *devicesvc.Service, devmodel *devmodelsvc.Service,
 	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service, syscfg *syssvc.Service,
-	notice *noticesvc.Service,
+	notice *noticesvc.Service, job *jobsvc.Service,
 	rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
 	gin.SetMode(cfg.Server.Mode)
 	e := gin.New()
@@ -339,6 +341,20 @@ func (s *HTTPServer) registerRoutes() {
 		agentModels.PUT("/:id", s.updateAgentModel)
 		agentModels.DELETE("/:id", s.deleteAgentModel)
 		agentModels.POST("/:id/test", s.testAgentModel)
+	}
+
+	// ---- 定时任务 ----
+	jobs := protected.Group("/jobs")
+	{
+		jobs.GET("", s.listJobs)
+		jobs.GET("/handlers", s.listJobHandlers)
+		jobs.POST("", s.createJob)
+		jobs.GET("/:id", s.getJob)
+		jobs.PUT("/:id", s.updateJob)
+		jobs.PUT("/:id/status", s.setJobStatus)
+		jobs.DELETE("/:id", s.deleteJob)
+		jobs.POST("/:id/run", s.runJobOnce)
+		jobs.GET("/:id/logs", s.listJobLogs)
 	}
 
 	// ---- 通知公告（管理端） ----

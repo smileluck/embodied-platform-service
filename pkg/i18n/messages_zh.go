@@ -98,6 +98,11 @@ var messagesZh = map[string]string{
 	"sysconfig.key_invalid":              "参数键只能包含字母、数字、下划线、点",
 	"notice.not_found":                   "公告不存在",
 	"notice.inactive":                    "公告不存在或未生效",
+	"job.not_found":                      "任务不存在",
+	"job.name_exists":                    "任务名称已存在，请更换",
+	"job.bad_cron":                       "cron 表达式不合法（5 段：分 时 日 月 周）",
+	"job.unknown_handler":                "任务处理器不存在，请重新选择",
+	"job.disabled":                       "任务已停用",
 	// 开放 API 验签中间件
 	"openapi.missing_sign_headers": "缺少签名请求头",
 	"openapi.invalid_timestamp":    "时间戳无效或超出允许偏差",

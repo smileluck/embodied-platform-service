@@ -98,6 +98,11 @@ var messagesEn = map[string]string{
 	"sysconfig.key_invalid":              "Key allows letters, digits, underscore and dot only",
 	"notice.not_found":                   "Notice not found",
 	"notice.inactive":                    "Notice not found or inactive",
+	"job.not_found":                      "Job not found",
+	"job.name_exists":                    "Job name already exists",
+	"job.bad_cron":                       "Invalid cron expression (5 fields: min hour day month week)",
+	"job.unknown_handler":                "Unknown job handler, please choose again",
+	"job.disabled":                       "Job is disabled",
 	// Open API sign middleware
 	"openapi.missing_sign_headers": "Missing signature headers",
 	"openapi.invalid_timestamp":    "Timestamp is invalid or out of the allowed skew",

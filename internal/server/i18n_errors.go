@@ -11,6 +11,7 @@ import (
 	bizdict "github.com/smilex/smilex-admin-gin/internal/biz/dict"
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
+	bizjob "github.com/smilex/smilex-admin-gin/internal/biz/job"
 	bizmonitor "github.com/smilex/smilex-admin-gin/internal/biz/monitor"
 	biznotice "github.com/smilex/smilex-admin-gin/internal/biz/notice"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
@@ -107,6 +108,12 @@ var errKeys = []struct {
 	// 通知公告
 	{biznotice.ErrNotFound, "notice.not_found"},
 	{biznotice.ErrInvalidTitle, "notice.inactive"},
+	// 定时任务
+	{bizjob.ErrNotFound, "job.not_found"},
+	{bizjob.ErrNameExists, "job.name_exists"},
+	{bizjob.ErrBadCron, "job.bad_cron"},
+	{bizjob.ErrUnknownHandler, "job.unknown_handler"},
+	{bizjob.ErrDisabled, "job.disabled"},
 }
 
 // init 将错误 -> i18n key 匹配函数注册到 response 包（response 不便反向依赖 server，走钩子）

@@ -16,6 +16,7 @@ import (
 	bizdict "github.com/smilex/smilex-admin-gin/internal/biz/dict"
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
+	bizjob "github.com/smilex/smilex-admin-gin/internal/biz/job"
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
 	biznotice "github.com/smilex/smilex-admin-gin/internal/biz/notice"
 	bizsys "github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
@@ -23,6 +24,7 @@ import (
 	bizmonitor "github.com/smilex/smilex-admin-gin/internal/biz/monitor"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	bizrole "github.com/smilex/smilex-admin-gin/internal/biz/role"
+
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	dataadmission "github.com/smilex/smilex-admin-gin/internal/data/admission"
@@ -36,11 +38,14 @@ import (
 	datadict "github.com/smilex/smilex-admin-gin/internal/data/dict"
 	dataexport "github.com/smilex/smilex-admin-gin/internal/data/export"
 	datafile "github.com/smilex/smilex-admin-gin/internal/data/file"
+	datajob "github.com/smilex/smilex-admin-gin/internal/data/job"
 	datalog "github.com/smilex/smilex-admin-gin/internal/data/log"
+
 	datanotice "github.com/smilex/smilex-admin-gin/internal/data/notice"
 	dataperm "github.com/smilex/smilex-admin-gin/internal/data/permission"
 	"github.com/smilex/smilex-admin-gin/internal/data/platform"
 	datarole "github.com/smilex/smilex-admin-gin/internal/data/role"
+
 	datasys "github.com/smilex/smilex-admin-gin/internal/data/sysconfig"
 	datatenant "github.com/smilex/smilex-admin-gin/internal/data/tenant"
 	"github.com/smilex/smilex-admin-gin/internal/server"
@@ -55,6 +60,7 @@ import (
 	dictsvc "github.com/smilex/smilex-admin-gin/internal/service/dict"
 	exportsvc "github.com/smilex/smilex-admin-gin/internal/service/export"
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
+	jobsvc "github.com/smilex/smilex-admin-gin/internal/service/job"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
 	noticesvc "github.com/smilex/smilex-admin-gin/internal/service/notice"
 	syssvc "github.com/smilex/smilex-admin-gin/internal/service/sysconfig"
@@ -62,6 +68,7 @@ import (
 	monitorsvc "github.com/smilex/smilex-admin-gin/internal/service/monitor"
 	permsvc "github.com/smilex/smilex-admin-gin/internal/service/permission"
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
+
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
 )
 
@@ -79,6 +86,7 @@ var bizSet = wire.NewSet(
 	bizdict.NewUsecase,
 	bizsys.NewUsecase,
 	biznotice.NewUsecase,
+	bizjob.NewUsecase,
 	bizmonitor.NewUsecase,
 	bizagent.NewUsecase,
 	bizexport.NewUsecase,
@@ -132,8 +140,13 @@ var dataRepoSet = wire.NewSet(
 	dataauth.NewIdentityAdapter,
 	// 跨上下文最小依赖接口绑定（provider 与 bind 需同 set）
 	wire.Bind(new(auth.IdentitySource), new(*dataauth.IdentityAdapter)),
-	wire.Bind(new(auth.PermissionReader), new(bizperm.Repo)),
+	datajob.NewRepo,
+	wire.Bind(new(bizjob.LogCleaner), new(*datalog.Repo)),
+	wire.Bind(new(bizjob.ExportCleaner), new(*dataexport.Worker)),
+	wire.Bind(new(bizagent.Repo), new(*dataagent.Repo)),
+	wire.Bind(new(bizjob.UsageCleaner), new(*dataagent.Repo)),
 	wire.Bind(new(auth.RoleNameReader), new(bizrole.Repo)),
+	wire.Bind(new(auth.PermissionReader), new(bizperm.Repo)),
 	wire.Bind(new(bizlog.Repo), new(*datalog.Repo)),
 	wire.Bind(new(bizblacklist.Repo), new(*datablacklist.Repo)),
 	wire.Bind(new(bizblacklist.LoginProtector), new(*datablacklist.Repo)),
@@ -165,6 +178,7 @@ var serviceSet = wire.NewSet(
 	dictsvc.NewService,
 	syssvc.NewService,
 	noticesvc.NewService,
+	jobsvc.NewService,
 )
 
 var providerSet = wire.NewSet(bizSet, dataRepoSet, serviceSet, ProvideConfig, server.NewHTTPServer)
