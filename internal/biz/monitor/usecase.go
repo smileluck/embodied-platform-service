@@ -43,6 +43,7 @@ var diskFstypeSkip = map[string]bool{
 // 采样器是 cpu.Percent 的唯一调用方，避免基线窗口被请求打乱）；内存/磁盘等低开销指标
 // 请求时实时采集；主机静态信息缓存 5 分钟。
 type Usecase struct {
+	snapRepo  SnapshotRepo
 	mu        sync.RWMutex
 	cpuPct    float64
 	cpuPerCPU []float64
@@ -55,11 +56,79 @@ type Usecase struct {
 	stop   chan struct{}
 }
 
-// NewUsecase 启动后台采样器；返回清理函数（wire 汇入应用 cleanup 停止 goroutine）
-func NewUsecase() (*Usecase, func()) {
-	uc := &Usecase{stop: make(chan struct{})}
+// NewUsecase 启动后台采样器（3s 差值）与历史落库循环（60s 一点，保留 7 天）；
+// snapRepo 可为 nil（测试/无库场景退化为纯实时）。返回清理函数停止 goroutine。
+func NewUsecase(snaps SnapshotRepo) (*Usecase, func()) {
+	uc := &Usecase{snapRepo: snaps, stop: make(chan struct{})}
 	go uc.sampleLoop()
+	if snaps != nil {
+		go uc.snapshotLoop()
+	}
 	return uc, func() { close(uc.stop) }
+}
+
+const (
+	snapshotInterval = time.Minute // 历史落库间隔
+	snapshotKeepDays = 7           // 历史保留天数
+)
+
+// snapshotLoop 每分钟落一帧当前快照；每小时清理过期历史
+func (uc *Usecase) snapshotLoop() {
+	snap := func() {
+		s := uc.currentSnapshot()
+		if err := uc.snapRepo.SaveSnapshot(context.Background(), s); err != nil {
+			logger.Warn("monitor snapshot save failed", zap.Error(err))
+		}
+	}
+	cleanup := func() {
+		if err := uc.snapRepo.CleanupSnapshotsBefore(context.Background(), time.Now().AddDate(0, 0, -snapshotKeepDays)); err != nil {
+			logger.Warn("monitor snapshot cleanup failed", zap.Error(err))
+		}
+	}
+	snap()
+	t := time.NewTicker(snapshotInterval)
+	hourly := time.NewTicker(time.Hour)
+	defer t.Stop()
+	defer hourly.Stop()
+	for {
+		select {
+		case <-uc.stop:
+			return
+		case <-t.C:
+			snap()
+		case <-hourly.C:
+			cleanup()
+		}
+	}
+}
+
+// currentSnapshot 从内存采样值组帧
+func (uc *Usecase) currentSnapshot() *Snapshot {
+	uc.mu.RLock()
+	defer uc.mu.RUnlock()
+	s := &Snapshot{Ts: time.Now(), CPUPercent: uc.cpuPct}
+	if st, err := mem.VirtualMemory(); err == nil {
+		s.MemPercent = st.UsedPercent
+	}
+	if sw, err := mem.SwapMemory(); err == nil {
+		s.SwapPercent = sw.UsedPercent
+	}
+	for _, n := range uc.netIO {
+		s.NetSendRate += n.SendRate
+		s.NetRecvRate += n.RecvRate
+	}
+	return s
+}
+
+// History 历史快照（时间升序；hours 上限 72，最多 5000 点）
+func (uc *Usecase) History(ctx context.Context, hours int) ([]*Snapshot, error) {
+	if uc.snapRepo == nil {
+		return nil, ErrCollectFailed
+	}
+	if hours <= 0 || hours > 72 {
+		hours = 24
+	}
+	return uc.snapRepo.ListSnapshots(ctx, time.Now().Add(-time.Duration(hours)*time.Hour), 5000)
 }
 
 func (uc *Usecase) sampleLoop() {

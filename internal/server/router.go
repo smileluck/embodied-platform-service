@@ -321,6 +321,8 @@ func (s *HTTPServer) registerRoutes() {
 	monitors := protected.Group("/monitor")
 	{
 		monitors.GET("", s.getServerStatus)
+		// 历史快照回看（menu:monitor 复用查看权限点）
+		monitors.GET("/history", s.getMonitorHistory)
 	}
 
 	// 智能体（LLM 配置底座）：供应商 -> 模型 -> Agent

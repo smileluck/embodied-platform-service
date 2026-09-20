@@ -1,7 +1,11 @@
 // Package monitor 服务器状态监控领域：系统指标（CPU/内存/磁盘/网络/主机）+ Go 进程运行时。
 package monitor
 
-import "errors"
+import (
+	"context"
+	"errors"
+	"time"
+)
 
 // ErrCollectFailed 指标采集失败（系统 /proc 或 sysctl 不可读等系统性故障）
 var ErrCollectFailed = errors.New("monitor: collect failed")
@@ -76,4 +80,22 @@ type ServerStatus struct {
 	Disks  []DiskInfo
 	Net    []NetIO
 	Go     GoRuntime
+}
+
+// Snapshot 监控历史快照（60s 一点，保留期自动清理）
+type Snapshot struct {
+	Ts          time.Time `json:"ts"`          // 采样时刻
+	CPUPercent  float64   `json:"cpu_percent"` // 总 CPU 使用率（3s 窗口差值）
+	MemPercent  float64   `json:"mem_percent"` // 内存使用率
+	SwapPercent float64   `json:"swap_percent"`
+	NetSendRate float64   `json:"net_send_rate"` // 全部网卡合计 B/s
+	NetRecvRate float64   `json:"net_recv_rate"`
+}
+
+// SnapshotRepo 历史快照仓储接口
+type SnapshotRepo interface {
+	SaveSnapshot(ctx context.Context, s *Snapshot) error
+	// ListSnapshots 时间升序返回区间内快照（最多 limit 点）
+	ListSnapshots(ctx context.Context, since time.Time, limit int) ([]*Snapshot, error)
+	CleanupSnapshotsBefore(ctx context.Context, before time.Time) error
 }

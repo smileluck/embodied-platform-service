@@ -130,7 +130,7 @@ func (d *Data) migrateAndSeed() error {
 		&model.FilePO{}, &model.ExportRecordPO{}, &model.IPBlacklistPO{},
 		&model.TenantPO{}, &model.AppUserPO{}, &model.AppUserTenantPO{},
 		&model.AgentProviderPO{}, &model.AgentModelPO{}, &model.AgentPO{},
-		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{}, &model.SysConfigPO{}, &model.NoticePO{}, &model.NoticeReadPO{}, &model.JobPO{}, &model.JobLogPO{},
+		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{}, &model.SysConfigPO{}, &model.NoticePO{}, &model.NoticeReadPO{}, &model.JobPO{}, &model.JobLogPO{}, &model.MonitorSnapshotPO{},
 	); err != nil {
 		return err
 	}
@@ -377,6 +377,7 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "重置密码", Code: "appUser:resetPwd", Menu: "menu:appUser", Method: "PUT", Path: "/api/v1/app-users/*/password", Sort: 6},
 	// 服务器状态监控
 	{Name: "查询服务器状态", Code: "monitor:list", Menu: "menu:monitor", Method: "GET", Path: "/api/v1/monitor", Sort: 1},
+	{Name: "查询监控历史", Code: "monitor:history", Menu: "menu:monitor", Method: "GET", Path: "/api/v1/monitor/history", Sort: 2},
 	// 智能体 —— 模型供应商（含供应商下的模型管理）
 	{Name: "查询供应商", Code: "agent:provider:list", Menu: "menu:agentProvider", Method: "GET", Path: "/api/v1/agent/providers", Sort: 1},
 	{Name: "供应商详情", Code: "agent:provider:view", Menu: "menu:agentProvider", Method: "GET", Path: "/api/v1/agent/providers/*", Sort: 2},

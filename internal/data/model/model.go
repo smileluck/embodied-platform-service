@@ -746,3 +746,16 @@ func JobLogFromPO(p *JobLogPO) *job.JobLog {
 		Status: p.Status, Output: p.Output, DurationMs: p.DurationMs, StartedAt: p.StartedAt,
 	}
 }
+
+// MonitorSnapshotPO 监控历史快照表（60s 一点，保留 7 天）
+type MonitorSnapshotPO struct {
+	ID          uint      `gorm:"primaryKey"`
+	Ts          time.Time `gorm:"index"`
+	CPUPercent  float64
+	MemPercent  float64
+	SwapPercent float64
+	NetSendRate float64 // B/s
+	NetRecvRate float64
+}
+
+func (MonitorSnapshotPO) TableName() string { return "monitor_snapshots" }

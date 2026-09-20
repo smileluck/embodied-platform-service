@@ -126,3 +126,29 @@ func (s *Service) ServerStatus(ctx context.Context) (*ServerStatusVO, error) {
 	}
 	return vo, nil
 }
+
+// MonitorHistoryVO 历史快照行
+type MonitorHistoryVO struct {
+	Ts          int64   `json:"ts"` // unix 秒
+	CPUPercent  float64 `json:"cpu_percent"`
+	MemPercent  float64 `json:"mem_percent"`
+	SwapPercent float64 `json:"swap_percent"`
+	NetSendRate float64 `json:"net_send_rate"`
+	NetRecvRate float64 `json:"net_recv_rate"`
+}
+
+// History 历史快照（hours 缺省 24，上限 72）
+func (s *Service) History(ctx context.Context, hours int) ([]*MonitorHistoryVO, error) {
+	snaps, err := s.uc.History(ctx, hours)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*MonitorHistoryVO, 0, len(snaps))
+	for _, p := range snaps {
+		out = append(out, &MonitorHistoryVO{
+			Ts: p.Ts.Unix(), CPUPercent: p.CPUPercent, MemPercent: p.MemPercent,
+			SwapPercent: p.SwapPercent, NetSendRate: p.NetSendRate, NetRecvRate: p.NetRecvRate,
+		})
+	}
+	return out, nil
+}
