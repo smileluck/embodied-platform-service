@@ -35,7 +35,10 @@ type Permission struct {
 }
 
 // Match 判断权限是否能命中请求：button（及存量未迁移的 api）绑定了 method/path 即参与校验。
-// path 支持 glob 通配：尾部 * 为前缀匹配（/api/v1/users/*），中间 * 匹配任意路径段（/api/v1/users/*/roles）。
+// path 支持 glob 通配：* 仅匹配单个路径段（/api/v1/users/* 命中 /api/v1/users/123，
+// 不越级命中 /api/v1/users/123/password 等子资源——子资源必须由独立权限点控制，
+// 防止粗粒度点吞掉细粒度点造成越权，如「编辑用户」吞掉「重置密码/分配角色」）；
+// ** 跨段通配（/api/v1/files/** 命中 /api/v1/files/123 与 /api/v1/files/123/raw）。
 func (p *Permission) Match(method, path string) bool {
 	if p.Type == TypeMenu || p.Method == "" || p.Path == "" {
 		return false
@@ -43,9 +46,28 @@ func (p *Permission) Match(method, path string) bool {
 	if p.Method != "*" && p.Method != method {
 		return false
 	}
-	// glob -> 正则：转义后把 \* 还原为 .*，锚定首尾
-	pattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(p.Path), `\*`, ".*") + "$"
-	return regexp.MustCompile(pattern).MatchString(path)
+	return matchPathGlob(p.Path, path)
+}
+
+// matchPathGlob 把权限 path 编译为正则后匹配请求路径：** -> .*，* -> [^/]+，其余字符逐个转义
+func matchPathGlob(pattern, path string) bool {
+	var sb strings.Builder
+	sb.WriteString("^")
+	for i := 0; i < len(pattern); {
+		switch {
+		case strings.HasPrefix(pattern[i:], "**"):
+			sb.WriteString(".*")
+			i += 2
+		case pattern[i] == '*':
+			sb.WriteString("[^/]+")
+			i++
+		default:
+			sb.WriteString(regexp.QuoteMeta(pattern[i : i+1]))
+			i++
+		}
+	}
+	sb.WriteString("$")
+	return regexp.MustCompile(sb.String()).MatchString(path)
 }
 
 // MenuNode 菜单树节点（Type 区分 dir 目录分组 / menu 菜单页面）

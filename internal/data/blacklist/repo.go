@@ -72,7 +72,17 @@ func (r *Repo) Create(ctx context.Context, b *bizblacklist.IPBlacklist) error {
 }
 
 func (r *Repo) Delete(ctx context.Context, id uint) error {
-	return r.data.DB.WithContext(ctx).Delete(&model.IPBlacklistPO{}, id).Error
+	return r.data.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Delete(&model.IPBlacklistPO{}, id)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return nil
+		}
+		// 软删（解封留痕）行仍占用 ip 唯一索引，归档释放以便同 IP 再次封禁
+		return data.ArchiveUniqueColumns(tx, "ip_blacklist", id, "ip")
+	})
 }
 
 func (r *Repo) Get(ctx context.Context, id uint) (*bizblacklist.IPBlacklist, error) {

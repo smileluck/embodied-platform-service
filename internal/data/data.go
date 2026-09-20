@@ -305,7 +305,8 @@ type systemButtonPermDef struct {
 }
 
 // systemButtonPerms 系统管理各接口的 button 权限点清单：
-// code 控前端按钮显隐，method/path 绑定接口参与后端 RBAC 校验（path 支持中间通配 *）
+// code 控前端按钮显隐，method/path 绑定接口参与后端 RBAC 校验（path 通配：* 单段、** 跨段；
+// 子资源接口如 /users/*/password 必须单列权限点，粗粒度点不得越级覆盖）
 var systemButtonPerms = []systemButtonPermDef{
 	// 用户准入（成员来源=平台开放面本商户绑定集：新增/删除推送平台）
 	{Name: "查询用户", Code: "user:list", Menu: "menu:user", Method: "GET", Path: "/api/v1/users", Sort: 1},
@@ -354,7 +355,7 @@ var systemButtonPerms = []systemButtonPermDef{
 	// 文件管理
 	{Name: "查询文件", Code: "file:list", Menu: "menu:file", Method: "GET", Path: "/api/v1/files", Sort: 1},
 	{Name: "上传文件", Code: "file:upload", Menu: "menu:file", Method: "POST", Path: "/api/v1/files", Sort: 2},
-	{Name: "下载文件", Code: "file:view", Menu: "menu:file", Method: "GET", Path: "/api/v1/files/*", Sort: 3},
+	{Name: "下载文件", Code: "file:view", Menu: "menu:file", Method: "GET", Path: "/api/v1/files/**", Sort: 3}, // ** 跨段：/files/:id 与 /files/:id/raw 都归「下载文件」管
 	{Name: "删除文件", Code: "file:delete", Menu: "menu:file", Method: "DELETE", Path: "/api/v1/files/*", Sort: 4},
 	// IP 黑名单
 	{Name: "查询黑名单", Code: "blacklist:list", Menu: "menu:blacklist", Method: "GET", Path: "/api/v1/ip-blacklist", Sort: 1},

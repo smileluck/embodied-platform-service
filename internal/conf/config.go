@@ -30,6 +30,11 @@ type Server struct {
 	// 与本地 vite 代理均无需配置）；配置后仅命中来源回显并允许凭证；
 	// 显式配置 ["*"] 恢复通配（历史行为，不允许凭证）。环境变量 APP_SERVER_CORSORIGINS（逗号分隔）
 	CORSOrigins []string `mapstructure:"corsOrigins"`
+	// TrustedProxies 可信代理列表（IP 或 CIDR）：仅这些代理设置的 X-Forwarded-For 参与
+	// ClientIP 解析，其余一律取直连地址。必须配置——否则登录限流/封禁/审计记录的 IP
+	// 可被请求头伪造绕过。直连部署留空；反向代理（nginx 等）后配置代理机地址，
+	// 如 ["127.0.0.1"]。环境变量 APP_SERVER_TRUSTEDPROXIES（逗号分隔）
+	TrustedProxies []string `mapstructure:"trustedProxies"`
 }
 
 type DB struct {

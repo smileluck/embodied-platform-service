@@ -49,14 +49,17 @@ func (r *repo) UpdateType(ctx context.Context, t *dict.DictType) error {
 }
 
 func (r *repo) DeleteType(ctx context.Context, id uint) error {
-	res := r.data.DB.WithContext(ctx).Delete(&model.DictTypePO{}, id)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return dict.ErrTypeNotFound
-	}
-	return nil
+	return r.data.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Delete(&model.DictTypePO{}, id)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return dict.ErrTypeNotFound
+		}
+		// 软删行仍占用 code 唯一索引，归档释放以便同编码重建
+		return data.ArchiveUniqueColumns(tx, "dict_types", id, "code")
+	})
 }
 
 func (r *repo) FindTypeByID(ctx context.Context, id uint) (*dict.DictType, error) {
@@ -124,14 +127,17 @@ func (r *repo) UpdateItem(ctx context.Context, i *dict.DictItem) error {
 }
 
 func (r *repo) DeleteItem(ctx context.Context, id uint) error {
-	res := r.data.DB.WithContext(ctx).Delete(&model.DictItemPO{}, id)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return dict.ErrItemNotFound
-	}
-	return nil
+	return r.data.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Delete(&model.DictItemPO{}, id)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return dict.ErrItemNotFound
+		}
+		// 软删行仍占用 (type_id,label,value) 复合唯一索引，归档释放以便重建
+		return data.ArchiveUniqueColumns(tx, "dict_items", id, "label", "value")
+	})
 }
 
 func (r *repo) FindItemByID(ctx context.Context, id uint) (*dict.DictItem, error) {

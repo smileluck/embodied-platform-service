@@ -99,6 +99,11 @@ func (r *repo) Delete(ctx context.Context, id uint) error {
 		if res.RowsAffected == 0 {
 			return bizappuser.ErrAppUserNotFound
 		}
+		// 软删行仍占用 username 唯一索引，归档释放以便同用户名重建
+		if err := data.ArchiveUniqueColumns(tx, "app_users", id, "username"); err != nil {
+			return err
+		}
+		// 关联随用户一并清理（物理删除，避免阻断租户删除保护计数）
 		return tx.Unscoped().Where("app_user_id = ?", id).Delete(&model.AppUserTenantPO{}).Error
 	})
 }

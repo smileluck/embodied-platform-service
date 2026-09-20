@@ -66,14 +66,17 @@ func (r *Repo) UpdateProvider(ctx context.Context, p *agent.Provider) error {
 }
 
 func (r *Repo) DeleteProvider(ctx context.Context, id uint) error {
-	res := r.data.DB.WithContext(ctx).Delete(&model.AgentProviderPO{}, id)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return agent.ErrProviderNotFound
-	}
-	return nil
+	return r.data.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Delete(&model.AgentProviderPO{}, id)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return agent.ErrProviderNotFound
+		}
+		// 软删行仍占用 code 唯一索引，归档释放以便同编码重建
+		return data.ArchiveUniqueColumns(tx, "agent_providers", id, "code")
+	})
 }
 
 func (r *Repo) FindProviderByID(ctx context.Context, id uint) (*agent.Provider, error) {
@@ -147,14 +150,17 @@ func (r *Repo) UpdateModel(ctx context.Context, m *agent.Model) error {
 }
 
 func (r *Repo) DeleteModel(ctx context.Context, id uint) error {
-	res := r.data.DB.WithContext(ctx).Delete(&model.AgentModelPO{}, id)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return agent.ErrModelNotFound
-	}
-	return nil
+	return r.data.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Delete(&model.AgentModelPO{}, id)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return agent.ErrModelNotFound
+		}
+		// 软删行仍占用 (provider_id,name) 复合唯一索引，归档释放以便重建
+		return data.ArchiveUniqueColumns(tx, "agent_models", id, "name")
+	})
 }
 
 func (r *Repo) FindModelByID(ctx context.Context, id uint) (*agent.Model, error) {
@@ -241,14 +247,17 @@ func (r *Repo) UpdateAgent(ctx context.Context, a *agent.Agent) error {
 }
 
 func (r *Repo) DeleteAgent(ctx context.Context, id uint) error {
-	res := r.data.DB.WithContext(ctx).Delete(&model.AgentPO{}, id)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return agent.ErrAgentNotFound
-	}
-	return nil
+	return r.data.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Delete(&model.AgentPO{}, id)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return agent.ErrAgentNotFound
+		}
+		// 软删行仍占用 code 唯一索引，归档释放以便同编码重建
+		return data.ArchiveUniqueColumns(tx, "agents", id, "code")
+	})
 }
 
 func (r *Repo) FindAgentByID(ctx context.Context, id uint) (*agent.Agent, error) {
