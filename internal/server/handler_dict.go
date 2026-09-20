@@ -3,7 +3,6 @@ package server
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	bizdict "github.com/smilex/smilex-admin-gin/internal/biz/dict"
@@ -90,13 +89,12 @@ func (s *HTTPServer) deleteDictType(c *gin.Context) {
 // ---- 字典项 ----
 
 func (s *HTTPServer) listDictItems(c *gin.Context) {
-	typeID, err := strconv.ParseUint(c.Param("typeID"), 10, 64)
-	if err != nil || typeID == 0 {
-		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+	id, ok := idParam(c)
+	if !ok {
 		return
 	}
 	page, size := s.pageParams(c)
-	list, pg, err := s.dict.ListItems(c.Request.Context(), uint(typeID), page, size)
+	list, pg, err := s.dict.ListItems(c.Request.Context(), id, page, size)
 	if err != nil {
 		s.dictErr(c, err)
 		return

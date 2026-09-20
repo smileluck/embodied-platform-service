@@ -52,7 +52,7 @@ func (s *Service) ListTypes(ctx context.Context, q bizdict.Query, page, pageSize
 // ---- 字典项 ----
 
 type ItemCreateRequest struct {
-	TypeID uint   `json:"type_id" binding:"required,gt=0"`
+	TypeID uint   `json:"type_id" binding:"omitempty,gt=0"` // 归属类型以路径 :id 为准
 	Label  string `json:"label" binding:"required,max=20"`
 	Value  string `json:"value" binding:"required,max=64"`
 	Sort   int    `json:"sort" binding:"gte=0,lte=9999"`

@@ -74,11 +74,17 @@ func NewUsecase(repo Repo, lc LogCleaner, ec ExportCleaner, uc UsageCleaner) *Us
 	return &Usecase{repo: repo, handlers: handlers, entryIDs: map[uint]cron.EntryID{}}
 }
 
+// HandlerInfo 处理器元信息（表单展示；Run 闭包不出域）
+type HandlerInfo struct {
+	Key         string `json:"key"`
+	Description string `json:"description"`
+}
+
 // Handlers 可选处理器清单（表单下拉）
-func (uc *Usecase) Handlers() []Handler {
-	out := make([]Handler, 0, len(uc.handlers))
+func (uc *Usecase) Handlers() []HandlerInfo {
+	out := make([]HandlerInfo, 0, len(uc.handlers))
 	for _, h := range uc.handlers {
-		out = append(out, Handler{Key: h.Key, Description: h.Description})
+		out = append(out, HandlerInfo{Key: h.Key, Description: h.Description})
 	}
 	return out
 }

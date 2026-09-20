@@ -511,8 +511,13 @@ func (s *HTTPServer) pageParams(c *gin.Context) (int, int) {
 	if page < 1 {
 		page = 1
 	}
-	if size < 1 || size > s.syscfg.IntDefault(c.Request.Context(), "page.sizeMax", 100) {
+	// 未传或负数回落默认 10；显式传 0 = 全量（引用数据整表拉取，仓储层识别）
+	if size < 0 || (size == 0 && c.Query("page_size") == "") {
 		size = 10
+	}
+	max := s.syscfg.IntDefault(c.Request.Context(), "page.sizeMax", 100)
+	if size > max {
+		size = max // 运行时上限夹取（page.sizeMax 可调）
 	}
 	return page, size
 }

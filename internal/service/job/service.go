@@ -59,7 +59,7 @@ func (s *Service) ListLogs(ctx context.Context, jobID uint, page, pageSize int) 
 func (s *Service) RunOnce(ctx context.Context, id uint) error { return s.uc.RunOnce(ctx, id) }
 
 // Handlers 可选处理器清单（表单下拉）
-func (s *Service) Handlers() []bizjob.Handler { return s.uc.Handlers() }
+func (s *Service) Handlers() []bizjob.HandlerInfo { return s.uc.Handlers() }
 
 // EnsureSeededAndStart 启动播种并拉起调度器（由 server 构造时调用）
 func (s *Service) EnsureSeededAndStart() error {
