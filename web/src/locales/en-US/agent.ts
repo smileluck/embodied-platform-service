@@ -78,6 +78,13 @@ export default {
       providerRequired: 'Please select a provider',
     },
   },
+  chat: {
+    title: 'Chat Test',
+    agentList: 'Agents',
+    searchPlaceholder: 'Search name / code',
+    selectHint: 'Select an agent on the left to start',
+    emptyAgent: 'No agents available',
+  },
   playground: {
     title: 'Playground',
     subtitle: 'Stateless debugging, conversations are not saved',
@@ -89,6 +96,7 @@ export default {
     tokenUsage: 'Tokens',
     streaming: 'Generating…',
     error: 'Call failed',
+    noPermission: 'No chat permission (agent:chat)',
     empty: 'Send the first message to start debugging',
   },
   saveFailed: 'Save failed',

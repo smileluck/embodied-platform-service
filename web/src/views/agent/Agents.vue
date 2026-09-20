@@ -67,42 +67,19 @@
     </template>
   </n-modal>
 
-  <!-- 调试对话 Playground（无状态，不落库） -->
+  <!-- 调试对话 Playground（无状态，不落库；对话逻辑复用 ChatPanel） -->
   <n-drawer v-model:show="showPlayground" :width="560" :auto-focus="false">
     <n-drawer-content :title="`${t('agent.playground.title')} · ${playAgent?.name ?? ''}`" closable>
-      <div class="pg">
-        <div v-if="metaModel" class="pg-model mono">{{ metaModel }} · {{ t('agent.playground.subtitle') }}</div>
-        <div ref="pgListRef" class="pg-list">
-          <div v-if="!chat.length" class="pg-empty">{{ t('agent.playground.empty') }}</div>
-          <div v-for="(m, i) in chat" :key="i" class="pg-msg" :class="m.role">
-            <div class="pg-bubble">
-              <div class="pg-text">{{ m.content || (m.role === 'assistant' && m.streaming ? t('agent.playground.streaming') : '') }}</div>
-              <div v-if="m.error" class="pg-error">{{ m.error }}</div>
-              <div v-else-if="m.role === 'assistant' && !m.streaming && m.usage" class="pg-usage mono">
-                {{ t('agent.playground.tokenUsage') }} {{ m.usage.total_tokens }}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="pg-input">
-          <n-input
-            v-model:value="chatInput" type="textarea" :rows="3" :maxlength="4000"
-            :placeholder="t('agent.playground.inputPlaceholder')" :disabled="chatSending"
-            @keydown.enter.exact.prevent="send"
-          />
-          <div class="pg-actions">
-            <n-button size="small" quaternary :disabled="!chat.length || chatSending" @click="clearChat">{{ t('agent.playground.clear') }}</n-button>
-            <n-button v-if="chatSending" size="small" type="error" ghost @click="stopChat">{{ t('agent.playground.stop') }}</n-button>
-            <n-button v-else size="small" type="primary" :disabled="!chatInput.trim()" @click="send">{{ t('agent.playground.send') }}</n-button>
-          </div>
-        </div>
-      </div>
+      <ChatPanel
+        v-if="playAgent" :key="playAgent.id"
+        :agent-id="playAgent.id" :model-label="playModelLabel"
+      />
     </n-drawer-content>
   </n-drawer>
 </template>
 
 <script setup lang="ts">
-import { computed, h, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, h, onMounted, reactive, ref } from 'vue'
 import {
   NButton, NCard, NDataTable, NDrawer, NDrawerContent, NForm, NFormItem, NInput, NInputNumber,
   NModal, NSelect, NSlider, NSwitch, NTag, useDialog, useMessage,
@@ -117,8 +94,9 @@ import {
   createAgent, deleteAgent, listAgentModels, listAgentProviders, listAgents, updateAgent,
 } from '../../api'
 import type { AgentInfo, AgentModel, AgentProvider } from '../../api/types'
+import ChatPanel from './ChatPanel.vue'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const message = useMessage()
 const dialog = useDialog()
 const userStore = useUserStore()
@@ -312,134 +290,19 @@ const columns = computed<DataTableColumns<AgentInfo>>(() => [
   },
 ])
 
-// ---- 调试对话 Playground（SSE 流式） ----
-interface ChatMsg {
-  role: 'user' | 'assistant'
-  content: string
-  streaming?: boolean
-  error?: string
-  usage?: { total_tokens: number }
-}
-
+// ---- 调试对话 Playground（抽屉；SSE 流式逻辑复用 ChatPanel 组件） ----
 const showPlayground = ref(false)
 const playAgent = ref<AgentInfo | null>(null)
-const metaModel = ref('')
-const chat = ref<ChatMsg[]>([])
-const chatInput = ref('')
-const chatSending = ref(false)
-const abortCtrl = ref<AbortController | null>(null)
-const pgListRef = ref<HTMLElement | null>(null)
+const playModelLabel = computed(() => {
+  const a = playAgent.value
+  if (!a) return ''
+  const m = modelById.value.get(a.model_id)
+  return m ? `${providerName.value.get(m.provider_id) ?? ''} · ${m.name}` : ''
+})
 
 function openPlayground(row: AgentInfo) {
   playAgent.value = row
-  const m = modelById.value.get(row.model_id)
-  metaModel.value = m ? `${providerName.value.get(m.provider_id) ?? ''} · ${m.name}` : ''
-  chat.value = []
-  chatInput.value = ''
   showPlayground.value = true
-}
-
-function clearChat() {
-  chat.value = []
-}
-
-function stopChat() {
-  abortCtrl.value?.abort()
-}
-
-// 新消息/流式增量后滚动到底部
-watch(
-  () => chat.value.map((m) => m.content.length).join(','),
-  () => nextTick(() => {
-    const el = pgListRef.value
-    if (el) el.scrollTop = el.scrollHeight
-  }),
-)
-
-async function send() {
-  const text = chatInput.value.trim()
-  if (!text || chatSending.value || !playAgent.value) return
-  chatInput.value = ''
-  chat.value.push({ role: 'user', content: text })
-  // 历史消息（system prompt 由后端按 Agent 配置注入）：排除出错的与空回复的 assistant
-  const history = chat.value
-    .filter((m) => !m.error && (m.role === 'user' || m.content))
-    .map((m) => ({ role: m.role, content: m.content }))
-  const assistant: ChatMsg = { role: 'assistant', content: '', streaming: true }
-  chat.value.push(assistant)
-  chatSending.value = true
-  const ctrl = new AbortController()
-  abortCtrl.value = ctrl
-  try {
-    const resp = await fetch(`/api/v1/agents/${playAgent.value.id}/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${userStore.accessToken}`,
-        'Accept-Language': locale.value,
-      },
-      body: JSON.stringify({ messages: history }),
-      signal: ctrl.signal,
-    })
-    if (!resp.ok || !resp.body) {
-      // 非 200：JSON 错误信封（RBAC 拒绝 / 参数错误 / 上游错误等）
-      let msg = t('agent.playground.error')
-      try {
-        const j = await resp.json()
-        if (j?.msg) msg = j.msg
-      } catch { /* 忽略解析失败 */ }
-      throw new Error(msg)
-    }
-    const reader = resp.body.getReader()
-    const decoder = new TextDecoder()
-    let buf = ''
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buf += decoder.decode(value, { stream: true })
-      let idx: number
-      while ((idx = buf.indexOf('\n\n')) >= 0) {
-        const frame = buf.slice(0, idx)
-        buf = buf.slice(idx + 2)
-        handleSSEFrame(frame, assistant)
-      }
-    }
-  } catch (e: any) {
-    if (e?.name === 'AbortError') {
-      assistant.content += '\n（已停止）'
-    } else {
-      assistant.error = e?.message || t('agent.playground.error')
-    }
-  } finally {
-    assistant.streaming = false
-    chatSending.value = false
-    abortCtrl.value = null
-  }
-}
-
-// 解析一帧 SSE：event: xxx\ndata: {...}
-function handleSSEFrame(frame: string, assistant: ChatMsg) {
-  let event = 'message'
-  const dataLines: string[] = []
-  for (const line of frame.split('\n')) {
-    if (line.startsWith('event:')) event = line.slice(6).trim()
-    else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
-  }
-  if (!dataLines.length) return
-  let data: any
-  try {
-    data = JSON.parse(dataLines.join('\n'))
-  } catch {
-    return
-  }
-  if (event === 'meta') {
-    if (data?.model) metaModel.value = String(data.model)
-  } else if (event === 'delta') {
-    if (data?.delta) assistant.content += data.delta
-    if (data?.usage) assistant.usage = data.usage
-  } else if (event === 'error') {
-    assistant.error = data?.message || t('agent.playground.error')
-  }
 }
 
 onMounted(async () => {
@@ -475,76 +338,5 @@ onMounted(async () => {
 
 .mono {
   font-family: var(--sx-font-mono);
-}
-
-/* ---- Playground ---- */
-.pg {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-.pg-model {
-  font-size: 12px;
-  color: var(--sx-muted);
-}
-.pg-list {
-  flex: 1;
-  overflow: auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 4px;
-}
-.pg-empty {
-  color: var(--sx-muted);
-  font-size: 13px;
-  text-align: center;
-  padding: 40px 0;
-}
-.pg-msg {
-  display: flex;
-}
-.pg-msg.user {
-  justify-content: flex-end;
-}
-.pg-bubble {
-  max-width: 86%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 14px;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.pg-msg.user .pg-bubble {
-  background: rgba(63, 117, 171, 0.12);
-}
-.pg-msg.assistant .pg-bubble {
-  background: var(--sx-surface);
-  border: 1px solid var(--sx-line);
-}
-.pg-error {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--sx-danger);
-}
-.pg-usage {
-  margin-top: 4px;
-  font-size: 11px;
-  color: var(--sx-muted);
-}
-.pg-input {
-  border-top: 1px solid var(--sx-line);
-  padding-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.pg-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
 }
 </style>

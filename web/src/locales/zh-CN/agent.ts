@@ -78,6 +78,13 @@ export default {
       providerRequired: '请选择供应商',
     },
   },
+  chat: {
+    title: '聊天测试',
+    agentList: 'Agent 列表',
+    searchPlaceholder: '搜索名称 / 编码',
+    selectHint: '选择左侧 Agent 开始对话',
+    emptyAgent: '暂无可用 Agent',
+  },
   playground: {
     title: '调试对话',
     subtitle: '无状态调试，不保存对话记录',
@@ -89,6 +96,7 @@ export default {
     tokenUsage: 'Tokens',
     streaming: '生成中…',
     error: '调用失败',
+    noPermission: '无对话权限（agent:chat）',
     empty: '发送第一条消息开始调试',
   },
   saveFailed: '保存失败',

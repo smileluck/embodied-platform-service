@@ -182,6 +182,7 @@ var systemMenus = []systemMenuDef{
 	{Name: "智能体", Code: "menu:agent", Type: "dir", Icon: "SparklesOutline", Sort: 8},
 	{Name: "模型供应商", Code: "menu:agentProvider", Path: "/agent/providers", Icon: "ServerOutline", Sort: 1, ParentCode: "menu:agent"},
 	{Name: "Agent 配置", Code: "menu:agentList", Path: "/agent/agents", Icon: "ChatbubblesOutline", Sort: 2, ParentCode: "menu:agent"},
+	{Name: "聊天测试", Code: "menu:agentChat", Path: "/agent/chat", Icon: "ChatboxEllipsesOutline", Sort: 3, ParentCode: "menu:agent"},
 	// 日志管理（顶级目录分组）
 	{Name: "日志管理", Code: "menu:log", Type: "dir", Icon: "DocumentTextOutline", Sort: 5},
 	{Name: "操作日志", Code: "menu:opLog", Path: "/log/operation-logs", Icon: "ClipboardOutline", Sort: 2, ParentCode: "menu:log"},
