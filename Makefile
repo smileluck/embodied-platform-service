@@ -1,20 +1,37 @@
+# Windows 兼容：GNU make 在 Windows 下默认可能选到 sh.exe（Git Bash 在 PATH 时），
+# 强制 cmd.exe 保证 CMD / PowerShell / Git Bash 三种终端行为一致
+ifeq ($(OS),Windows_NT)
+SHELL := cmd.exe
+BIN := bin/server.exe
+AIR ?= $(shell go env GOPATH)/bin/air.exe
+AIR_CONF := .air.windows.toml
+else
+BIN := bin/server
 AIR ?= $(shell go env GOPATH)/bin/air
+AIR_CONF := .air.toml
+endif
 
-.PHONY: build run dev wire tidy test web web-dev web-build docker-up docker-down docker-logs docker-rebuild clean
+.PHONY: build run dev wire tidy test web-dev web-build web-install docker-up docker-down docker-logs docker-rebuild clean
 
 build:
-	go build -o bin/server ./cmd/server
+	go build -o $(BIN) ./cmd/server
 
 run:
 	go run ./cmd/server -conf configs/config.yaml
 
 # 一键开发：后端热加载（air :28180）+ 前端热更新（Vite :28170，/api 代理到 28180）
 # 需先: go install github.com/air-verse/air@latest
+ifeq ($(OS),Windows_NT)
+dev:
+	@start /b "" "$(AIR)" -c $(AIR_CONF)
+	@cd web && npm run dev
+else
 dev:
 	@trap 'kill 0' INT TERM EXIT; \
-	$(AIR) & \
+	$(AIR) -c $(AIR_CONF) & \
 	cd web && npm run dev & \
 	wait
+endif
 
 # 重新生成依赖注入代码（需: go install github.com/google/wire/cmd/wire@latest）
 wire:
@@ -50,5 +67,12 @@ docker-logs:
 docker-rebuild:
 	docker compose build --no-cache app
 
+ifeq ($(OS),Windows_NT)
+clean:
+	if exist bin rmdir /s /q bin
+	if exist data rmdir /s /q data
+	if exist web/dist rmdir /s /q web/dist
+else
 clean:
 	rm -rf bin data web/dist
+endif

@@ -1,0 +1,20 @@
+# air 后端热加载配置 —— Windows 专用（Windows 可执行文件需 .exe 后缀）
+# 用法: make dev（Windows 下自动选择本文件）或 air -c .air.windows.toml
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./bin/server.exe ./cmd/server"
+bin = "./bin/server.exe"
+args = ["-conf", "configs/config.yaml"]
+include_ext = ["go", "yaml", "yml", "tpl", "sql"]
+exclude_dir = ["assets", "tmp", "vendor", "testdata", "web", "bin", "data", "logs", "docs"]
+exclude_regex = ["_test\\.go"]
+delay = 1000 # ms
+stop_on_error = true
+
+[log]
+time = true
+
+[misc]
+clean_on_exit = true

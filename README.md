@@ -105,6 +105,12 @@ replace github.com/smilex/smilex-admin-gin/sdk => ../embodied-platform/sdk
 
 正式部署经 GOPRIVATE 拉取（见 `embodied-platform/sdk/README.md`），删除 replace 即可。
 
+Windows 环境说明：
+
+- 安装 make：`choco install make` 或 `scoop install make`（MinGW 用户可直接用 `mingw32-make`），CMD / PowerShell / Git Bash 均可运行
+- 所有 make 目标均已适配：`make build` 产物为 `bin\server.exe`，`make dev` 自动使用 `.air.windows.toml`
+- `make dev` 在同一控制台并行启动后端 air 与前端 Vite，Ctrl+C 一并停止（与 macOS/Linux 行为一致）
+
 ## 🐳 Docker 部署（docker compose）
 
 一条命令拉起完整服务（app + MySQL + Redis），首次启动自动建表 + 种子数据：
