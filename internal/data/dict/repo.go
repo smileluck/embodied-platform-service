@@ -88,7 +88,7 @@ func (r *repo) ListTypes(ctx context.Context, q dict.Query, page, pageSize int) 
 		return nil, 0, err
 	}
 	var pos []model.DictTypePO
-	if err := tx.Offset((page - 1) * pageSize).Limit(pageSize).
+	if err := tx.Scopes(paginate(page, pageSize)).
 		Order("id DESC").Find(&pos).Error; err != nil {
 		return nil, 0, err
 	}
@@ -166,7 +166,7 @@ func (r *repo) ListItems(ctx context.Context, typeID uint, page, pageSize int) (
 		return nil, 0, err
 	}
 	var pos []model.DictItemPO
-	if err := tx.Offset((page - 1) * pageSize).Limit(pageSize).
+	if err := tx.Scopes(paginate(page, pageSize)).
 		Order("sort ASC, id ASC").Find(&pos).Error; err != nil {
 		return nil, 0, err
 	}
@@ -192,4 +192,14 @@ func (r *repo) ListEnabledItemsByCode(ctx context.Context, code string) ([]*dict
 		out = append(out, model.DictItemFromPO(&pos[i]))
 	}
 	return out, nil
+}
+
+// paginate pageSize<=0 表示全量（引用数据整表拉取）；否则按页取
+func paginate(page, pageSize int) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if pageSize > 0 {
+			return db.Offset((page - 1) * pageSize).Limit(pageSize)
+		}
+		return db
+	}
 }

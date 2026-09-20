@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-23T03:46:27.116Z",
+  "generatedAt": "2026-09-23T03:48:00.804Z",
   "commits": [
+    {
+      "hash": "b5a18aa9",
+      "date": "2026-09-20",
+      "type": "fix",
+      "scope": "web",
+      "message": "全局请求错误兜底 toast（网络层/5xx，silent 可抑制）"
+    },
     {
       "hash": "7e32e1a2",
       "date": "2026-09-20",

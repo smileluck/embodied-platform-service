@@ -120,8 +120,8 @@ const modelById = computed(() => new Map(models.value.map((m) => [m.id, m])))
 
 async function loadRefs() {
   const [pRes, mRes] = await Promise.all([
-    listAgentProviders({ page: 1, page_size: 100 }),
-    listAgentModels({ page: 1, page_size: 100 }),
+    listAgentProviders({ page: 1, page_size: 0 }),
+    listAgentModels({ page: 1, page_size: 0 }),
   ])
   providers.value = pRes.data.data.list
   models.value = mRes.data.data.list

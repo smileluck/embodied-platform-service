@@ -228,9 +228,9 @@ onMounted(async () => {
   loading.value = true
   try {
     const [aRes, pRes, mRes] = await Promise.all([
-      listAgents({ page: 1, page_size: 100 }),
-      listAgentProviders({ page: 1, page_size: 100 }),
-      listAgentModels({ page: 1, page_size: 100 }),
+      listAgents({ page: 1, page_size: 0 }),
+      listAgentProviders({ page: 1, page_size: 0 }),
+      listAgentModels({ page: 1, page_size: 0 }),
     ])
     agents.value = aRes.data.data.list
     providers.value = pRes.data.data.list

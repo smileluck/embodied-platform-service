@@ -118,7 +118,7 @@ async function loadHistory() {
   if (!props.conversationId) return
   loadingHistory.value = true
   try {
-    const res = await listAgentConversationMessages(props.conversationId, { page: 1, page_size: 100 })
+    const res = await listAgentConversationMessages(props.conversationId, { page: 1, page_size: 0 })
     messages.value = res.data.data.list.map((m) => ({
       role: m.role,
       content: m.content,

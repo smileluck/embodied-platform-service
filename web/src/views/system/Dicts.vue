@@ -176,7 +176,7 @@ async function loadItems() {
   itemsLoading.value = true
   try {
     // 字典项数量有限，一页取全（page_size 上限内）
-    const res = await listDictItems(selectedType.value.id, { page: 1, page_size: 100 })
+    const res = await listDictItems(selectedType.value.id, { page: 1, page_size: 0 })
     items.value = res.data.data.list
   } finally {
     itemsLoading.value = false

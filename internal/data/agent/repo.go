@@ -108,7 +108,7 @@ func (r *Repo) ListProviders(ctx context.Context, q agent.ProviderQuery, page, p
 		return nil, 0, err
 	}
 	var pos []model.AgentProviderPO
-	if err := tx.Offset((page - 1) * pageSize).Limit(pageSize).Order("id DESC").Find(&pos).Error; err != nil {
+	if err := tx.Scopes(paginate(page, pageSize)).Order("id DESC").Find(&pos).Error; err != nil {
 		return nil, 0, err
 	}
 	out := make([]*agent.Provider, 0, len(pos))
@@ -203,7 +203,7 @@ func (r *Repo) ListModels(ctx context.Context, q agent.ModelQuery, page, pageSiz
 		return nil, 0, err
 	}
 	var pos []model.AgentModelPO
-	if err := tx.Offset((page - 1) * pageSize).Limit(pageSize).Order("id ASC").Find(&pos).Error; err != nil {
+	if err := tx.Scopes(paginate(page, pageSize)).Order("id ASC").Find(&pos).Error; err != nil {
 		return nil, 0, err
 	}
 	out := make([]*agent.Model, 0, len(pos))
@@ -283,7 +283,7 @@ func (r *Repo) ListAgents(ctx context.Context, q agent.AgentQuery, page, pageSiz
 		return nil, 0, err
 	}
 	var pos []model.AgentPO
-	if err := tx.Offset((page - 1) * pageSize).Limit(pageSize).Order("id DESC").Find(&pos).Error; err != nil {
+	if err := tx.Scopes(paginate(page, pageSize)).Order("id DESC").Find(&pos).Error; err != nil {
 		return nil, 0, err
 	}
 	out := make([]*agent.Agent, 0, len(pos))
@@ -351,7 +351,7 @@ func (r *Repo) ListConversations(ctx context.Context, userID uint, q agent.Conve
 		return nil, 0, err
 	}
 	var pos []model.AgentConversationPO
-	if err := tx.Offset((page - 1) * pageSize).Limit(pageSize).
+	if err := tx.Scopes(paginate(page, pageSize)).
 		Order("last_msg_at DESC").Find(&pos).Error; err != nil {
 		return nil, 0, err
 	}
@@ -379,7 +379,7 @@ func (r *Repo) ListMessages(ctx context.Context, conversationID uint, page, page
 		return nil, 0, err
 	}
 	var pos []model.AgentConversationMsgPO
-	if err := tx.Offset((page - 1) * pageSize).Limit(pageSize).
+	if err := tx.Scopes(paginate(page, pageSize)).
 		Order("id ASC").Find(&pos).Error; err != nil {
 		return nil, 0, err
 	}
@@ -426,4 +426,14 @@ func (r *Repo) CleanupExpired(ctx context.Context) error {
 		return nil
 	}
 	return r.CleanupUsageBefore(ctx, time.Now().AddDate(0, 0, -r.usageRetentionDays))
+}
+
+// paginate pageSize<=0 表示全量（引用数据整表拉取）；否则按页取
+func paginate(page, pageSize int) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if pageSize > 0 {
+			return db.Offset((page - 1) * pageSize).Limit(pageSize)
+		}
+		return db
+	}
 }

@@ -110,7 +110,7 @@ func (r *repo) List(ctx context.Context, q role.Query, page, pageSize int) ([]*r
 		return nil, 0, err
 	}
 	var pos []model.RolePO
-	if err := tx.Offset((page - 1) * pageSize).Limit(pageSize).Order("id DESC").Find(&pos).Error; err != nil {
+	if err := tx.Scopes(paginate(page, pageSize)).Order("id DESC").Find(&pos).Error; err != nil {
 		return nil, 0, err
 	}
 	out := make([]*role.Role, 0, len(pos))
@@ -132,4 +132,14 @@ func (r *repo) SetPermissions(ctx context.Context, roleID uint, permissionIDs []
 		}
 		return nil
 	})
+}
+
+// paginate pageSize<=0 表示全量（引用数据整表拉取）；否则按页取
+func paginate(page, pageSize int) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if pageSize > 0 {
+			return db.Offset((page - 1) * pageSize).Limit(pageSize)
+		}
+		return db
+	}
 }

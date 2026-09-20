@@ -150,7 +150,7 @@ async function load() {
 
 async function loadTenantOptions() {
   try {
-    const { data } = await listTenants({ page: 1, page_size: 100, status: 1 })
+    const { data } = await listTenants({ page: 1, page_size: 0, status: 1 })
     tenantOptions.value = data.data.list.map((x) => ({ label: x.name, value: x.id }))
   } catch {
     // 下拉选项加载失败不阻塞页面，列表照常可用

@@ -204,7 +204,7 @@ async function loadProviders(keepSelection = true) {
   try {
     const kw = query.kw.trim()
     const { data } = await listAgentProviders({
-      page: 1, page_size: 100,
+      page: 1, page_size: 0,
       ...(kw ? { name: kw, code: kw } : {}),
     })
     providers.value = data.data.list
