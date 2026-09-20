@@ -25,8 +25,10 @@
             </template>
           </n-button>
           <div class="crumb">
-            <span class="crumb-eyebrow mono">section</span>
-            <span class="crumb-title">{{ crumbTitle }}</span>
+            <template v-for="(c, i) in crumbs" :key="i">
+              <span v-if="i > 0" class="crumb-sep">/</span>
+              <span :class="i === crumbs.length - 1 ? 'crumb-title' : 'crumb-parent'">{{ c }}</span>
+            </template>
           </div>
         </div>
         <div class="header-right">
@@ -318,11 +320,12 @@ function syncDocumentTitle() {
 // 面包屑标题：前端自有路由走 titleKey 重译；菜单路由从 userStore.menus 按 code（即路由 name）
 // 查名 —— route.meta.title 是路由记录上的普通对象、非响应式，语言切换后 menus 会重新拉取（响应式），
 // 直接依赖 menus 才能即时刷新（meta.title 仅作 menus 未就绪时的兜底）
-function findMenuName(nodes: MenuNode[], code: string): string | null {
+function findMenuTrail(nodes: MenuNode[], code: string, trail: string[] = []): string[] | null {
   for (const m of nodes ?? []) {
-    if (m.code === code) return m.name
+    const next = [...trail, m.name]
+    if (m.code === code) return next
     if (m.children?.length) {
-      const hit = findMenuName(m.children, code)
+      const hit = findMenuTrail(m.children, code, next)
       if (hit) return hit
     }
   }
@@ -332,8 +335,17 @@ function findMenuName(nodes: MenuNode[], code: string): string | null {
 const crumbTitle = computed(() => {
   const titleKey = route.meta?.titleKey as string | undefined
   if (titleKey) return t(titleKey)
-  const name = findMenuName(userStore.menus, route.name as string)
-  return name || (route.meta?.title as string) || t('menu.home')
+  const trail = findMenuTrail(userStore.menus, route.name as string)
+  return trail ? trail[trail.length - 1] : (route.meta?.title as string) || t('menu.home')
+})
+
+// 真面包屑：菜单树层级链（dir > dir > 菜单）；非菜单路由（个人中心等）单级
+const crumbs = computed<string[]>(() => {
+  const titleKey = route.meta?.titleKey as string | undefined
+  if (titleKey) return [t(titleKey)]
+  const trail = findMenuTrail(userStore.menus, route.name as string)
+  if (trail) return trail
+  return [crumbTitle.value]
 })
 
 // 图标支持本地 ionicons5 名称 / 网络图片 URL，统一走 menuIcon 渲染
@@ -915,6 +927,16 @@ onUnmounted(() => {
   font-size: 10px;
   color: var(--sx-shell-muted);
 }
+.crumb-sep {
+  color: var(--sx-muted);
+  opacity: 0.5;
+  font-size: 12px;
+}
+.crumb-parent {
+  font-size: 12px;
+  color: var(--sx-muted);
+}
+
 .crumb-title {
   font-size: 16px;
   font-weight: 600;
