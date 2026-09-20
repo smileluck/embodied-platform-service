@@ -40,8 +40,6 @@ type LoginProtector interface {
 	IncrFail(ctx context.Context, ip string, window time.Duration) (int64, error)
 	// ResetFail 清空失败计数
 	ResetFail(ctx context.Context, ip string) error
-	// IncrRate 登录限流计数 +1（固定窗口），返回窗口内当前次数
-	IncrRate(ctx context.Context, ip string, window time.Duration) (int64, error)
-	// ResetRate 清空限流计数（解封时联动清理）
+	// ResetRate 清空登录限流计数（解封时联动清理；计数本身由通用限流中间件写入 bl:rl:*）
 	ResetRate(ctx context.Context, ip string) error
 }

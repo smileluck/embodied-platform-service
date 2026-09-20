@@ -73,6 +73,7 @@ type HTTPServer struct {
 	appIssuer     bizappuser.TokenIssuer // AppJWT 中间件解析 app-access token
 	device        *devicesvc.Service
 	devmodel      *devmodelsvc.Service
+	rdb           *redis.Client // 通用限流（固定窗口计数）
 	rbacCache     *cache.TwoLevel
 	identityCache *cache.TwoLevel
 	engine        *gin.Engine
@@ -110,6 +111,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 		file: file, export: export, blacklist: blacklist, tenant: tenant,
 		appuser: appuser, appuserUC: appuserUC, appIssuer: appIssuer,
 		device: device, devmodel: devmodel, monitor: monitor, agent: agent,
+		rdb: rdb,
 		rbacCache: rbacCache.TwoLevel, identityCache: identityCache, engine: e,
 	}
 	s.registerRoutes()
@@ -126,11 +128,18 @@ func (s *HTTPServer) registerRoutes() {
 	// 持久化 IP 黑名单在认证之前拦截全部 /api/ 请求（静态前端资源不经过此组）
 	v1 := s.engine.Group("/api/v1", middleware.IPBlacklist(s.blacklist.Checker()))
 
+	// ---- 公开接口 ----
+	// 登录限流（应用用户登录）：IP 固定窗口计数，沿用 bl:rl: 前缀，
+	// 黑名单提前解封时联动清零；参数见 biz/blacklist 常量
+	loginRateLimit := middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
+		KeyPrefix: "bl:rl:", Max: bizblacklist.LoginRateMax, Window: bizblacklist.LoginRateWindow, MessageKey: "security.login_frequent",
+	})
+
 	// ---- 应用用户认证（本地体系，与平台身份 typ 隔离；无验证码、无服务端会话） ----
 	// 登录接口挂 IP 临时封禁 + 频率限制防护，防口令爆破
 	appauthg := v1.Group("/app-auth")
 	{
-		appauthg.POST("/login", middleware.LoginIPGuard(s.blacklist.LoginGuard()), middleware.LoginRateLimit(s.blacklist.LoginGuard()), s.appLogin)
+		appauthg.POST("/login", middleware.LoginIPGuard(s.blacklist.LoginGuard()), loginRateLimit, s.appLogin)
 		appauthg.POST("/refresh", s.appRefresh)
 	}
 
@@ -340,8 +349,11 @@ func (s *HTTPServer) registerRoutes() {
 		agents.GET("/:id", s.getAgent)
 		agents.PUT("/:id", s.updateAgent)
 		agents.DELETE("/:id", s.deleteAgent)
-		// 调试对话（Playground，SSE 流式；无状态，不落库）
-		agents.POST("/:id/chat", s.chatAgent)
+		// 调试对话（Playground，SSE 流式；无状态，不落库）；
+		// 按用户限流：每次调用都产生真实上游 token 费用，防误用/滥用刷量
+		agents.POST("/:id/chat", middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
+			KeyPrefix: "rl:agent-chat:", Max: 20, Window: time.Minute, ByUser: true, MessageKey: "security.rate_limited",
+		}), s.chatAgent)
 	}
 
 	// 设备（纯代理平台开放面；租户范围由平台按商户绑定服务端收敛）

@@ -246,17 +246,6 @@ func (r *Repo) ResetFail(ctx context.Context, ip string) error {
 	return r.rdb.Del(ctx, failKey(ip)).Err()
 }
 
-func (r *Repo) IncrRate(ctx context.Context, ip string, window time.Duration) (int64, error) {
-	n, err := r.rdb.Incr(ctx, rateKey(ip)).Result()
-	if err != nil {
-		return 0, err
-	}
-	if n == 1 {
-		_ = r.rdb.Expire(ctx, rateKey(ip), window).Err()
-	}
-	return n, nil
-}
-
 func (r *Repo) ResetRate(ctx context.Context, ip string) error {
 	return r.rdb.Del(ctx, rateKey(ip)).Err()
 }

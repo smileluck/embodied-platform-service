@@ -23,8 +23,6 @@ type LoginGuard interface {
 	RecordLoginFail(ctx context.Context, ip string)
 	// ResetLoginFail 登录成功清空失败计数
 	ResetLoginFail(ctx context.Context, ip string)
-	// HitLoginRate 登录限流计数；true 表示超出窗口上限
-	HitLoginRate(ctx context.Context, ip string) bool
 }
 
 // LoginIPGuard 登录 IP 临时封禁守卫：

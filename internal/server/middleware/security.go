@@ -1,4 +1,5 @@
-// 安全类中间件：安全响应头、XSS 输入清洗、SQL 注入特征拦截、登录限流。
+// 安全类中间件：安全响应头、XSS 输入清洗、SQL 注入特征拦截。
+// 登录/通用限流见 ratelimit.go。
 package middleware
 
 import (
@@ -104,19 +105,6 @@ func SQLInjectionGuard() gin.HandlerFunc {
 				c.Abort()
 				return
 			}
-		}
-		c.Next()
-	}
-}
-
-// LoginRateLimit 按 IP 限流登录尝试（固定窗口 60s 内 5 次，计数存 Redis 多实例共享），超出返回 429，防口令爆破
-func LoginRateLimit(guard LoginGuard) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if guard.HitLoginRate(c.Request.Context(), c.ClientIP()) {
-			c.Header("Retry-After", "60")
-			response.TooManyRequests(c, i18n.T(c.Request.Context(), "security.login_frequent"))
-			c.Abort()
-			return
 		}
 		c.Next()
 	}

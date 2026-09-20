@@ -44,6 +44,7 @@ var messagesZh = map[string]string{
 	"common.invalid_params":   "请求参数不合法",
 	"security.invalid_chars":  "请求参数包含非法字符",
 	"security.login_frequent": "登录尝试过于频繁，请稍后再试",
+	"security.rate_limited":   "请求过于频繁，请稍后再试",
 	"blacklist.ip_banned":     "该 IP 因连续登录失败已被临时封禁，请约 %d 分钟后再试",
 	// IP 黑名单（管理员手工维护的持久化封禁）
 	"blacklist.ip_blocked":     "该 IP 已被加入黑名单，访问被拒绝",

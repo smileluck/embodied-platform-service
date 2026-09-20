@@ -44,6 +44,7 @@ var messagesEn = map[string]string{
 	"common.invalid_params":   "Invalid request parameters",
 	"security.invalid_chars":  "Request parameters contain illegal characters",
 	"security.login_frequent": "Too many login attempts, please try again later",
+	"security.rate_limited":   "Too many requests, please try again later",
 	"blacklist.ip_banned":     "This IP has been temporarily banned due to repeated login failures; please try again in about %d minutes",
 	// IP blacklist (manually maintained, persistent)
 	"blacklist.ip_blocked":     "This IP is on the blacklist; access denied",

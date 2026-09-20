@@ -128,13 +128,3 @@ func (uc *Usecase) ResetLoginFail(ctx context.Context, ip string) {
 		logger.Warn("reset login fail counter failed", zap.String("ip", ip), zap.Error(err))
 	}
 }
-
-// HitLoginRate 登录限流计数；返回 true 表示超出窗口上限应拒绝
-func (uc *Usecase) HitLoginRate(ctx context.Context, ip string) bool {
-	n, err := uc.protector.IncrRate(ctx, ip, LoginRateWindow)
-	if err != nil {
-		logger.Warn("login rate limit failed, fail-open", zap.String("ip", ip), zap.Error(err))
-		return false
-	}
-	return n > LoginRateMax
-}
