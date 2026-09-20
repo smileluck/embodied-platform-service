@@ -204,3 +204,36 @@ func statusOf(s *int) bizagent.Status {
 	}
 	return bizagent.StatusEnabled
 }
+
+// ---- 会话（本人数据） ----
+
+// ConversationCreateRequest 新建会话入参
+type ConversationCreateRequest struct {
+	AgentID uint `json:"agent_id" binding:"required,gt=0"`
+}
+
+// ConversationRenameRequest 会话改名入参
+type ConversationRenameRequest struct {
+	Title string `json:"title" binding:"required,max=20"`
+}
+
+func (s *Service) CreateConversation(ctx context.Context, userID uint, req ConversationCreateRequest) (*bizagent.Conversation, error) {
+	return s.uc.CreateConversation(ctx, userID, req.AgentID)
+}
+
+func (s *Service) RenameConversation(ctx context.Context, userID, id uint, req ConversationRenameRequest) (*bizagent.Conversation, error) {
+	return s.uc.RenameConversation(ctx, userID, id, req.Title)
+}
+
+func (s *Service) DeleteConversation(ctx context.Context, userID, id uint) error {
+	return s.uc.DeleteConversation(ctx, userID, id)
+}
+
+func (s *Service) ListConversations(ctx context.Context, userID uint, agentID *uint, page, pageSize int) ([]*bizagent.Conversation, interface{}, error) {
+	q := bizagent.ConversationQuery{AgentID: agentID}
+	return s.uc.ListConversations(ctx, userID, q, page, pageSize)
+}
+
+func (s *Service) ListConversationMessages(ctx context.Context, userID, conversationID uint, page, pageSize int) ([]*bizagent.ConversationMessage, interface{}, error) {
+	return s.uc.ListConversationMessages(ctx, userID, conversationID, page, pageSize)
+}

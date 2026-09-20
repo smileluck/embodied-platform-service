@@ -4,6 +4,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/smilex/smilex-admin-gin/internal/biz/agent"
 	"github.com/smilex/smilex-admin-gin/internal/data"
@@ -283,6 +284,103 @@ func (r *repo) ListAgents(ctx context.Context, q agent.AgentQuery, page, pageSiz
 	out := make([]*agent.Agent, 0, len(pos))
 	for i := range pos {
 		out = append(out, model.AgentFromPO(&pos[i]))
+	}
+	return out, total, nil
+}
+
+// ---- 会话（user_id 过滤强制在仓储层；不存在与无权限统一返回 ErrConversationNotFound） ----
+
+func mapConversationErr(err error) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return agent.ErrConversationNotFound
+	}
+	return err
+}
+
+func (r *repo) CreateConversation(ctx context.Context, cv *agent.Conversation) error {
+	po := model.AgentConversationToPO(cv)
+	po.CreatedAt, po.UpdatedAt = po.LastMsgAt, po.LastMsgAt
+	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
+		return err
+	}
+	cv.ID, cv.CreatedAt, cv.UpdatedAt = po.ID, po.CreatedAt, po.UpdatedAt
+	return nil
+}
+
+func (r *repo) UpdateConversation(ctx context.Context, cv *agent.Conversation) error {
+	return r.data.DB.WithContext(ctx).Model(&model.AgentConversationPO{}).Where("id = ?", cv.ID).
+		Updates(map[string]interface{}{
+			"title": cv.Title, "agent_name": cv.AgentName, "last_msg_at": cv.LastMsgAt,
+		}).Error
+}
+
+// DeleteConversation 事务：软删会话 + 物理删除其全部消息（追加流水无需留痕）
+func (r *repo) DeleteConversation(ctx context.Context, userID, id uint) error {
+	return r.data.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Where("id = ? AND user_id = ?", id, userID).Delete(&model.AgentConversationPO{})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return agent.ErrConversationNotFound
+		}
+		return tx.Where("conversation_id = ?", id).Delete(&model.AgentConversationMsgPO{}).Error
+	})
+}
+
+func (r *repo) FindConversation(ctx context.Context, userID, id uint) (*agent.Conversation, error) {
+	var po model.AgentConversationPO
+	if err := r.data.DB.WithContext(ctx).Where("user_id = ?", userID).First(&po, id).Error; err != nil {
+		return nil, mapConversationErr(err)
+	}
+	return model.AgentConversationFromPO(&po), nil
+}
+
+func (r *repo) ListConversations(ctx context.Context, userID uint, q agent.ConversationQuery, page, pageSize int) ([]*agent.Conversation, int64, error) {
+	tx := r.data.DB.WithContext(ctx).Model(&model.AgentConversationPO{}).Where("user_id = ?", userID)
+	if q.AgentID != nil {
+		tx = tx.Where("agent_id = ?", *q.AgentID)
+	}
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var pos []model.AgentConversationPO
+	if err := tx.Offset((page - 1) * pageSize).Limit(pageSize).
+		Order("last_msg_at DESC").Find(&pos).Error; err != nil {
+		return nil, 0, err
+	}
+	out := make([]*agent.Conversation, 0, len(pos))
+	for i := range pos {
+		out = append(out, model.AgentConversationFromPO(&pos[i]))
+	}
+	return out, total, nil
+}
+
+func (r *repo) AppendMessage(ctx context.Context, m *agent.ConversationMessage) error {
+	po := model.AgentMsgToPO(m)
+	po.CreatedAt = time.Now()
+	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
+		return err
+	}
+	m.ID, m.CreatedAt = po.ID, po.CreatedAt
+	return nil
+}
+
+func (r *repo) ListMessages(ctx context.Context, conversationID uint, page, pageSize int) ([]*agent.ConversationMessage, int64, error) {
+	tx := r.data.DB.WithContext(ctx).Model(&model.AgentConversationMsgPO{}).Where("conversation_id = ?", conversationID)
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var pos []model.AgentConversationMsgPO
+	if err := tx.Offset((page - 1) * pageSize).Limit(pageSize).
+		Order("id ASC").Find(&pos).Error; err != nil {
+		return nil, 0, err
+	}
+	out := make([]*agent.ConversationMessage, 0, len(pos))
+	for i := range pos {
+		out = append(out, model.AgentMsgFromPO(&pos[i]))
 	}
 	return out, total, nil
 }

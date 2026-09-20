@@ -40,6 +40,11 @@ var (
 	ErrLLMUpstream = errors.New("LLM 上游调用失败")
 	// ErrLLMTimeout LLM 上游调用超时
 	ErrLLMTimeout = errors.New("LLM 上游调用超时，请稍后重试")
+
+	// ErrConversationNotFound 会话不存在或不属于当前用户（不泄露他人会话存在性）
+	ErrConversationNotFound = errors.New("会话不存在")
+	// ErrConversationAgentMismatch 会话与 Agent 不匹配（不支持跨 Agent 追加消息）
+	ErrConversationAgentMismatch = errors.New("会话不属于该 Agent")
 )
 
 // ProviderQuery 供应商列表查询条件
@@ -92,4 +97,16 @@ type Repo interface {
 	// FindAgentByCode 业务模块按 code 引用 Agent 配置的底座入口
 	FindAgentByCode(ctx context.Context, code string) (*Agent, error)
 	ListAgents(ctx context.Context, q AgentQuery, page, pageSize int) ([]*Agent, int64, error)
+
+	// ---- 会话（本人数据：user_id 过滤在仓储层强制） ----
+
+	CreateConversation(ctx context.Context, cv *Conversation) error
+	UpdateConversation(ctx context.Context, cv *Conversation) error
+	// DeleteConversation 事务内软删会话 + 物理删除其全部消息；RowsAffected=0 视为不存在
+	DeleteConversation(ctx context.Context, userID, id uint) error
+	FindConversation(ctx context.Context, userID, id uint) (*Conversation, error)
+	ListConversations(ctx context.Context, userID uint, q ConversationQuery, page, pageSize int) ([]*Conversation, int64, error)
+	AppendMessage(ctx context.Context, m *ConversationMessage) error
+	// ListMessages 按会话取消息（时间正序；归属校验由 usecase 先行完成）
+	ListMessages(ctx context.Context, conversationID uint, page, pageSize int) ([]*ConversationMessage, int64, error)
 }

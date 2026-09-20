@@ -429,3 +429,82 @@ func (uc *Usecase) test(ctx context.Context, cli LLMClient, m *Model) (*TestResu
 		LatencyMs: time.Since(start).Milliseconds(), Usage: resp.Usage,
 	}, nil
 }
+
+// ---- 会话（调试对话持久化；本人数据） ----
+
+// ConversationTitleMax 会话标题长度上限（与输入长度约定一致：名称 ≤20）
+const ConversationTitleMax = 20
+
+// CreateConversation 新建会话：校验 Agent 存在且启用，标题为默认值（首条消息到达后自动改写）
+func (uc *Usecase) CreateConversation(ctx context.Context, userID, agentID uint) (*Conversation, error) {
+	a, err := uc.repo.FindAgentByID(ctx, agentID)
+	if err != nil {
+		return nil, err
+	}
+	if a.Status != StatusEnabled {
+		return nil, ErrAgentDisabled
+	}
+	now := time.Now()
+	cv := &Conversation{
+		UserID: userID, AgentID: a.ID, AgentName: a.Name,
+		Title: DefaultConversationTitle, LastMsgAt: now,
+	}
+	if err := uc.repo.CreateConversation(ctx, cv); err != nil {
+		return nil, err
+	}
+	return cv, nil
+}
+
+// RenameConversation 会话改名（仅本人；长度截断到 20 字）
+func (uc *Usecase) RenameConversation(ctx context.Context, userID, id uint, title string) (*Conversation, error) {
+	cv, err := uc.repo.FindConversation(ctx, userID, id)
+	if err != nil {
+		return nil, err
+	}
+	cv.Title = truncateRunes(strings.TrimSpace(title), ConversationTitleMax)
+	if cv.Title == "" {
+		cv.Title = DefaultConversationTitle
+	}
+	if err := uc.repo.UpdateConversation(ctx, cv); err != nil {
+		return nil, err
+	}
+	return cv, nil
+}
+
+// DeleteConversation 删除会话（连带全部消息；仅本人）
+func (uc *Usecase) DeleteConversation(ctx context.Context, userID, id uint) error {
+	return uc.repo.DeleteConversation(ctx, userID, id)
+}
+
+// ListConversations 本人会话列表（LastMsgAt 倒序）
+func (uc *Usecase) ListConversations(ctx context.Context, userID uint, q ConversationQuery, page, pageSize int) ([]*Conversation, pagination.Page, error) {
+	list, total, err := uc.repo.ListConversations(ctx, userID, q, page, pageSize)
+	if err != nil {
+		return nil, pagination.Page{}, err
+	}
+	return list, pagination.Page{Page: page, PageSize: pageSize, Total: total}, nil
+}
+
+// ListConversationMessages 会话消息（时间正序分页；仅本人）
+func (uc *Usecase) ListConversationMessages(ctx context.Context, userID, conversationID uint, page, pageSize int) ([]*ConversationMessage, pagination.Page, error) {
+	if _, err := uc.repo.FindConversation(ctx, userID, conversationID); err != nil {
+		return nil, pagination.Page{}, err
+	}
+	list, total, err := uc.repo.ListMessages(ctx, conversationID, page, pageSize)
+	if err != nil {
+		return nil, pagination.Page{}, err
+	}
+	return list, pagination.Page{Page: page, PageSize: pageSize, Total: total}, nil
+}
+
+// truncateRunes 按字符（非字节）截断，避免中文标题截出乱码
+func truncateRunes(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= n {
+		return s
+	}
+	return string(runes[:n])
+}

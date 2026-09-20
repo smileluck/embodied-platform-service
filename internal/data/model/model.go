@@ -255,6 +255,33 @@ type AgentPO struct {
 
 func (AgentPO) TableName() string { return "agents" }
 
+// AgentConversationPO 对话会话表（本人数据；AgentName 冗余，Agent 改名/删除后历史仍可读）
+type AgentConversationPO struct {
+	ID        uint   `gorm:"primaryKey"`
+	UserID    uint   `gorm:"index"` // 归属用户（列表/详情强制过滤）
+	AgentID   uint   `gorm:"index"` // 关联 agents.id（逻辑引用，Agent 删除不级联）
+	AgentName string `gorm:"size:20"`
+	Title     string `gorm:"size:64"`
+	LastMsgAt time.Time
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+func (AgentConversationPO) TableName() string { return "agent_conversations" }
+
+// AgentConversationMsgPO 会话消息表（追加流水；会话删除时物理级联清理）
+type AgentConversationMsgPO struct {
+	ID             uint   `gorm:"primaryKey"`
+	ConversationID uint   `gorm:"index"`
+	Role           string `gorm:"size:16"` // user | assistant
+	Content        string `gorm:"type:text"`
+	TotalTokens    int    // assistant 消息的 usage.total_tokens
+	CreatedAt      time.Time
+}
+
+func (AgentConversationMsgPO) TableName() string { return "agent_conversation_msgs" }
+
 // ---- 转换器 ----
 
 func PlatformUserToPO(p *admission.Projection) *PlatformUserPO {
@@ -445,5 +472,33 @@ func AgentFromPO(p *AgentPO) *agent.Agent {
 		SystemPrompt: p.SystemPrompt, Temperature: p.Temperature, TopP: p.TopP,
 		MaxTokens: p.MaxTokens, Remark: p.Remark, Status: agent.Status(p.Status),
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+}
+
+func AgentConversationToPO(cv *agent.Conversation) *AgentConversationPO {
+	return &AgentConversationPO{
+		ID: cv.ID, UserID: cv.UserID, AgentID: cv.AgentID, AgentName: cv.AgentName,
+		Title: cv.Title, LastMsgAt: cv.LastMsgAt,
+	}
+}
+
+func AgentConversationFromPO(p *AgentConversationPO) *agent.Conversation {
+	return &agent.Conversation{
+		ID: p.ID, UserID: p.UserID, AgentID: p.AgentID, AgentName: p.AgentName,
+		Title: p.Title, LastMsgAt: p.LastMsgAt, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+}
+
+func AgentMsgToPO(m *agent.ConversationMessage) *AgentConversationMsgPO {
+	return &AgentConversationMsgPO{
+		ID: m.ID, ConversationID: m.ConversationID, Role: m.Role,
+		Content: m.Content, TotalTokens: m.TotalTokens, CreatedAt: m.CreatedAt,
+	}
+}
+
+func AgentMsgFromPO(p *AgentConversationMsgPO) *agent.ConversationMessage {
+	return &agent.ConversationMessage{
+		ID: p.ID, ConversationID: p.ConversationID, Role: p.Role,
+		Content: p.Content, TotalTokens: p.TotalTokens, CreatedAt: p.CreatedAt,
 	}
 }

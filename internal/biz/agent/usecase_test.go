@@ -354,3 +354,19 @@ func TestTestProviderNoModels(t *testing.T) {
 		t.Fatalf("expected ErrProviderNoModels, got %v", err)
 	}
 }
+
+// ---- 会话接口的空实现（fakeRepo 不参与会话用例测试，仅满足接口） ----
+
+func (r *fakeRepo) CreateConversation(_ context.Context, cv *Conversation) error { return nil }
+func (r *fakeRepo) UpdateConversation(_ context.Context, cv *Conversation) error { return nil }
+func (r *fakeRepo) DeleteConversation(_ context.Context, userID, id uint) error  { return nil }
+func (r *fakeRepo) FindConversation(_ context.Context, userID, id uint) (*Conversation, error) {
+	return nil, ErrConversationNotFound
+}
+func (r *fakeRepo) ListConversations(_ context.Context, userID uint, q ConversationQuery, page, pageSize int) ([]*Conversation, int64, error) {
+	return nil, 0, nil
+}
+func (r *fakeRepo) AppendMessage(_ context.Context, m *ConversationMessage) error { return nil }
+func (r *fakeRepo) ListMessages(_ context.Context, conversationID uint, page, pageSize int) ([]*ConversationMessage, int64, error) {
+	return nil, 0, nil
+}

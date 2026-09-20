@@ -329,6 +329,16 @@ func (s *HTTPServer) registerRoutes() {
 		agentModels.POST("/:id/test", s.testAgentModel)
 	}
 
+	// 会话（本人数据，biz 层强制 user_id 过滤）
+	convs := protected.Group("/agent/conversations")
+	{
+		convs.GET("", s.listAgentConversations)
+		convs.POST("", s.createAgentConversation)
+		convs.GET("/:id/messages", s.listAgentConversationMessages)
+		convs.PUT("/:id", s.renameAgentConversation)
+		convs.DELETE("/:id", s.deleteAgentConversation)
+	}
+
 	agents := protected.Group("/agents")
 	{
 		agents.GET("", s.listAgents)

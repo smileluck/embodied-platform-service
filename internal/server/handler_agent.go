@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	bizagent "github.com/smilex/smilex-admin-gin/internal/biz/agent"
+	"github.com/smilex/smilex-admin-gin/internal/server/middleware"
 	agentsvc "github.com/smilex/smilex-admin-gin/internal/service/agent"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
 	"github.com/smilex/smilex-admin-gin/pkg/response"
@@ -337,4 +338,86 @@ func (s *HTTPServer) chatAgent(c *gin.Context) {
 			return false
 		}
 	})
+}
+
+// ---- 会话（本人数据：user_id 在 biz 层强制过滤） ----
+
+func (s *HTTPServer) listAgentConversations(c *gin.Context) {
+	page, size := pageParams(c)
+	var agentID *uint
+	if v := c.Query("agent_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil && id > 0 {
+			u := uint(id)
+			agentID = &u
+		}
+	}
+	sub := middleware.Subject(c)
+	list, pg, err := s.agent.ListConversations(c.Request.Context(), sub.UserID, agentID, page, size)
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, listResult{List: list, Page: pg})
+}
+
+func (s *HTTPServer) createAgentConversation(c *gin.Context) {
+	var req agentsvc.ConversationCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	sub := middleware.Subject(c)
+	cv, err := s.agent.CreateConversation(c.Request.Context(), sub.UserID, req)
+	if err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, cv)
+}
+
+func (s *HTTPServer) renameAgentConversation(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	var req agentsvc.ConversationRenameRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	sub := middleware.Subject(c)
+	cv, err := s.agent.RenameConversation(c.Request.Context(), sub.UserID, id, req)
+	if err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, cv)
+}
+
+func (s *HTTPServer) deleteAgentConversation(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	sub := middleware.Subject(c)
+	if err := s.agent.DeleteConversation(c.Request.Context(), sub.UserID, id); err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) listAgentConversationMessages(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	page, size := pageParams(c)
+	sub := middleware.Subject(c)
+	list, pg, err := s.agent.ListConversationMessages(c.Request.Context(), sub.UserID, id, page, size)
+	if err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, listResult{List: list, Page: pg})
 }
