@@ -31,12 +31,54 @@ func I18n() gin.HandlerFunc {
 	}
 }
 
-// CORS 跨域
-func CORS() gin.HandlerFunc {
+// CORS 跨域资源 sharing：
+//   - 未配置白名单（默认）：同源模式，不下发任何 CORS 头。SPA 由后端同源托管、
+//     本地开发走 vite 代理（亦同源），均不依赖跨域头；
+//   - 配置来源列表：仅 Origin 命中时回显该来源并允许携带凭证（Authorization）；
+//   - 显式配置 ["*"]：恢复通配（历史行为），通配与凭证互斥，不下发 Allow-Credentials。
+func CORS(allowedOrigins []string) gin.HandlerFunc {
+	wildcard := false
+	allowed := make(map[string]struct{}, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		o = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(o), "/"))
+		if o == "" {
+			continue
+		}
+		if o == "*" {
+			wildcard = true
+			continue
+		}
+		allowed[strings.ToLower(o)] = struct{}{}
+	}
+	if !wildcard && len(allowed) == 0 {
+		return func(c *gin.Context) { c.Next() }
+	}
+	const methods = "GET, POST, PUT, DELETE, OPTIONS"
+	const headers = "Origin, Content-Type, Authorization"
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
+		h := c.Writer.Header()
+		if wildcard {
+			h.Set("Access-Control-Allow-Origin", "*")
+			h.Set("Access-Control-Allow-Methods", methods)
+			h.Set("Access-Control-Allow-Headers", headers)
+		} else {
+			// 命中判定与缓存正确性都依赖 Origin，凡走白名单分支必带 Vary
+			origin := strings.ToLower(c.GetHeader("Origin"))
+			h.Add("Vary", "Origin")
+			if origin == "" {
+				c.Next()
+				return
+			}
+			if _, ok := allowed[origin]; !ok {
+				// 未命中白名单：不下发跨域头，浏览器侧自然拒绝跨域读取；同源请求不受影响
+				c.Next()
+				return
+			}
+			h.Set("Access-Control-Allow-Origin", origin)
+			h.Set("Access-Control-Allow-Credentials", "true")
+			h.Set("Access-Control-Allow-Methods", methods)
+			h.Set("Access-Control-Allow-Headers", headers)
+		}
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return

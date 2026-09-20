@@ -26,6 +26,10 @@ type Server struct {
 	Port      int    `mapstructure:"port"`
 	Mode      string `mapstructure:"mode"`
 	StaticDir string `mapstructure:"staticDir"` // 前端产物目录（如 web/dist），存在则由后端托管 SPA
+	// CORSOrigins 跨域来源白名单：空 = 同源模式（不下发任何 CORS 头，前后端同源托管
+	// 与本地 vite 代理均无需配置）；配置后仅命中来源回显并允许凭证；
+	// 显式配置 ["*"] 恢复通配（历史行为，不允许凭证）。环境变量 APP_SERVER_CORSORIGINS（逗号分隔）
+	CORSOrigins []string `mapstructure:"corsOrigins"`
 }
 
 type DB struct {

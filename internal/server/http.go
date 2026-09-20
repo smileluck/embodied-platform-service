@@ -95,7 +95,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	e.Use(gin.Recovery(),
 		middleware.I18n(),
 		middleware.SecurityHeaders(),
-		middleware.CORS(),
+		middleware.CORS(cfg.Server.CORSOrigins),
 		middleware.XSSFilter(),
 		middleware.SQLInjectionGuard(),
 	)

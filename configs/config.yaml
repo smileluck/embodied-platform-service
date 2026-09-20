@@ -1,6 +1,10 @@
 server:
   port: 28180
   mode: debug # debug | release
+  # 跨域来源白名单：默认为空 = 同源模式（不下发任何 CORS 头；前后端同源托管、本地 vite 代理均无需配置）。
+  # 需要跨域访问 API 时配置来源列表，如 ["https://admin.example.com"]；显式配置 ["*"] 恢复通配（不允许凭证）。
+  # 环境变量 APP_SERVER_CORSORIGINS（逗号分隔）可覆盖
+  corsOrigins: []
 
 db:
   driver: mysql # mysql | postgres | sqlite
