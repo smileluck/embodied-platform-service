@@ -273,6 +273,8 @@ export interface AgentModel {
   context_window: number // 上下文窗口（token，0=未知）
   max_output: number // 单次最大输出（token，0=上游默认）
   supports_tools: boolean
+  input_price: number // 每千 token 输入单价（0=未设置）
+  output_price: number
   remark: string
   status: number
   created_at: string
@@ -421,4 +423,30 @@ export interface AgentConversationMessage {
   content: string
   total_tokens: number // assistant 消息的 usage.total_tokens
   created_at: string
+}
+
+// 用量统计（按日聚合 + Top Agent）
+export interface UsageDailyPoint {
+  date: string
+  calls: number
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  cost: number
+}
+
+export interface UsageAgentPoint {
+  agent_id: number
+  agent_name: string
+  calls: number
+  total_tokens: number
+  cost: number
+}
+
+export interface UsageStats {
+  days: UsageDailyPoint[]
+  agents: UsageAgentPoint[]
+  calls: number
+  tokens: number
+  cost: number
 }

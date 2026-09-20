@@ -147,6 +147,12 @@
         <n-form-item :label="t('agent.model.supportsTools')">
           <n-switch v-model:value="modelForm.supports_tools" size="small" />
         </n-form-item>
+        <n-form-item :label="t('agent.model.inputPrice')">
+          <n-input-number v-model:value="modelForm.input_price" :min="0" :step="0.001" :precision="4" :placeholder="t('agent.model.pricePlaceholder')" style="width: 100%" />
+        </n-form-item>
+        <n-form-item :label="t('agent.model.outputPrice')">
+          <n-input-number v-model:value="modelForm.output_price" :min="0" :step="0.001" :precision="4" :placeholder="t('agent.model.pricePlaceholder')" style="width: 100%" />
+        </n-form-item>
         <n-form-item :label="t('common.remark')">
           <n-input v-model:value="modelForm.remark" :maxlength="200" show-word-limit :placeholder="t('role.remarkPlaceholder')" />
         </n-form-item>
@@ -432,7 +438,8 @@ const modelEditing = ref(false)
 const modelEditId = ref(0)
 const modelSaving = ref(false)
 const modelForm = reactive({
-  name: '', display_name: '', context_window: 0, max_output: 0, supports_tools: false, remark: '', status: 1,
+  name: '', display_name: '', context_window: 0, max_output: 0, supports_tools: false,
+  input_price: null, output_price: null, remark: '', status: 1,
 })
 const modelFormRef = ref<FormInst | null>(null)
 const remoteOptions = ref<{ label: string; value: string }[]>([])
@@ -450,7 +457,8 @@ function openModelCreate() {
   if (!selected.value) return
   modelEditing.value = false
   Object.assign(modelForm, {
-    name: '', display_name: '', context_window: 0, max_output: 0, supports_tools: false, remark: '', status: 1,
+    name: '', display_name: '', context_window: 0, max_output: 0, supports_tools: false,
+  input_price: null, output_price: null, remark: '', status: 1,
   })
   showModelModal.value = true
 }
@@ -460,7 +468,9 @@ function openModelEdit(row: AgentModel) {
   modelEditId.value = row.id
   Object.assign(modelForm, {
     name: row.name, display_name: row.display_name, context_window: row.context_window,
-    max_output: row.max_output, supports_tools: row.supports_tools, remark: row.remark, status: row.status,
+    max_output: row.max_output, supports_tools: row.supports_tools,
+    input_price: row.input_price || null, output_price: row.output_price || null,
+    remark: row.remark, status: row.status,
   })
   showModelModal.value = true
 }
@@ -489,7 +499,9 @@ async function saveModel() {
     const payload = {
       provider_id: selected.value!.id, name: (modelForm.name || '').trim(), display_name: modelForm.display_name.trim(),
       context_window: modelForm.context_window, max_output: modelForm.max_output,
-      supports_tools: modelForm.supports_tools, remark: modelForm.remark.trim(), status: modelForm.status,
+      supports_tools: modelForm.supports_tools,
+      input_price: modelForm.input_price ?? undefined, output_price: modelForm.output_price ?? undefined,
+      remark: modelForm.remark.trim(), status: modelForm.status,
     }
     if (modelEditing.value) {
       // 编辑时 provider_id 不可变（后端按空值保持原供应商，此处显式传当前供应商）

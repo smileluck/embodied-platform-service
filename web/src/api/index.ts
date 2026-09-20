@@ -1,8 +1,43 @@
 import request from './request'
 import type {
-  AgentConversation, AgentConversationMessage, AgentInfo, AgentModel, AgentProvider, AgentTestResult, AdmissionProjection, AppUser, BlacklistItem, DataEvent, Device, DeviceCommand, DeviceModel, DeviceShadow,
-  ExportRecord, FileInfo, LogPageResult, MenuHit, MenuNode, MemberRow, OperationLogInfo, PageResult, Permission,
-  R, Role, ServerStatus, TelemetryHistory, Tenant, TMNode, TMVersion, UserInfo,
+  AdmissionProjection,
+  AgentConversation,
+  AgentConversationMessage,
+  AgentInfo,
+  AgentModel,
+  AgentProvider,
+  AgentTestResult,
+  AppUser,
+  BlacklistItem,
+  CaptchaInfo,
+  DataEvent,
+  Device,
+  DeviceCommand,
+  DeviceModel,
+  DeviceShadow,
+  ExportRecord,
+  FileInfo,
+  LogPageResult,
+  LoginLogInfo,
+  MemberRow,
+  MenuHit,
+  MenuNode,
+  Merchant,
+  MerchantAPILog,
+  OnlineSession,
+  OperationLogInfo,
+  PageResult,
+  Permission,
+  R,
+  Role,
+  ServerStatus,
+  TMNode,
+  TMVersion,
+  TelemetryHistory,
+  Tenant,
+  TokenPair,
+  UsageStats,
+  UserInfo,
 } from './types'
 
 // ---- 认证（登录/刷新/登出直调平台，见 ./platform.ts；这里只保留本系统自身数据接口） ----
@@ -234,3 +269,5 @@ export const deleteAgentConversation = (id: number) =>
   request.delete<R<null>>(`/agent/conversations/${id}`)
 export const listAgentConversationMessages = (id: number, params: { page: number; page_size: number }) =>
   request.get<R<PageResult<AgentConversationMessage>>>(`/agent/conversations/${id}/messages`, { params })
+
+export const getAgentUsage = (days = 7) => request.get<R<UsageStats>>('/agent/usage', { params: { days } })

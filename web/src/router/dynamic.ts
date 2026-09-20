@@ -26,6 +26,7 @@ const viewModules: Record<string, () => Promise<any>> = {
   'menu:agentProvider': () => import('../views/agent/Providers.vue'),
   'menu:agentList': () => import('../views/agent/Agents.vue'),
   'menu:agentChat': () => import('../views/agent/Chat.vue'),
+  'menu:agentUsage': () => import('../views/agent/Usage.vue'),
 }
 
 // 将后端菜单树转换为路由
