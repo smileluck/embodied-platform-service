@@ -87,6 +87,11 @@ var messagesZh = map[string]string{
 	"agent.conversation.not_found":      "会话不存在",
 	"agent.conversation.agent_mismatch": "会话不属于该 Agent",
 	"agent.tool.unknown":                 "工具不存在，请重新选择",
+	"dict.type.not_found":                "字典类型不存在",
+	"dict.type.code_exists":              "字典类型编码已存在，请更换",
+	"dict.type.has_items":                "该类型下存在字典项，请先删除",
+	"dict.item.not_found":                "字典项不存在",
+	"dict.item.exists":                   "该类型下已存在相同标签或取值，请更换",
 	// 开放 API 验签中间件
 	"openapi.missing_sign_headers": "缺少签名请求头",
 	"openapi.invalid_timestamp":    "时间戳无效或超出允许偏差",

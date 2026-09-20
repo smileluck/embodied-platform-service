@@ -8,6 +8,7 @@ import (
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
+	bizdict "github.com/smilex/smilex-admin-gin/internal/biz/dict"
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	bizmonitor "github.com/smilex/smilex-admin-gin/internal/biz/monitor"
@@ -90,6 +91,12 @@ var errKeys = []struct {
 	{bizagent.ErrConversationNotFound, "agent.conversation.not_found"},
 	{bizagent.ErrConversationAgentMismatch, "agent.conversation.agent_mismatch"},
 	{bizagent.ErrUnknownTool, "agent.tool.unknown"},
+	// 数据字典
+	{bizdict.ErrTypeNotFound, "dict.type.not_found"},
+	{bizdict.ErrTypeCodeExists, "dict.type.code_exists"},
+	{bizdict.ErrTypeHasItems, "dict.type.has_items"},
+	{bizdict.ErrItemNotFound, "dict.item.not_found"},
+	{bizdict.ErrItemExists, "dict.item.exists"},
 }
 
 // init 将错误 -> i18n key 匹配函数注册到 response 包（response 不便反向依赖 server，走钩子）

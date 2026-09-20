@@ -87,6 +87,11 @@ var messagesEn = map[string]string{
 	"agent.conversation.not_found":      "Conversation not found",
 	"agent.conversation.agent_mismatch": "Conversation does not belong to this agent",
 	"agent.tool.unknown":                 "Unknown tool, please choose again",
+	"dict.type.not_found":                "Dict type not found",
+	"dict.type.code_exists":              "Dict type code already exists",
+	"dict.type.has_items":                "Dict items exist under this type, delete them first",
+	"dict.item.not_found":                "Dict item not found",
+	"dict.item.exists":                   "An item with the same label or value exists under this type",
 	// Open API sign middleware
 	"openapi.missing_sign_headers": "Missing signature headers",
 	"openapi.invalid_timestamp":    "Timestamp is invalid or out of the allowed skew",

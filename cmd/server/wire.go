@@ -12,6 +12,7 @@ import (
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
 	bizdevice "github.com/smilex/smilex-admin-gin/internal/biz/device"
 	bizdevmodel "github.com/smilex/smilex-admin-gin/internal/biz/devmodel"
+	bizdict "github.com/smilex/smilex-admin-gin/internal/biz/dict"
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
@@ -28,6 +29,7 @@ import (
 	datablacklist "github.com/smilex/smilex-admin-gin/internal/data/blacklist"
 	datadevice "github.com/smilex/smilex-admin-gin/internal/data/device"
 	datadevmodel "github.com/smilex/smilex-admin-gin/internal/data/devmodel"
+	datadict "github.com/smilex/smilex-admin-gin/internal/data/dict"
 	dataexport "github.com/smilex/smilex-admin-gin/internal/data/export"
 	datafile "github.com/smilex/smilex-admin-gin/internal/data/file"
 	datalog "github.com/smilex/smilex-admin-gin/internal/data/log"
@@ -43,6 +45,7 @@ import (
 	blacklistsvc "github.com/smilex/smilex-admin-gin/internal/service/blacklist"
 	devicesvc "github.com/smilex/smilex-admin-gin/internal/service/device"
 	devmodelsvc "github.com/smilex/smilex-admin-gin/internal/service/devmodel"
+	dictsvc "github.com/smilex/smilex-admin-gin/internal/service/dict"
 	exportsvc "github.com/smilex/smilex-admin-gin/internal/service/export"
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
@@ -64,6 +67,7 @@ var bizSet = wire.NewSet(
 	bizappuser.NewUsecase,
 	bizdevice.NewUsecase,
 	bizdevmodel.NewUsecase,
+	bizdict.NewUsecase,
 	bizmonitor.NewUsecase,
 	bizagent.NewUsecase,
 	bizexport.NewUsecase,
@@ -95,6 +99,8 @@ var dataRepoSet = wire.NewSet(
 	dataappuser.NewRepo,
 
 	dataagent.NewRepo,
+
+	datadict.NewRepo,
 	dataexport.NewRepo,
 	dataexport.NewWorker,
 	// 平台集成层（商户 HMAC 开放面 + 身份自省 + 存储）
@@ -141,6 +147,7 @@ var serviceSet = wire.NewSet(
 	devmodelsvc.NewService,
 	monitorsvc.NewService,
 	agentsvc.NewService,
+	dictsvc.NewService,
 )
 
 var providerSet = wire.NewSet(bizSet, dataRepoSet, serviceSet, ProvideConfig, server.NewHTTPServer)

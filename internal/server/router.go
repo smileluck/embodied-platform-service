@@ -25,6 +25,7 @@ import (
 	blacklistsvc "github.com/smilex/smilex-admin-gin/internal/service/blacklist"
 	devicesvc "github.com/smilex/smilex-admin-gin/internal/service/device"
 	devmodelsvc "github.com/smilex/smilex-admin-gin/internal/service/devmodel"
+	dictsvc "github.com/smilex/smilex-admin-gin/internal/service/dict"
 	exportsvc "github.com/smilex/smilex-admin-gin/internal/service/export"
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
@@ -54,6 +55,7 @@ type HTTPServer struct {
 	blacklist     *blacklistsvc.Service
 	monitor       *monitorsvc.Service
 	agent         *agentsvc.Service
+	dict          *dictsvc.Service
 	tenant        *tenantsvc.Service
 	appuser       *appusersvc.Service
 	appuserUC     *bizappuser.Usecase    // AppJWT 中间件直连领域用例（校验用户启用状态）
@@ -74,7 +76,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	file *filesvc.Service, export *exportsvc.Service, blacklist *blacklistsvc.Service,
 	tenant *tenantsvc.Service, appuser *appusersvc.Service, appuserUC *bizappuser.Usecase,
 	appIssuer bizappuser.TokenIssuer, device *devicesvc.Service, devmodel *devmodelsvc.Service,
-	monitor *monitorsvc.Service, agent *agentsvc.Service,
+	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service,
 	rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
 	gin.SetMode(cfg.Server.Mode)
 	e := gin.New()
@@ -97,7 +99,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 		role: role, perm: perm, log: log,
 		file: file, export: export, blacklist: blacklist, tenant: tenant,
 		appuser: appuser, appuserUC: appuserUC, appIssuer: appIssuer,
-		device: device, devmodel: devmodel, monitor: monitor, agent: agent,
+		device: device, devmodel: devmodel, monitor: monitor, agent: agent, dict: dict,
 		rdb:       rdb,
 		rbacCache: rbacCache.TwoLevel, identityCache: identityCache, engine: e,
 	}
@@ -201,6 +203,7 @@ func (s *HTTPServer) registerRoutes() {
 			response.OK(c, hits)
 		})
 
+		basic.GET("/dicts/:code/items", s.listDictItemsByCode)
 		// 异步导出：记录归属当前用户，列表/下载/删除均强制按平台用户 ID 过滤（biz 层校验），
 		// 与 profile/menus 同属自身数据接口，故仅认证不走 RBAC；导出入口（POST */export）在 protected 组按按钮权限点控制
 		exports := basic.Group("/exports")
@@ -329,6 +332,23 @@ func (s *HTTPServer) registerRoutes() {
 		agentModels.POST("/:id/test", s.testAgentModel)
 	}
 
+	// ---- 数据字典 ----
+	dictTypes := protected.Group("/dict-types")
+	{
+		dictTypes.GET("", s.listDictTypes)
+		dictTypes.POST("", s.createDictType)
+		dictTypes.GET("/:id", s.getDictType)
+		dictTypes.PUT("/:id", s.updateDictType)
+		dictTypes.DELETE("/:id", s.deleteDictType)
+		dictTypes.GET("/:id/items", s.listDictItems)
+		dictTypes.POST("/:id/items", s.createDictItem)
+	}
+	dictItems := protected.Group("/dict-items")
+	{
+		dictItems.PUT("/:id", s.updateDictItem)
+		dictItems.DELETE("/:id", s.deleteDictItem)
+	}
+
 	// 可绑定工具清单（Agent 表单多选）
 	agentTools := protected.Group("/agent/tools")
 	{
@@ -363,6 +383,11 @@ func (s *HTTPServer) registerRoutes() {
 		agents.POST("/:id/chat", middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
 			KeyPrefix: "rl:agent-chat:", Max: 20, Window: time.Minute, ByUser: true, MessageKey: "security.rate_limited",
 		}), s.chatAgent)
+	}
+
+	{
+		dictItems.PUT("/:id", s.updateDictItem)
+		dictItems.DELETE("/:id", s.deleteDictItem)
 	}
 
 	// 设备（纯代理平台开放面；租户范围由平台按商户绑定服务端收敛）

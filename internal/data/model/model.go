@@ -10,6 +10,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/biz/agent"
 	"github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
+	"github.com/smilex/smilex-admin-gin/internal/biz/dict"
 	"github.com/smilex/smilex-admin-gin/internal/biz/export"
 	"github.com/smilex/smilex-admin-gin/internal/biz/file"
 	"github.com/smilex/smilex-admin-gin/internal/biz/log"
@@ -560,5 +561,61 @@ func AgentUsageFromPO(p *AgentUsageLogPO) *agent.UsageLog {
 		ID: p.ID, AgentID: p.AgentID, ModelID: p.ModelID, UserID: p.UserID,
 		PromptTokens: p.PromptTokens, CompletionTokens: p.CompletionTokens,
 		TotalTokens: p.TotalTokens, LatencyMs: p.LatencyMs, CreatedAt: p.CreatedAt,
+	}
+}
+
+// DictTypePO 字典类型表
+type DictTypePO struct {
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"size:20"`
+	Code      string `gorm:"size:64;uniqueIndex"`
+	Remark    string `gorm:"size:200"`
+	Status    int    // 1 启用 0 禁用
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+func (DictTypePO) TableName() string { return "dict_types" }
+
+// DictItemPO 字典项表（同类型下 label/value 唯一）
+type DictItemPO struct {
+	ID        uint   `gorm:"primaryKey"`
+	TypeID    uint   `gorm:"index;uniqueIndex:uk_dict_item"`
+	Label     string `gorm:"size:20;uniqueIndex:uk_dict_item"`
+	Value     string `gorm:"size:64;uniqueIndex:uk_dict_item"`
+	Sort      int
+	Remark    string `gorm:"size:200"`
+	Status    int    // 1 启用 0 禁用
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+func (DictItemPO) TableName() string { return "dict_items" }
+
+func DictTypeToPO(t *dict.DictType) *DictTypePO {
+	return &DictTypePO{ID: t.ID, Name: t.Name, Code: t.Code, Remark: t.Remark, Status: int(t.Status)}
+}
+
+func DictTypeFromPO(p *DictTypePO) *dict.DictType {
+	return &dict.DictType{
+		ID: p.ID, Name: p.Name, Code: p.Code, Remark: p.Remark, Status: dict.Status(p.Status),
+		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+}
+
+func DictItemToPO(i *dict.DictItem) *DictItemPO {
+	return &DictItemPO{
+		ID: i.ID, TypeID: i.TypeID, Label: i.Label, Value: i.Value,
+		Sort: i.Sort, Remark: i.Remark, Status: int(i.Status),
+	}
+}
+
+func DictItemFromPO(p *DictItemPO) *dict.DictItem {
+	return &dict.DictItem{
+		ID: p.ID, TypeID: p.TypeID, Label: p.Label, Value: p.Value,
+		Sort: p.Sort, Remark: p.Remark, Status: dict.Status(p.Status),
+		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
 }

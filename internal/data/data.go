@@ -130,7 +130,7 @@ func (d *Data) migrateAndSeed() error {
 		&model.FilePO{}, &model.ExportRecordPO{}, &model.IPBlacklistPO{},
 		&model.TenantPO{}, &model.AppUserPO{}, &model.AppUserTenantPO{},
 		&model.AgentProviderPO{}, &model.AgentModelPO{}, &model.AgentPO{},
-		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{},
+		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{},
 	); err != nil {
 		return err
 	}
@@ -177,6 +177,14 @@ var systemMenus = []systemMenuDef{
 	{Name: "型号管理", Code: "menu:deviceModel", Path: "/device/models", Icon: "CubeOutline", Sort: 2, ParentCode: "menu:deviceCenter"},
 	// 租户中心（顶级目录分组）
 	{Name: "租户中心", Code: "menu:tenantCenter", Type: "dir", Icon: "BusinessOutline", Sort: 4},
+	{Name: "数据字典", Code: "menu:dict", Path: "/system/dicts", Icon: "BookOutline", Sort: 10, ParentCode: "menu:system"},
+	{Name: "关于我们", Code: "menu:about", Path: "/about", Icon: "InformationCircleOutline", Sort: 9},
+	{Name: "日志管理", Code: "menu:log", Type: "dir", Icon: "DocumentTextOutline", Sort: 3},
+	{Name: "操作日志", Code: "menu:opLog", Path: "/log/operation-logs", Icon: "ClipboardOutline", Sort: 2, ParentCode: "menu:log"},
+	{Name: "文件管理", Code: "menu:file", Path: "/file", Icon: "FolderOpenOutline", Sort: 4},
+	{Name: "IP黑名单", Code: "menu:blacklist", Path: "/system/blacklist", Icon: "BanOutline", Sort: 6, ParentCode: "menu:system"},
+	{Name: "服务器监控", Code: "menu:monitor", Path: "/system/monitor", Icon: "SpeedometerOutline", Sort: 6},
+	{Name: "租户中心", Code: "menu:tenantCenter", Type: "dir", Icon: "BusinessOutline", Sort: 2},
 	{Name: "租户管理", Code: "menu:tenant", Path: "/tenant/tenants", Icon: "BusinessOutline", Sort: 1, ParentCode: "menu:tenantCenter"},
 	{Name: "应用用户", Code: "menu:appUser", Path: "/tenant/app-users", Icon: "PeopleOutline", Sort: 2, ParentCode: "menu:tenantCenter"},
 	// 智能体（LLM 配置底座，顶级目录分组，父级先于子菜单声明以解析 ParentCode）
@@ -397,6 +405,17 @@ var systemButtonPerms = []systemButtonPermDef{
 
 	// 用量统计
 	{Name: "查询用量统计", Code: "agent:usage", Menu: "menu:agentUsage", Method: "GET", Path: "/api/v1/agent/usage", Sort: 1},
+
+	// 数据字典
+	{Name: "查询字典类型", Code: "dict:type:list", Menu: "menu:dict", Method: "GET", Path: "/api/v1/dict-types", Sort: 1},
+	{Name: "字典类型详情", Code: "dict:type:view", Menu: "menu:dict", Method: "GET", Path: "/api/v1/dict-types/*", Sort: 2},
+	{Name: "新增字典类型", Code: "dict:type:create", Menu: "menu:dict", Method: "POST", Path: "/api/v1/dict-types", Sort: 3},
+	{Name: "编辑字典类型", Code: "dict:type:update", Menu: "menu:dict", Method: "PUT", Path: "/api/v1/dict-types/*", Sort: 4},
+	{Name: "删除字典类型", Code: "dict:type:delete", Menu: "menu:dict", Method: "DELETE", Path: "/api/v1/dict-types/*", Sort: 5},
+	{Name: "查询字典项", Code: "dict:item:list", Menu: "menu:dict", Method: "GET", Path: "/api/v1/dict-types/*/items", Sort: 6},
+	{Name: "新增字典项", Code: "dict:item:create", Menu: "menu:dict", Method: "POST", Path: "/api/v1/dict-types/*/items", Sort: 7},
+	{Name: "编辑字典项", Code: "dict:item:update", Menu: "menu:dict", Method: "PUT", Path: "/api/v1/dict-items/*", Sort: 8},
+	{Name: "删除字典项", Code: "dict:item:delete", Menu: "menu:dict", Method: "DELETE", Path: "/api/v1/dict-items/*", Sort: 9},
 }
 
 // ensureSystemButtonPerms 幂等补齐系统管理接口权限点并绑定商户管理员角色（每次启动执行）：
