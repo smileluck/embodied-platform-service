@@ -3,6 +3,7 @@
 package model
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/smilex/smilex-admin-gin/internal/biz/admission"
@@ -220,17 +221,17 @@ func (AgentProviderPO) TableName() string { return "agent_providers" }
 
 // AgentModelPO 供应商下的模型配置表（同一供应商下模型名唯一）
 type AgentModelPO struct {
-	ID            uint   `gorm:"primaryKey"`
-	ProviderID    uint   `gorm:"index;uniqueIndex:uk_agent_provider_model"`
-	Name          string `gorm:"size:128;uniqueIndex:uk_agent_provider_model"`
-	DisplayName   string `gorm:"size:20"`
-	ContextWindow int    // 上下文窗口（token，0=未知）
-	MaxOutput     int    // 单次最大输出（token，0=上游默认）
-	SupportsTools bool   // 支持工具调用（function call）
+	ID            uint    `gorm:"primaryKey"`
+	ProviderID    uint    `gorm:"index;uniqueIndex:uk_agent_provider_model"`
+	Name          string  `gorm:"size:128;uniqueIndex:uk_agent_provider_model"`
+	DisplayName   string  `gorm:"size:20"`
+	ContextWindow int     // 上下文窗口（token，0=未知）
+	MaxOutput     int     // 单次最大输出（token，0=上游默认）
+	SupportsTools bool    // 支持工具调用（function call）
 	InputPrice    float64 // 每千 token 输入单价（0=未设置不估算）
 	OutputPrice   float64 // 每千 token 输出单价
-	Remark        string `gorm:"size:200"`
-	Status        int    // 1 启用 0 禁用
+	Remark        string  `gorm:"size:200"`
+	Status        int     // 1 启用 0 禁用
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	DeletedAt     gorm.DeletedAt `gorm:"index"`
@@ -248,6 +249,7 @@ type AgentPO struct {
 	Temperature  float64
 	TopP         float64
 	MaxTokens    int    // 0=上游默认
+	Tools        string `gorm:"size:512"` // 绑定的本地工具名 JSON 数组（空=无工具）
 	Remark       string `gorm:"size:200"`
 	Status       int    // 1 启用 0 禁用
 	CreatedAt    time.Time
@@ -481,7 +483,7 @@ func AgentToPO(a *agent.Agent) *AgentPO {
 	return &AgentPO{
 		ID: a.ID, Name: a.Name, Code: a.Code, ModelID: a.ModelID,
 		SystemPrompt: a.SystemPrompt, Temperature: a.Temperature, TopP: a.TopP,
-		MaxTokens: a.MaxTokens, Remark: a.Remark, Status: int(a.Status),
+		MaxTokens: a.MaxTokens, Tools: MarshalAgentTools(a.Tools), Remark: a.Remark, Status: int(a.Status),
 	}
 }
 
@@ -489,9 +491,32 @@ func AgentFromPO(p *AgentPO) *agent.Agent {
 	return &agent.Agent{
 		ID: p.ID, Name: p.Name, Code: p.Code, ModelID: p.ModelID,
 		SystemPrompt: p.SystemPrompt, Temperature: p.Temperature, TopP: p.TopP,
-		MaxTokens: p.MaxTokens, Remark: p.Remark, Status: agent.Status(p.Status),
+		MaxTokens: p.MaxTokens, Tools: UnmarshalAgentTools(p.Tools), Remark: p.Remark, Status: agent.Status(p.Status),
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
+}
+
+// marshalTools 工具名列表 <-> JSON 文本（空列表与空串互转）
+func MarshalAgentTools(names []string) string {
+	if len(names) == 0 {
+		return ""
+	}
+	b, err := json.Marshal(names)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func UnmarshalAgentTools(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var names []string
+	if json.Unmarshal([]byte(s), &names) != nil {
+		return nil
+	}
+	return names
 }
 
 func AgentConversationToPO(cv *agent.Conversation) *AgentConversationPO {

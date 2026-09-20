@@ -386,6 +386,7 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "编辑Agent", Code: "agent:update", Menu: "menu:agentList", Method: "PUT", Path: "/api/v1/agents/*", Sort: 4},
 	{Name: "删除Agent", Code: "agent:delete", Menu: "menu:agentList", Method: "DELETE", Path: "/api/v1/agents/*", Sort: 5},
 	{Name: "Agent调试对话", Code: "agent:chat", Menu: "menu:agentList", Method: "POST", Path: "/api/v1/agents/*/chat", Sort: 6},
+	{Name: "查询工具清单", Code: "agent:tool:list", Menu: "menu:agentList", Method: "GET", Path: "/api/v1/agent/tools", Sort: 7},
 
 	// 会话（本人数据，挂在聊天测试页）
 	{Name: "查询会话", Code: "agent:conversation:list", Menu: "menu:agentChat", Method: "GET", Path: "/api/v1/agent/conversations", Sort: 1},

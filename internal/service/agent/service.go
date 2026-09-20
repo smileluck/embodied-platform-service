@@ -136,34 +136,36 @@ func (s *Service) TestModel(ctx context.Context, modelID uint) (*bizagent.TestRe
 // ---- Agent ----
 
 type AgentCreateRequest struct {
-	Name         string  `json:"name" binding:"required,max=20"`
-	Code         string  `json:"code" binding:"required,max=64"`
-	ModelID      uint    `json:"model_id" binding:"required,gt=0"`
-	SystemPrompt string  `json:"system_prompt" binding:"max=4000"`
-	Temperature  float64 `json:"temperature" binding:"gte=0,lte=2"`
-	TopP         float64 `json:"top_p" binding:"gte=0,lte=1"`
-	MaxTokens    int     `json:"max_tokens" binding:"gte=0,lte=131072"` // 0=上游默认
-	Remark       string  `json:"remark" binding:"max=200"`
-	Status       *int    `json:"status" binding:"omitempty,gte=0,lte=1"`
+	Name         string   `json:"name" binding:"required,max=20"`
+	Code         string   `json:"code" binding:"required,max=64"`
+	ModelID      uint     `json:"model_id" binding:"required,gt=0"`
+	SystemPrompt string   `json:"system_prompt" binding:"max=4000"`
+	Temperature  float64  `json:"temperature" binding:"gte=0,lte=2"`
+	TopP         float64  `json:"top_p" binding:"gte=0,lte=1"`
+	MaxTokens    int      `json:"max_tokens" binding:"gte=0,lte=131072"`        // 0=上游默认
+	Tools        []string `json:"tools" binding:"omitempty,max=10,dive,max=64"` // 绑定的本地工具（function calling）
+	Remark       string   `json:"remark" binding:"max=200"`
+	Status       *int     `json:"status" binding:"omitempty,gte=0,lte=1"`
 }
 
 type AgentUpdateRequest struct {
-	Name         string  `json:"name" binding:"omitempty,max=20"` // 空=保持原名
-	Code         string  `json:"code" binding:"omitempty,max=64"`
-	ModelID      uint    `json:"model_id" binding:"omitempty,gt=0"` // 空=保持原模型
-	SystemPrompt string  `json:"system_prompt" binding:"max=4000"`
-	Temperature  float64 `json:"temperature" binding:"gte=0,lte=2"`
-	TopP         float64 `json:"top_p" binding:"gte=0,lte=1"`
-	MaxTokens    int     `json:"max_tokens" binding:"gte=0,lte=131072"`
-	Remark       string  `json:"remark" binding:"max=200"`
-	Status       *int    `json:"status" binding:"omitempty,gte=0,lte=1"`
+	Name         string   `json:"name" binding:"omitempty,max=20"` // 空=保持原名
+	Code         string   `json:"code" binding:"omitempty,max=64"`
+	ModelID      uint     `json:"model_id" binding:"omitempty,gt=0"` // 空=保持原模型
+	SystemPrompt string   `json:"system_prompt" binding:"max=4000"`
+	Temperature  float64  `json:"temperature" binding:"gte=0,lte=2"`
+	TopP         float64  `json:"top_p" binding:"gte=0,lte=1"`
+	MaxTokens    int      `json:"max_tokens" binding:"gte=0,lte=131072"`
+	Tools        []string `json:"tools" binding:"omitempty,max=10,dive,max=64"` // nil=保持原绑定；空数组=清空
+	Remark       string   `json:"remark" binding:"max=200"`
+	Status       *int     `json:"status" binding:"omitempty,gte=0,lte=1"`
 }
 
 func (s *Service) CreateAgent(ctx context.Context, req AgentCreateRequest) (*bizagent.Agent, error) {
 	return s.uc.CreateAgent(ctx, bizagent.AgentInput{
 		Name: req.Name, Code: req.Code, ModelID: req.ModelID,
 		SystemPrompt: req.SystemPrompt, Temperature: req.Temperature, TopP: req.TopP,
-		MaxTokens: req.MaxTokens, Remark: req.Remark, Status: statusOf(req.Status),
+		MaxTokens: req.MaxTokens, Tools: req.Tools, Remark: req.Remark, Status: statusOf(req.Status),
 	})
 }
 
@@ -171,7 +173,7 @@ func (s *Service) UpdateAgent(ctx context.Context, id uint, req AgentUpdateReque
 	return s.uc.UpdateAgent(ctx, id, bizagent.AgentInput{
 		Name: req.Name, Code: req.Code, ModelID: req.ModelID,
 		SystemPrompt: req.SystemPrompt, Temperature: req.Temperature, TopP: req.TopP,
-		MaxTokens: req.MaxTokens, Remark: req.Remark, Status: statusOf(req.Status),
+		MaxTokens: req.MaxTokens, Tools: req.Tools, Remark: req.Remark, Status: statusOf(req.Status),
 	})
 }
 
@@ -253,3 +255,6 @@ func (s *Service) ListConversationMessages(ctx context.Context, userID, conversa
 func (s *Service) UsageStats(ctx context.Context, days int) (*bizagent.UsageStats, error) {
 	return s.uc.UsageStats(ctx, days)
 }
+
+// ToolNames 可绑定的工具清单（Agent 表单多选）
+func (s *Service) ToolNames() []string { return s.uc.ToolNames() }

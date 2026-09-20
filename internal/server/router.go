@@ -329,6 +329,12 @@ func (s *HTTPServer) registerRoutes() {
 		agentModels.POST("/:id/test", s.testAgentModel)
 	}
 
+	// 可绑定工具清单（Agent 表单多选）
+	agentTools := protected.Group("/agent/tools")
+	{
+		agentTools.GET("", s.listAgentTools)
+	}
+
 	// 用量统计（读聚合）
 	usage := protected.Group("/agent/usage")
 	{

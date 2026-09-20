@@ -46,6 +46,9 @@ var (
 	ErrConversationNotFound = errors.New("会话不存在")
 	// ErrConversationAgentMismatch 会话与 Agent 不匹配（不支持跨 Agent 追加消息）
 	ErrConversationAgentMismatch = errors.New("会话不属于该 Agent")
+
+	// ErrUnknownTool Agent 绑定了未注册的工具名
+	ErrUnknownTool = errors.New("工具不存在")
 )
 
 // ProviderQuery 供应商列表查询条件

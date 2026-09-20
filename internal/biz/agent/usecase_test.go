@@ -184,7 +184,7 @@ func newTestUsecase(repo Repo) *Usecase {
 	return NewUsecase(repo, &conf.Bootstrap{
 		Agent: conf.Agent{CryptoKey: "unit-test-key"},
 		JWT:   conf.JWT{Secret: "jwt-secret"},
-	})
+	}, nil)
 }
 
 // seed 三层配置：供应商（带密钥）-> 模型 -> Agent

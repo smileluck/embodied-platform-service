@@ -75,6 +75,8 @@ var bizSet = wire.NewSet(
 	wire.Bind(new(auth.AdmissionReader), new(*bizadmission.Usecase)),
 	// 设备注册自愈：平台 403 时经租户用例补链重建（LinkOrCreate 幂等）
 	wire.Bind(new(bizdevice.TenantRelinker), new(*biztenant.Usecase)),
+	// 智能体内置只读工具：服务器状态查询复用 monitor 用例
+	wire.Bind(new(bizagent.ServerStatusReader), new(*bizmonitor.Usecase)),
 )
 
 var dataRepoSet = wire.NewSet(

@@ -71,6 +71,7 @@ type Agent struct {
 	Temperature  float64   `json:"temperature"` // 0~2；0 表示未设置（用上游默认）
 	TopP         float64   `json:"top_p"`       // 0~1；0 表示未设置
 	MaxTokens    int       `json:"max_tokens"`  // 0=上游默认
+	Tools        []string  `json:"tools"`       // 绑定的本地工具名（function calling；模型不支持时忽略）
 	Remark       string    `json:"remark"`
 	Status       Status    `json:"status"`
 	CreatedAt    time.Time `json:"created_at"`

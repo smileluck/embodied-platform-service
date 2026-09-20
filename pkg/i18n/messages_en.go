@@ -86,6 +86,7 @@ var messagesEn = map[string]string{
 	"agent.timeout":                     "LLM upstream call timed out, please try again later",
 	"agent.conversation.not_found":      "Conversation not found",
 	"agent.conversation.agent_mismatch": "Conversation does not belong to this agent",
+	"agent.tool.unknown":                 "Unknown tool, please choose again",
 	// Open API sign middleware
 	"openapi.missing_sign_headers": "Missing signature headers",
 	"openapi.invalid_timestamp":    "Timestamp is invalid or out of the allowed skew",

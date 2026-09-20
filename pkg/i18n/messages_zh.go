@@ -86,6 +86,7 @@ var messagesZh = map[string]string{
 	"agent.timeout":                     "LLM 上游调用超时，请稍后重试",
 	"agent.conversation.not_found":      "会话不存在",
 	"agent.conversation.agent_mismatch": "会话不属于该 Agent",
+	"agent.tool.unknown":                 "工具不存在，请重新选择",
 	// 开放 API 验签中间件
 	"openapi.missing_sign_headers": "缺少签名请求头",
 	"openapi.invalid_timestamp":    "时间戳无效或超出允许偏差",

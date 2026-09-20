@@ -17,11 +17,20 @@ import (
 type Usecase struct {
 	repo   Repo
 	crypto *Crypto
+	tools  *ToolRegistry
 }
 
-func NewUsecase(repo Repo, cfg *conf.Bootstrap) *Usecase {
-	return &Usecase{repo: repo, crypto: NewCrypto(cfg.Agent.CryptoKey, cfg.JWT.Secret)}
+// NewUsecase 构建用例并注册内置工具（mon 为 nil 时不注册 get_server_status）
+func NewUsecase(repo Repo, cfg *conf.Bootstrap, mon ServerStatusReader) *Usecase {
+	builtin := []Tool{newNowTool()}
+	if mon != nil {
+		builtin = append(builtin, newServerStatusTool(mon))
+	}
+	return &Usecase{repo: repo, crypto: NewCrypto(cfg.Agent.CryptoKey, cfg.JWT.Secret), tools: NewToolRegistry(builtin...)}
 }
+
+// ToolNames 可绑定的工具清单（Agent 表单多选用）
+func (uc *Usecase) ToolNames() []string { return uc.tools.Names() }
 
 // ---- 供应商 ----
 
@@ -222,8 +231,26 @@ type AgentInput struct {
 	Temperature  float64
 	TopP         float64
 	MaxTokens    int
+	Tools        []string
 	Remark       string
 	Status       Status
+}
+
+// validateTools 校验绑定的工具均已注册（去重保序）
+func (uc *Usecase) validateTools(names []string) ([]string, error) {
+	seen := make(map[string]struct{}, len(names))
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		if _, ok := uc.tools.Get(n); !ok {
+			return nil, ErrUnknownTool
+		}
+		if _, dup := seen[n]; dup {
+			continue
+		}
+		seen[n] = struct{}{}
+		out = append(out, n)
+	}
+	return out, nil
 }
 
 func (uc *Usecase) CreateAgent(ctx context.Context, in AgentInput) (*Agent, error) {
@@ -235,10 +262,14 @@ func (uc *Usecase) CreateAgent(ctx context.Context, in AgentInput) (*Agent, erro
 	} else if !errors.Is(err, ErrAgentNotFound) {
 		return nil, err
 	}
+	tools, err := uc.validateTools(in.Tools)
+	if err != nil {
+		return nil, err
+	}
 	a := &Agent{
 		Name: in.Name, Code: in.Code, ModelID: in.ModelID,
 		SystemPrompt: in.SystemPrompt, Temperature: in.Temperature, TopP: in.TopP,
-		MaxTokens: in.MaxTokens, Remark: in.Remark, Status: in.Status,
+		MaxTokens: in.MaxTokens, Tools: tools, Remark: in.Remark, Status: in.Status,
 	}
 	if err := uc.repo.CreateAgent(ctx, a); err != nil {
 		return nil, err
@@ -274,6 +305,13 @@ func (uc *Usecase) UpdateAgent(ctx context.Context, id uint, in AgentInput) erro
 	a.Temperature = in.Temperature
 	a.TopP = in.TopP
 	a.MaxTokens = in.MaxTokens
+	if in.Tools != nil { // nil=保持原绑定；空数组=清空
+		tools, err := uc.validateTools(in.Tools)
+		if err != nil {
+			return err
+		}
+		a.Tools = tools
+	}
 	if in.Remark != "" {
 		a.Remark = in.Remark
 	}
@@ -415,12 +453,20 @@ func (uc *Usecase) ChatStream(ctx context.Context, agentID uint, userID, convers
 	}
 	msgs = append(msgs, history...)
 
-	ch, err := cli.StreamCompletion(ctx, ChatRequest{
+	req := ChatRequest{
 		Model: m.Name, Messages: msgs,
 		Temperature: a.Temperature, TopP: a.TopP, MaxTokens: a.MaxTokens,
-	})
-	if err != nil {
-		return nil, nil, err
+		Tools: uc.toolDefsFor(a, m),
+	}
+	var ch <-chan StreamEvent
+	if len(req.Tools) > 0 {
+		ch = uc.runToolLoop(ctx, cli, req)
+	} else {
+		var err2 error
+		ch, err2 = cli.StreamCompletion(ctx, req)
+		if err2 != nil {
+			return nil, nil, err2
+		}
 	}
 
 	// 上游接受请求后再落 user 消息：避免上游拒绝时留下无回复的孤儿消息。
@@ -713,4 +759,138 @@ func (uc *Usecase) UsageStats(ctx context.Context, days int) (*UsageStats, error
 		stats.Agents = stats.Agents[:10]
 	}
 	return stats, nil
+}
+
+// ---- function calling 执行循环 ----
+
+// 工具执行防护参数
+const (
+	toolExecTimeout = 10 * time.Second // 单个工具执行超时
+	toolResultMax   = 8 << 10          // 工具结果回传上限（超出截断，防撑爆上下文）
+	maxToolRounds   = 5                // 最大调用轮数（防工具调用死循环）
+)
+
+// toolDefsFor 下发工具定义：Agent 绑定且已注册、模型声明支持工具调用（不支持时上游会拒绝）
+func (uc *Usecase) toolDefsFor(a *Agent, m *Model) []ToolDef {
+	if !m.SupportsTools || len(a.Tools) == 0 {
+		return nil
+	}
+	names := uc.tools.Names()
+	defs := make([]ToolDef, 0, len(a.Tools))
+	for _, n := range names {
+		for _, want := range a.Tools {
+			if n == want {
+				if t, ok := uc.tools.Get(n); ok {
+					defs = append(defs, ToolDef{Type: "function", Function: t.Def()})
+				}
+			}
+		}
+	}
+	return defs
+}
+
+// runToolLoop 工具调用编排：转发每轮增量文本；模型请求工具时本地执行并把结果回传续答，
+// 直到模型不再调用工具或达到轮数上限。多轮 usage 合并后在末尾以单帧下发（外层计量按此记账）。
+func (uc *Usecase) runToolLoop(ctx context.Context, cli LLMClient, req ChatRequest) <-chan StreamEvent {
+	out := make(chan StreamEvent)
+	go func() {
+		defer close(out)
+		emit := func(ev StreamEvent) bool {
+			select {
+			case out <- ev:
+				return true
+			case <-ctx.Done():
+				return false
+			}
+		}
+		var sumPrompt, sumCompletion, sumTotal int
+		hasUsage := false
+		for round := 0; round < maxToolRounds; round++ {
+			ch, err := cli.StreamCompletion(ctx, req)
+			if err != nil {
+				emit(StreamEvent{Err: err})
+				return
+			}
+			var content strings.Builder
+			var calls []ToolCall
+			for ev := range ch {
+				if ev.Err != nil {
+					emit(ev)
+					return
+				}
+				if ev.Usage != nil { // 用量不在轮内转发，循环末尾合并下发
+					sumPrompt += ev.Usage.PromptTokens
+					sumCompletion += ev.Usage.CompletionTokens
+					sumTotal += ev.Usage.TotalTokens
+					hasUsage = true
+				}
+				if len(ev.Calls) > 0 {
+					calls = ev.Calls
+					continue // tool_calls 终帧不直接透传（结果由本地执行后以 tool 帧下发）
+				}
+				fwd := ev
+				fwd.Usage = nil
+				if fwd.Delta != "" || fwd.FinishReason != "" {
+					if !emit(fwd) {
+						return
+					}
+				}
+			}
+			if len(calls) == 0 {
+				// 最终轮：合并多轮用量后结束
+				if hasUsage {
+					emit(StreamEvent{Usage: &Usage{PromptTokens: sumPrompt, CompletionTokens: sumCompletion, TotalTokens: sumTotal}})
+				}
+				return
+			}
+			// 本地执行全部调用（含失败结果，交模型自行处置），以 tool 帧下发过程
+			results := make([]ToolCallResult, 0, len(calls))
+			for _, c := range calls {
+				results = append(results, uc.execTool(c))
+			}
+			if !emit(StreamEvent{ToolCalls: results}) {
+				return
+			}
+			// 回传上游：assistant(tool_calls) + 每个调用的 tool 结果
+			req.Messages = append(req.Messages, Message{Role: "assistant", Content: content.String(), ToolCalls: calls})
+			for i, c := range calls {
+				req.Messages = append(req.Messages, Message{Role: "tool", ToolCallID: c.ID, Content: toolResultContent(results[i])})
+			}
+		}
+		// 轮数用尽仍要求调用工具：停止续答，补发合并用量
+		if hasUsage {
+			emit(StreamEvent{Usage: &Usage{PromptTokens: sumPrompt, CompletionTokens: sumCompletion, TotalTokens: sumTotal}})
+		}
+	}()
+	return out
+}
+
+// execTool 执行单个工具调用（超时与结果大小防护；失败不中断流，错误回传模型）
+func (uc *Usecase) execTool(c ToolCall) ToolCallResult {
+	r := ToolCallResult{ID: c.ID, Name: c.Function.Name, Arguments: c.Function.Arguments}
+	tool, ok := uc.tools.Get(c.Function.Name)
+	if !ok {
+		r.Error = "unknown tool: " + c.Function.Name
+		return r
+	}
+	tctx, cancel := context.WithTimeout(context.Background(), toolExecTimeout)
+	defer cancel()
+	out, err := tool.Execute(tctx, c.Function.Arguments)
+	if err != nil {
+		r.Error = err.Error()
+		return r
+	}
+	if len(out) > toolResultMax {
+		out = out[:toolResultMax] + "…（已截断）"
+	}
+	r.Result = out
+	return r
+}
+
+// toolResultContent 回传给上游的工具结果文本
+func toolResultContent(r ToolCallResult) string {
+	if r.Error != "" {
+		return "error: " + r.Error
+	}
+	return r.Result
 }

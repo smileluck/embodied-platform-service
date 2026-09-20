@@ -89,6 +89,7 @@ var errKeys = []struct {
 	{bizagent.ErrLLMTimeout, "agent.timeout"},
 	{bizagent.ErrConversationNotFound, "agent.conversation.not_found"},
 	{bizagent.ErrConversationAgentMismatch, "agent.conversation.agent_mismatch"},
+	{bizagent.ErrUnknownTool, "agent.tool.unknown"},
 }
 
 // init 将错误 -> i18n key 匹配函数注册到 response 包（response 不便反向依赖 server，走钩子）

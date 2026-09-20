@@ -329,6 +329,11 @@ func (s *HTTPServer) chatAgent(c *gin.Context) {
 				}
 				return false
 			}
+			// 工具调用执行结果：独立 tool 帧（前端折叠卡片展示过程）
+			if len(ev.ToolCalls) > 0 {
+				writeSSE(w, "tool", gin.H{"tool_calls": ev.ToolCalls})
+				return true
+			}
 			writeSSE(w, "delta", ev)
 			return true
 		case <-keepalive.C:
@@ -432,4 +437,9 @@ func (s *HTTPServer) getAgentUsage(c *gin.Context) {
 		return
 	}
 	response.OK(c, stats)
+}
+
+// listAgentTools 可绑定的本地工具清单（Agent 表单多选）
+func (s *HTTPServer) listAgentTools(c *gin.Context) {
+	response.OK(c, s.agent.ToolNames())
 }
