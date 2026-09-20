@@ -41,5 +41,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - name: Install
         run: npm ci
+      - name: Lint
+        run: npm run lint
       - name: Build # npm run build 内含 vue-tsc 类型检查
         run: npm run build
