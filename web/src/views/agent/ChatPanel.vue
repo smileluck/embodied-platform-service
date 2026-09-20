@@ -6,12 +6,17 @@
       <span class="chat-model mono">{{ currentModel || '—' }}</span>
       <span class="chat-sub">{{ subtitle }}</span>
     </div>
-    <div ref="listRef" class="chat-list">
+    <div ref="listRef" class="chat-list" @click="onListClick">
       <div v-if="loadingHistory" class="chat-empty"><n-spin size="small" /></div>
       <div v-else-if="!messages.length" class="chat-empty">{{ t('agent.playground.empty') }}</div>
       <div v-for="(m, i) in messages" :key="i" class="chat-msg" :class="m.role">
         <div class="chat-bubble">
-          <div class="chat-text">{{ m.content || (m.role === 'assistant' && m.streaming ? t('agent.playground.streaming') : '') }}</div>
+          <n-button
+            v-if="m.content" class="bubble-copy" size="tiny" quaternary
+            :title="t('agent.playground.copy')" @click="copyText(m.content)"
+          >⧉</n-button>
+          <div v-if="m.role === 'assistant'" class="chat-text md" v-html="renderMd(m)"></div>
+          <div v-else class="chat-text">{{ m.content }}</div>
           <div v-if="m.error" class="chat-error">{{ m.error }}</div>
           <div v-else-if="m.role === 'assistant' && !m.streaming && m.usage" class="chat-usage mono">
             {{ t('agent.playground.tokenUsage') }} {{ m.usage.total_tokens }}
@@ -41,6 +46,7 @@ import { NButton, NInput, NSpin, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { listAgentConversationMessages } from '../../api'
 import { useUserStore } from '../../stores/user'
+import { renderMarkdown } from '../../utils/markdown'
 
 interface ChatMsg {
   role: 'user' | 'assistant'
@@ -108,6 +114,29 @@ async function loadHistory() {
 
 function clear() {
   messages.value = []
+}
+
+// assistant 消息 markdown 渲染（流式期间每个增量帧重渲染当前气泡）
+function renderMd(m: ChatMsg): string {
+  if (!m.content && m.streaming) return ''
+  return renderMarkdown(m.content, { copyLabel: t('agent.playground.copy') })
+}
+
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    message.success(t('agent.playground.copied'))
+  } catch {
+    message.error(t('agent.playground.copyFailed'))
+  }
+}
+
+// 代码块复制按钮的容器级事件委托
+function onListClick(e: MouseEvent) {
+  const btn = (e.target as HTMLElement)?.closest?.('.md-copy-btn') as HTMLElement | null
+  if (!btn) return
+  const code = btn.closest('.md-code')?.querySelector('code')?.textContent ?? ''
+  copyText(code)
 }
 
 function stop() {
@@ -285,5 +314,121 @@ function handleSSEFrame(frame: string, assistant: ChatMsg) {
 }
 .mono {
   font-family: var(--sx-font-mono);
+}
+
+/* 消息级复制按钮：hover 气泡时浮现 */
+.bubble-copy {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.chat-bubble {
+  position: relative;
+}
+.chat-bubble:hover .bubble-copy {
+  opacity: 1;
+}
+
+/* markdown 排版（v-html 内容需 :deep） */
+.chat-text.md :deep(p) {
+  margin: 0 0 6px;
+}
+.chat-text.md :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.chat-text.md :deep(ul), .chat-text.md :deep(ol) {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+.chat-text.md :deep(li) {
+  margin: 2px 0;
+}
+.chat-text.md :deep(h1), .chat-text.md :deep(h2), .chat-text.md :deep(h3),
+.chat-text.md :deep(h4), .chat-text.md :deep(h5), .chat-text.md :deep(h6) {
+  margin: 10px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.chat-text.md :deep(a) {
+  color: var(--sx-accent);
+  text-decoration: none;
+}
+.chat-text.md :deep(a:hover) {
+  text-decoration: underline;
+}
+.chat-text.md :deep(blockquote) {
+  margin: 6px 0;
+  padding: 2px 10px;
+  border-left: 3px solid var(--sx-line);
+  color: var(--sx-muted);
+}
+.chat-text.md :deep(code) {
+  font-family: var(--sx-font-mono);
+  font-size: 12.5px;
+}
+.chat-text.md :deep(p code), .chat-text.md :deep(li code) {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(63, 117, 171, 0.1);
+}
+.chat-text.md :deep(table) {
+  border-collapse: collapse;
+  margin: 6px 0;
+  font-size: 13px;
+}
+.chat-text.md :deep(th), .chat-text.md :deep(td) {
+  border: 1px solid var(--sx-line);
+  padding: 4px 8px;
+}
+.chat-text.md :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--sx-line);
+  margin: 8px 0;
+}
+
+/* 代码块：语言栏 + 复制按钮 + hljs 着色 */
+.chat-text.md :deep(.md-code) {
+  margin: 6px 0;
+  border: 1px solid var(--sx-line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f6f8fa;
+}
+.chat-text.md :deep(.md-code-bar) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 8px 2px 10px;
+  border-bottom: 1px solid var(--sx-line);
+  background: #eef1f4;
+}
+.chat-text.md :deep(.md-code-lang) {
+  font-size: 11px;
+  color: var(--sx-muted);
+  font-family: var(--sx-font-mono);
+}
+.chat-text.md :deep(.md-copy-btn) {
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  color: var(--sx-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.chat-text.md :deep(.md-copy-btn:hover) {
+  color: var(--sx-accent);
+  background: rgba(63, 117, 171, 0.1);
+}
+.chat-text.md :deep(.md-code pre) {
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+}
+.chat-text.md :deep(.md-code code) {
+  background: transparent;
+  padding: 0;
 }
 </style>
