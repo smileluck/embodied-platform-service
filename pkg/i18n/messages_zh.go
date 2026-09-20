@@ -65,6 +65,8 @@ var messagesZh = map[string]string{
 	// 应用用户
 	"appuser.not_found":   "应用用户不存在",
 	"appuser.name_exists": "用户名已存在，请更换",
+	// 服务器监控
+	"monitor.collect_failed": "服务器指标采集失败，请稍后重试",
 	// 开放 API 验签中间件
 	"openapi.missing_sign_headers": "缺少签名请求头",
 	"openapi.invalid_timestamp":    "时间戳无效或超出允许偏差",
@@ -90,4 +92,5 @@ var messagesZh = map[string]string{
 	"menu.menu:tenantCenter": "租户中心",
 	"menu.menu:tenant":       "租户管理",
 	"menu.menu:appUser":      "应用用户",
+	"menu.menu:monitor":      "服务器监控",
 }

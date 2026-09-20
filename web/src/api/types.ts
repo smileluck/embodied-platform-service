@@ -181,6 +181,73 @@ export interface FileInfo {
   created_at: string
 }
 
+// ---- 服务器状态监控 ----
+export interface ServerHost {
+  hostname: string
+  os: string
+  platform: string
+  platform_version: string
+  kernel_arch: string
+  kernel_version: string
+  boot_time: number // unix 秒
+}
+
+export interface ServerCPU {
+  model_name: string
+  cores: number
+  percent: number // 总体使用率 0-100（后端 3s 窗口差值）
+  per_core: number[] // 每核使用率 0-100
+}
+
+export interface ServerMem {
+  total: number
+  used: number
+  available: number
+  used_percent: number
+  swap_total: number
+  swap_used: number
+  swap_percent: number
+}
+
+export interface ServerDisk {
+  device: string
+  mount: string
+  fstype: string
+  total: number
+  used: number
+  free: number
+  used_percent: number
+}
+
+export interface ServerNet {
+  name: string
+  bytes_sent: number // 累计发送字节
+  bytes_recv: number // 累计接收字节
+  send_rate: number // B/s
+  recv_rate: number // B/s
+}
+
+export interface ServerGoRuntime {
+  version: string
+  goroutines: number
+  heap_alloc: number
+  sys_memory: number
+  gc_count: number
+  gc_pause_ms: number
+  process_start: number // unix 秒
+}
+
+export interface ServerStatus {
+  time: number // 快照 unix 秒
+  uptime: number // 主机已运行秒数
+  host: ServerHost | null
+  cpu: ServerCPU
+  memory: ServerMem
+  disks: ServerDisk[]
+  net: ServerNet[]
+  go: ServerGoRuntime
+}
+
 // ---- 设备（平台开放面契约镜像，字段与平台 SDK types.go 一致） ----
 
 export interface Device {

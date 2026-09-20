@@ -13,6 +13,8 @@ const viewModules: Record<string, () => Promise<any>> = {
   'menu:user': () => import('../views/system/Users.vue'),
   'menu:role': () => import('../views/system/Roles.vue'),
   'menu:menu': () => import('../views/system/Menus.vue'),
+
+  'menu:monitor': () => import('../views/system/ServerMonitor.vue'),
   'menu:opLog': () => import('../views/log/OperationLogs.vue'),
   'menu:file': () => import('../views/file/Files.vue'),
   'menu:blacklist': () => import('../views/system/Blacklist.vue'),

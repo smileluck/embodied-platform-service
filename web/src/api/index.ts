@@ -2,7 +2,7 @@ import request from './request'
 import type {
   AdmissionProjection, AppUser, BlacklistItem, DataEvent, Device, DeviceCommand, DeviceModel, DeviceShadow,
   ExportRecord, FileInfo, LogPageResult, MenuHit, MenuNode, MemberRow, OperationLogInfo, PageResult, Permission,
-  R, Role, TelemetryHistory, Tenant, TMNode, TMVersion, UserInfo,
+  R, Role, ServerStatus, TelemetryHistory, Tenant, TMNode, TMVersion, UserInfo,
 } from './types'
 
 // ---- 认证（登录/刷新/登出直调平台，见 ./platform.ts；这里只保留本系统自身数据接口） ----
@@ -97,6 +97,10 @@ export const setAppUserStatus = (id: number, status: number) =>
 // 重置密码（新密码由管理员指定，旧密码立即失效）
 export const resetAppUserPassword = (id: number, password: string) =>
   request.put<R<null>>(`/app-users/${id}/password`, { password })
+
+// ---- 服务器状态监控 ----
+// 只读快照：CPU%/网卡速率为后端 3s 窗口差值，页面轮询读最新值
+export const getServerStatus = () => request.get<R<ServerStatus>>('/monitor')
 
 // ---- 设备（平台开放面代理；租户范围由平台按商户绑定服务端收敛） ----
 export const listDevices = (params: { page: number; page_size: number; kw?: string; model_id?: number; status?: string; online?: string; transport?: string }) =>

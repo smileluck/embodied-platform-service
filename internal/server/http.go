@@ -38,6 +38,7 @@ import (
 	exportsvc "github.com/smilex/smilex-admin-gin/internal/service/export"
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
+	monitorsvc "github.com/smilex/smilex-admin-gin/internal/service/monitor"
 	permsvc "github.com/smilex/smilex-admin-gin/internal/service/permission"
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
@@ -60,6 +61,7 @@ type HTTPServer struct {
 	file          *filesvc.Service
 	export        *exportsvc.Service
 	blacklist     *blacklistsvc.Service
+	monitor       *monitorsvc.Service
 	tenant        *tenantsvc.Service
 	appuser       *appusersvc.Service
 	appuserUC     *bizappuser.Usecase    // AppJWT 中间件直连领域用例（校验用户启用状态）
@@ -79,7 +81,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	file *filesvc.Service, export *exportsvc.Service, blacklist *blacklistsvc.Service,
 	tenant *tenantsvc.Service, appuser *appusersvc.Service, appuserUC *bizappuser.Usecase,
 	appIssuer bizappuser.TokenIssuer, device *devicesvc.Service, devmodel *devmodelsvc.Service,
-	rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
+	monitor *monitorsvc.Service, rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
 	gin.SetMode(cfg.Server.Mode)
 	e := gin.New()
 	// multipart 表单内存上限保持较小值（超出部分落临时文件）；上传大小由 handler 显式校验
@@ -101,7 +103,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 		role: role, perm: perm, log: log,
 		file: file, export: export, blacklist: blacklist, tenant: tenant,
 		appuser: appuser, appuserUC: appuserUC, appIssuer: appIssuer,
-		device: device, devmodel: devmodel,
+		device: device, devmodel: devmodel, monitor: monitor,
 		rbacCache: rbacCache.TwoLevel, identityCache: identityCache, engine: e,
 	}
 	s.registerRoutes()
@@ -294,6 +296,12 @@ func (s *HTTPServer) registerRoutes() {
 		appUsers.DELETE("/:id", s.deleteAppUser)
 		// 重置密码（新密码由管理员指定，旧密码立即失效）
 		appUsers.PUT("/:id/password", s.resetAppUserPassword)
+	}
+
+	// 服务器状态监控（只读快照；CPU%/网卡速率由后台采样器固定 3s 窗口差值计算）
+	monitors := protected.Group("/monitor")
+	{
+		monitors.GET("", s.getServerStatus)
 	}
 
 	// 设备（纯代理平台开放面；租户范围由平台按商户绑定服务端收敛）
@@ -1067,6 +1075,16 @@ func (s *HTTPServer) appuserErr(c *gin.Context, err error) {
 		return
 	}
 	response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
+}
+
+// getServerStatus 服务器状态监控快照（主机/CPU/内存/磁盘/网络 + Go 进程运行时）
+func (s *HTTPServer) getServerStatus(c *gin.Context) {
+	vo, err := s.monitor.ServerStatus(c.Request.Context())
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, vo)
 }
 
 // ---- 应用用户独立认证（app-auth） ----

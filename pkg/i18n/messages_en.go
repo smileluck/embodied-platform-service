@@ -65,6 +65,8 @@ var messagesEn = map[string]string{
 	// App user
 	"appuser.not_found":   "App user not found",
 	"appuser.name_exists": "Username already exists, please choose another one",
+	// Server monitor
+	"monitor.collect_failed": "Failed to collect server metrics, please try again later",
 	// Open API sign middleware
 	"openapi.missing_sign_headers": "Missing signature headers",
 	"openapi.invalid_timestamp":    "Timestamp is invalid or out of the allowed skew",
@@ -90,4 +92,5 @@ var messagesEn = map[string]string{
 	"menu.menu:tenantCenter": "Tenant Center",
 	"menu.menu:tenant":       "Tenants",
 	"menu.menu:appUser":      "App Users",
+	"menu.menu:monitor":      "Server Monitor",
 }

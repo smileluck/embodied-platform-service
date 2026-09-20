@@ -14,6 +14,8 @@ import (
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
+
+	bizmonitor "github.com/smilex/smilex-admin-gin/internal/biz/monitor"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	bizrole "github.com/smilex/smilex-admin-gin/internal/biz/role"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
@@ -41,6 +43,8 @@ import (
 	exportsvc "github.com/smilex/smilex-admin-gin/internal/service/export"
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
+
+	monitorsvc "github.com/smilex/smilex-admin-gin/internal/service/monitor"
 	permsvc "github.com/smilex/smilex-admin-gin/internal/service/permission"
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
@@ -57,6 +61,7 @@ var bizSet = wire.NewSet(
 	bizappuser.NewUsecase,
 	bizdevice.NewUsecase,
 	bizdevmodel.NewUsecase,
+	bizmonitor.NewUsecase,
 	bizexport.NewUsecase,
 	bizexport.NewRegistry,
 	bizexport.NewUserExporter,
@@ -126,6 +131,7 @@ var serviceSet = wire.NewSet(
 	appusersvc.NewService,
 	devicesvc.NewService,
 	devmodelsvc.NewService,
+	monitorsvc.NewService,
 )
 
 var providerSet = wire.NewSet(bizSet, dataRepoSet, serviceSet, ProvideConfig, server.NewHTTPServer)
