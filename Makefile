@@ -11,7 +11,7 @@ AIR ?= $(shell go env GOPATH)/bin/air
 AIR_CONF := .air.toml
 endif
 
-.PHONY: build run dev wire tidy test web-dev web-build web-install docker-up docker-down docker-logs docker-rebuild clean
+.PHONY: build run dev wire tidy test lint web-dev web-build web-install docker-up docker-down docker-logs docker-rebuild clean
 
 build:
 	go build -o $(BIN) ./cmd/server
@@ -42,6 +42,11 @@ tidy:
 
 test:
 	go test ./...
+
+# 后端静态检查（vet 始终执行；golangci-lint 已安装时追加深度检查）
+lint:
+	go vet ./...
+	@command -v golangci-lint >/dev/null 2>&1 && golangci-lint run ./... || echo "[lint] golangci-lint 未安装，仅执行 go vet"
 
 # 前端开发（Vite 热更新，/api 代理到 localhost:28180）
 web-dev:
