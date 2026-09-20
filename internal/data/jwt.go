@@ -2,6 +2,7 @@ package data
 
 import (
 	"errors"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -38,10 +39,16 @@ func NewAppTokenIssuer(c *conf.Bootstrap) appuser.TokenIssuer {
 }
 
 func newJWTIssuer(c *conf.Bootstrap) *jwtIssuer {
-	// 弱密钥告警：默认值或过短的 secret 可被离线爆破伪造令牌
+	// 密钥强度校验：空/过短 secret 可被离线爆破伪造令牌。
+	// release 模式直接拒绝启动（生产必须以 APP_JWT_SECRET 注入强随机值）；
+	// debug 模式仅告警，兼顾本地开发的可用性（secret 留空也能起服务）
 	if len(c.JWT.Secret) < 32 {
-		logger.Warn("jwt secret 长度不足 32 位，存在被爆破风险，请尽快修改 configs/config.yaml",
-			zap.Int("length", len(c.JWT.Secret)))
+		msg := "jwt secret 为空或长度不足 32 位，存在被爆破风险；生产环境请用 APP_JWT_SECRET 注入（openssl rand -base64 32）"
+		if c.Server.Mode == "release" {
+			logger.Error(msg, zap.Int("length", len(c.JWT.Secret)))
+			os.Exit(1)
+		}
+		logger.Warn(msg, zap.Int("length", len(c.JWT.Secret)))
 	}
 	return &jwtIssuer{
 		secret:       []byte(c.JWT.Secret),

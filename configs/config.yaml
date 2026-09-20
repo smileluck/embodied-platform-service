@@ -31,7 +31,10 @@ db:
     path: ./data/smilex.db
 
 jwt:
-  secret: CVU7ynyz7C9PR6txNu1NF+oFGWPJ/WyyXXOkmR0hNPU= # 32 字节强随机（openssl rand -base64 32）；更换后所有已签发 token 失效，需重新登录
+  # 签名密钥：仓库不再保存任何可用密钥。本地开发留空即可启动（debug 模式仅告警）；
+  # 生产/部署必须注入强随机值：APP_JWT_SECRET（openssl rand -base64 32），release 模式下空/过短将拒绝启动。
+  # 更换后所有已签发 token 失效需重新登录；agent 供应商密钥如未单独配置 cryptoKey 也需重新保存一次
+  secret: ""
   issuer: smilex-admin
   expireHours: 2 # access token 有效期
   refreshHours: 168 # refresh token 有效期，同时为会话生命周期（TTL 到期即下线）

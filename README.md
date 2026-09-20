@@ -188,6 +188,15 @@ DROP TABLE IF EXISTS merchant_api_logs, merchants, login_logs, user_roles, users
 
 历史本地文件（`files.driver='local'`）仍可读取；新上传一律走平台存储。
 
+密钥与敏感配置：
+
+- 仓库不保存任何可用密钥：`jwt.secret` 默认为空。
+- 本地开发（debug 模式）secret 留空可正常启动（仅告警）；**release 模式下空或长度不足 32 位的
+  jwt secret 会拒绝启动**，须以环境变量 `APP_JWT_SECRET` 注入强随机值（`openssl rand -base64 32`）。
+- 更换 jwt secret 后所有已签发 token 失效需重新登录；若未单独配置 `agent.cryptoKey`，
+  已保存的供应商 API Key 需重新保存一次。
+- 跨域访问 API 需配置 `server.corsOrigins` 白名单（默认同源模式，不下发 CORS 头）。
+
 ## License
 
 MIT
