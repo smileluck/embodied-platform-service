@@ -13,6 +13,7 @@ import (
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
 	bizdevice "github.com/smilex/smilex-admin-gin/internal/biz/device"
 	bizdevmodel "github.com/smilex/smilex-admin-gin/internal/biz/devmodel"
+	bizdash "github.com/smilex/smilex-admin-gin/internal/biz/dashboard"
 	bizdict "github.com/smilex/smilex-admin-gin/internal/biz/dict"
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
@@ -35,6 +36,7 @@ import (
 	datablacklist "github.com/smilex/smilex-admin-gin/internal/data/blacklist"
 	datadevice "github.com/smilex/smilex-admin-gin/internal/data/device"
 	datadevmodel "github.com/smilex/smilex-admin-gin/internal/data/devmodel"
+	datadash "github.com/smilex/smilex-admin-gin/internal/data/dashboard"
 	datadict "github.com/smilex/smilex-admin-gin/internal/data/dict"
 	dataexport "github.com/smilex/smilex-admin-gin/internal/data/export"
 	datafile "github.com/smilex/smilex-admin-gin/internal/data/file"
@@ -57,6 +59,7 @@ import (
 	blacklistsvc "github.com/smilex/smilex-admin-gin/internal/service/blacklist"
 	devicesvc "github.com/smilex/smilex-admin-gin/internal/service/device"
 	devmodelsvc "github.com/smilex/smilex-admin-gin/internal/service/devmodel"
+	dashsvc "github.com/smilex/smilex-admin-gin/internal/service/dashboard"
 	dictsvc "github.com/smilex/smilex-admin-gin/internal/service/dict"
 	exportsvc "github.com/smilex/smilex-admin-gin/internal/service/export"
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
@@ -84,6 +87,7 @@ var bizSet = wire.NewSet(
 	bizdevice.NewUsecase,
 	bizdevmodel.NewUsecase,
 	bizdict.NewUsecase,
+	bizdash.NewUsecase,
 	bizsys.NewUsecase,
 	biznotice.NewUsecase,
 	bizjob.NewUsecase,
@@ -121,6 +125,7 @@ var dataRepoSet = wire.NewSet(
 
 	datadict.NewRepo,
 
+	datadash.NewRepo,
 	datasys.NewRepo,
 
 	datanotice.NewRepo,
@@ -176,6 +181,7 @@ var serviceSet = wire.NewSet(
 	monitorsvc.NewService,
 	agentsvc.NewService,
 	dictsvc.NewService,
+	dashsvc.NewService,
 	syssvc.NewService,
 	noticesvc.NewService,
 	jobsvc.NewService,
