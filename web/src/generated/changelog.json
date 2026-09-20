@@ -1,127 +1,372 @@
 {
-<<<<<<< HEAD
-  "generatedAt": "2026-09-18T08:50:59.876Z",
+  "generatedAt": "2026-09-23T03:45:06.274Z",
   "commits": [
     {
-      "hash": "528de76",
-=======
-  "generatedAt": "2026-09-20T05:31:53.058Z",
-  "commits": [
+      "hash": "9ebe1c75",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "dashboard",
+      "message": "统计聚合接口"
+    },
     {
-      "hash": "1e3f4c9",
+      "hash": "464b8b1c",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "web",
+      "message": "定时任务管理页"
+    },
+    {
+      "hash": "83084e97",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "job",
+      "message": "定时任务底座——cron 调度、内置清理 handler 与执行记录"
+    },
+    {
+      "hash": "ba4753fd",
+      "date": "2026-09-20",
+      "type": "refactor",
+      "scope": "data",
+      "message": "保留期清理迁移为定时任务 handler，停用各仓储内置 ticker"
+    },
+    {
+      "hash": "d5ae7035",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "web",
+      "message": "通知公告管理页与顶栏铃铛"
+    },
+    {
+      "hash": "27f9c80b",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "notice",
+      "message": "通知公告后端——发布管理与已读记录"
+    },
+    {
+      "hash": "a31ec854",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "web",
+      "message": "系统参数管理页"
+    },
+    {
+      "hash": "5b6a07c1",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "config",
+      "message": "系统参数运行时配置底座与分页上限消费点"
+    },
+    {
+      "hash": "aa8b4890",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "web",
+      "message": "数据字典管理页"
+    },
+    {
+      "hash": "d4c84405",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "dict",
+      "message": "数据字典后端——类型/项 CRUD 与按编码查询接口"
+    },
+    {
+      "hash": "e96082aa",
+      "date": "2026-09-20",
+      "type": "fix",
+      "scope": "agent",
+      "message": "StreamCompletion 请求补传 tools 定义"
+    },
+    {
+      "hash": "4730bb09",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "web",
+      "message": "工具调用过程气泡展示与 Agent 工具多选"
+    },
+    {
+      "hash": "a2897e1c",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "agent",
+      "message": "agents 绑定工具与执行循环，内置只读示范工具"
+    },
+    {
+      "hash": "5cd89863",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "agent",
+      "message": "runtime 支持 tool_calls 流式解析与工具注册表"
+    },
+    {
+      "hash": "063f779b",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "web",
+      "message": "agent 用量统计页与模型单价表单"
+    },
+    {
+      "hash": "165249eb",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "agent",
+      "message": "用量计量落库与模型单价"
+    },
+    {
+      "hash": "d5f0e54c",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "web",
+      "message": "对话消息 markdown 渲染与代码高亮"
+    },
+    {
+      "hash": "49cde90a",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "web",
+      "message": "聊天页多会话管理"
+    },
+    {
+      "hash": "07314e11",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "agent",
+      "message": "SSE 对话接入会话持久化"
+    },
+    {
+      "hash": "33874a3e",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "agent",
+      "message": "会话与消息落库——表结构、三层与 CRUD 接口"
+    },
+    {
+      "hash": "20880325",
+      "date": "2026-09-20",
+      "type": "refactor",
+      "scope": "server",
+      "message": "http.go 按模块拆分 handler 文件"
+    },
+    {
+      "hash": "0f053c65",
+      "date": "2026-09-20",
+      "type": "fix",
+      "scope": "web",
+      "message": "聊天「（已停止）」文案接入 i18n"
+    },
+    {
+      "hash": "cc99f5e7",
+      "date": "2026-09-20",
+      "type": "fix",
+      "scope": "log",
+      "message": "操作日志动作名补录 tenant/appuser/agent/export"
+    },
+    {
+      "hash": "8c0a4fbc",
+      "date": "2026-09-20",
+      "type": "ci",
+      "scope": "",
+      "message": "新增 GitHub Actions 流水线，Makefile 增加 lint"
+    },
+    {
+      "hash": "7ed4a32e",
+      "date": "2026-09-20",
+      "type": "test",
+      "scope": "middleware",
+      "message": "补 CORS/JWT/RBAC/限流中间件测试（miniredis）"
+    },
+    {
+      "hash": "bef52981",
+      "date": "2026-09-20",
+      "type": "chore",
+      "scope": "conf",
+      "message": "移除仓库内明文密钥与弱种子密码，release 模式弱 secret 启动拦截"
+    },
+    {
+      "hash": "34ba44be",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "security",
+      "message": "抽出通用限流中间件，agent 对话与验证码接入频控"
+    },
+    {
+      "hash": "0436edf2",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "security",
+      "message": "CORS 支持来源白名单，默认同源不下发跨域头"
+    },
+    {
+      "hash": "30ae02fd",
+      "date": "2026-09-20",
+      "type": "chore",
+      "scope": "git",
+      "message": "移除误跟踪的编译产物与测试截图"
+    },
+    {
+      "hash": "96ee280d",
+      "date": "2026-09-20",
+      "type": "fix",
+      "scope": "make",
+      "message": "Makefile 兼容 Windows 原生环境"
+    },
+    {
+      "hash": "64265888",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "agent",
+      "message": "新增聊天测试页并抽出可复用对话面板"
+    },
+    {
+      "hash": "fcaa4bba",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "agent",
+      "message": "新增智能体模块——LLM 配置底座与 harness 运行时"
+    },
+    {
+      "hash": "25f56c39",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "monitor",
       "message": "增加服务器状态监控"
     },
     {
-      "hash": "4a76111",
-      "date": "2026-09-19",
-      "type": "fix",
-      "scope": "captcha",
-      "message": "修复空验证码绕过登录校验"
-    },
-    {
-      "hash": "5707a06",
+      "hash": "0606256e",
       "date": "2026-09-19",
       "type": "feat",
       "scope": "deploy",
       "message": "增加 Docker 与 docker-compose 部署"
     },
     {
-      "hash": "675abf9",
+      "hash": "c4acc3fd",
       "date": "2026-09-19",
       "type": "refactor",
       "scope": "permission",
       "message": "清理 all 通配权限残留死代码"
     },
     {
-      "hash": "5667d5a",
-      "date": "2026-09-18",
+      "hash": "b9288595",
+      "date": "2026-09-19",
       "type": "feat",
-      "scope": "user",
-      "message": "add super admin role assignment protection"
+      "scope": "admission",
+      "message": "孤儿投影回收与全仓数据完整性收口"
     },
     {
-      "hash": "fa7c09c",
->>>>>>> 16299e58 (feat(agent): 新增智能体模块——LLM 配置底座与 harness 运行时)
+      "hash": "de00a8fd",
+      "date": "2026-09-19",
+      "type": "feat",
+      "scope": "tenant",
+      "message": "实现平台侧租户丢失的自愈与幂等删除治理"
+    },
+    {
+      "hash": "a2854833",
+      "date": "2026-09-18",
+      "type": "docs",
+      "scope": "readme",
+      "message": "同步租户唯一性规则与开放面通道现状"
+    },
+    {
+      "hash": "d8e5c9f0",
+      "date": "2026-09-18",
+      "type": "docs",
+      "scope": "about",
+      "message": "「关于我们」说明更新为业务管理端定位"
+    },
+    {
+      "hash": "8bab9e78",
+      "date": "2026-09-18",
+      "type": "refactor",
+      "scope": "tenant",
+      "message": "调整租户唯一性规则与删除逻辑，新增权限项"
+    },
+    {
+      "hash": "1037f4cb",
+      "date": "2026-09-18",
+      "type": "feat",
+      "scope": "admission",
+      "message": "实现商户准入状态与管理员角色的平台侧事实源同步"
+    },
+    {
+      "hash": "528de762",
       "date": "2026-09-18",
       "type": "refactor",
       "scope": "login",
       "message": "移除本地引导超管逻辑，更新登录提示与流程"
     },
     {
-      "hash": "7d6a423",
+      "hash": "7d6a4231",
       "date": "2026-09-18",
       "type": "refactor",
       "scope": "",
       "message": "移除本地引导超管逻辑，统一以商户管理员作为唯一内置角色"
     },
     {
-      "hash": "ab49e10",
+      "hash": "ab49e10a",
       "date": "2026-09-18",
       "type": "feat",
       "scope": "",
       "message": "add merchant admin role and auto-admission logic"
     },
     {
-      "hash": "3bfc64c",
+      "hash": "3bfc64c0",
       "date": "2026-09-17",
       "type": "refactor",
       "scope": "",
       "message": "移除平台管理面通道，切换成员管理到开放面"
     },
     {
-      "hash": "57f8993",
+      "hash": "57f8993e",
       "date": "2026-09-17",
       "type": "docs",
       "scope": "login",
       "message": "simplify login page subtitle text"
     },
     {
-      "hash": "59852a4",
+      "hash": "59852a49",
       "date": "2026-09-17",
       "type": "chore",
       "scope": "config, changelog",
       "message": "update config and regenerate changelog"
     },
     {
-      "hash": "498af27",
+      "hash": "498af271",
       "date": "2026-09-16",
       "type": "refactor",
       "scope": "",
       "message": "迁移租户/型号同步到开放面，简化平台依赖"
     },
     {
-      "hash": "151b590",
+      "hash": "151b5904",
       "date": "2026-09-16",
       "type": "fix",
       "scope": "login",
       "message": "添加平台不可达的专属错误提示"
     },
     {
-      "hash": "2186fe8",
+      "hash": "2186fe84",
       "date": "2026-09-16",
       "type": "feat",
       "scope": "",
       "message": "完成具身设备管理系统首期改版"
     },
     {
-      "hash": "24c386e",
+      "hash": "24c386e7",
       "date": "2026-09-16",
       "type": "chore",
       "scope": "",
       "message": "更新自动生成的变更日志"
     },
     {
-      "hash": "3d1353f",
+      "hash": "3d1353fe",
       "date": "2026-09-16",
       "type": "refactor",
       "scope": "",
       "message": "重构系统架构，迁移至平台统一身份与设备管理"
     },
     {
-      "hash": "29e2154",
+      "hash": "29e21541",
       "date": "2026-09-14",
       "type": "other",
       "scope": "",

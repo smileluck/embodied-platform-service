@@ -10,6 +10,7 @@ import type {
   AppUser,
   BlacklistItem,
   CaptchaInfo,
+  DashboardStats,
   DataEvent,
   Device,
   DeviceCommand,
@@ -330,3 +331,7 @@ export const deleteJob = (id: number) => request.delete<R<null>>(`/jobs/${id}`)
 export const runJobOnce = (id: number) => request.post<R<null>>(`/jobs/${id}/run`)
 export const listJobLogs = (id: number, params: { page: number; page_size: number }) =>
   request.get<R<PageResult<JobLog>>>(`/jobs/${id}/logs`, { params })
+
+// ---- 仪表盘 ----
+
+export const getDashboardStats = () => request.get<R<DashboardStats>>('/dashboard/stats')

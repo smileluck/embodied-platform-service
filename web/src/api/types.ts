@@ -310,6 +310,7 @@ export interface AgentTestResult {
 export interface AgentChatMessage {
   role: 'user' | 'assistant'
   content: string
+}
 
 // ---- 设备（平台开放面契约镜像，字段与平台 SDK types.go 一致） ----
 
@@ -526,4 +527,17 @@ export interface JobLog {
   output: string
   duration_ms: number
   started_at: string
+}
+
+// 仪表盘聚合数据
+export interface DashboardStats {
+  cards: {
+    users: number
+    roles: number
+    online: number
+    today_logins: number
+  }
+  login_trend: { date: string; total: number; success: number }[]
+  op_trend: { date: string; total: number }[]
+  recent_logins: { username: string; ip: string; status: string; created_at: string }[]
 }
