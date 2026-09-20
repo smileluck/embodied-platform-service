@@ -113,8 +113,8 @@ func (r *repo) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error
 	return res.RowsAffected, res.Error
 }
 
-// Worker 异步导出执行器：buffered channel + 单 goroutine 串行消费 + WaitGroup 优雅退出，
-// 附保留期每日清理循环（模式与 internal/data/log 的异步写入 worker 一致）
+// Worker 异步导出执行器：buffered channel + 单 goroutine 串行消费 + WaitGroup 优雅退出
+// （保留期清理已迁移为定时任务 handler，见 biz/job）
 type Worker struct {
 	data     *data.Data
 	cfg      *conf.Bootstrap
@@ -151,10 +151,6 @@ func NewWorker(d *data.Data, c *conf.Bootstrap, registry *bizexport.Registry, st
 	}
 	w.wg.Add(1)
 	go w.consumeLoop()
-	if c.Export.RetentionDays > 0 {
-		w.wg.Add(1)
-		go w.retentionLoop(c.Export.RetentionDays)
-	}
 	cleanup := func() {
 		close(w.done)
 		close(w.queue) // worker 消费完剩余任务后退出
@@ -316,31 +312,21 @@ func (w *Worker) run(ctx context.Context, rec *bizexport.ExportRecord) error {
 	return nil
 }
 
-// retentionLoop 保留期清理循环：启动先跑一次，此后每日一次（单机版定时，无需分布式锁）
-func (w *Worker) retentionLoop(days int) {
-	defer w.wg.Done()
-	w.cleanupExpired(days)
-	t := time.NewTicker(24 * time.Hour)
-	defer t.Stop()
-	for {
-		select {
-		case <-w.done:
-			return
-		case <-t.C:
-			w.cleanupExpired(days)
-		}
+// CleanupExpired 清理保留期外导出任务（定时任务 handler 调用；保留期<=0 永久保留）
+func (w *Worker) CleanupExpired(ctx context.Context) error {
+	if w.cfg.Export.RetentionDays <= 0 {
+		return nil
 	}
+	return w.cleanupExpired(ctx, w.cfg.Export.RetentionDays)
 }
 
 // cleanupExpired 清理保留期外的导出任务：先尽力删除存储产物，再物理删除记录
-func (w *Worker) cleanupExpired(days int) {
-	ctx := context.Background()
+func (w *Worker) cleanupExpired(ctx context.Context, days int) error {
 	cutoff := time.Now().AddDate(0, 0, -days)
 	var pos []model.ExportRecordPO
 	if err := w.data.DB.WithContext(ctx).Select("id", "driver", "object_key").
 		Where("created_at < ?", cutoff).Find(&pos).Error; err != nil {
-		logger.Warn("export retention cleanup query failed", zap.Error(err))
-		return
+		return fmt.Errorf("查询过期导出记录失败: %w", err)
 	}
 	for i := range pos {
 		if pos[i].ObjectKey == "" {
@@ -355,12 +341,12 @@ func (w *Worker) cleanupExpired(days int) {
 	}
 	n, err := w.repo.DeleteBefore(ctx, cutoff)
 	if err != nil {
-		logger.Warn("export retention cleanup failed", zap.Error(err))
-		return
+		return fmt.Errorf("导出记录清理失败: %w", err)
 	}
 	if n > 0 {
 		logger.Info("export retention cleanup", zap.Int64("records_deleted", n))
 	}
+	return nil
 }
 
 // countingWriter 统计写入字节数（产物大小与截断判定共用同一真实口径）

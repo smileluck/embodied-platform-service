@@ -10,39 +10,18 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	"github.com/smilex/smilex-admin-gin/internal/data/model"
-	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/security"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
-type repo struct {
-	data *data.Data
+type Repo struct {
+	data               *data.Data
+	usageRetentionDays int
 }
 
-// NewRepo 创建智能体仓储：usageRetentionDays > 0 时启动用量流水每日保留期清理
-func NewRepo(d *data.Data, c *conf.Bootstrap) agent.Repo {
-	r := &repo{data: d}
-	if c.Agent.UsageRetentionDays > 0 {
-		go r.usageRetentionLoop(c.Agent.UsageRetentionDays)
-	}
-	return r
-}
-
-// usageRetentionLoop 用量流水保留期清理（单机版定时，与日志/导出清理同范式）
-func (r *repo) usageRetentionLoop(days int) {
-	cleanup := func() {
-		before := time.Now().AddDate(0, 0, -days)
-		if err := r.CleanupUsageBefore(context.Background(), before); err != nil {
-			logger.Warn("agent usage cleanup failed", zap.Error(err))
-		}
-	}
-	cleanup()
-	t := time.NewTicker(24 * time.Hour)
-	defer t.Stop()
-	for range t.C {
-		cleanup()
-	}
+// NewRepo 创建智能体仓储（用量流水保留期清理已迁移为定时任务 handler，见 biz/job）
+func NewRepo(d *data.Data, c *conf.Bootstrap) *Repo {
+	return &Repo{data: d, usageRetentionDays: c.Agent.UsageRetentionDays}
 }
 
 func mapProviderErr(err error) error {
@@ -68,7 +47,7 @@ func mapAgentErr(err error) error {
 
 // ---- 供应商 ----
 
-func (r *repo) CreateProvider(ctx context.Context, p *agent.Provider) error {
+func (r *Repo) CreateProvider(ctx context.Context, p *agent.Provider) error {
 	po := model.AgentProviderToPO(p)
 	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
 		return err
@@ -77,7 +56,7 @@ func (r *repo) CreateProvider(ctx context.Context, p *agent.Provider) error {
 	return nil
 }
 
-func (r *repo) UpdateProvider(ctx context.Context, p *agent.Provider) error {
+func (r *Repo) UpdateProvider(ctx context.Context, p *agent.Provider) error {
 	return r.data.DB.WithContext(ctx).Model(&model.AgentProviderPO{}).Where("id = ?", p.ID).
 		Updates(map[string]interface{}{
 			"name": p.Name, "code": p.Code, "base_url": p.BaseURL,
@@ -86,7 +65,7 @@ func (r *repo) UpdateProvider(ctx context.Context, p *agent.Provider) error {
 		}).Error
 }
 
-func (r *repo) DeleteProvider(ctx context.Context, id uint) error {
+func (r *Repo) DeleteProvider(ctx context.Context, id uint) error {
 	res := r.data.DB.WithContext(ctx).Delete(&model.AgentProviderPO{}, id)
 	if res.Error != nil {
 		return res.Error
@@ -97,7 +76,7 @@ func (r *repo) DeleteProvider(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (r *repo) FindProviderByID(ctx context.Context, id uint) (*agent.Provider, error) {
+func (r *Repo) FindProviderByID(ctx context.Context, id uint) (*agent.Provider, error) {
 	var po model.AgentProviderPO
 	if err := r.data.DB.WithContext(ctx).First(&po, id).Error; err != nil {
 		return nil, mapProviderErr(err)
@@ -105,7 +84,7 @@ func (r *repo) FindProviderByID(ctx context.Context, id uint) (*agent.Provider, 
 	return model.AgentProviderFromPO(&po), nil
 }
 
-func (r *repo) FindProviderByCode(ctx context.Context, code string) (*agent.Provider, error) {
+func (r *Repo) FindProviderByCode(ctx context.Context, code string) (*agent.Provider, error) {
 	var po model.AgentProviderPO
 	if err := r.data.DB.WithContext(ctx).Where("code = ?", code).First(&po).Error; err != nil {
 		return nil, mapProviderErr(err)
@@ -113,7 +92,7 @@ func (r *repo) FindProviderByCode(ctx context.Context, code string) (*agent.Prov
 	return model.AgentProviderFromPO(&po), nil
 }
 
-func (r *repo) ListProviders(ctx context.Context, q agent.ProviderQuery, page, pageSize int) ([]*agent.Provider, int64, error) {
+func (r *Repo) ListProviders(ctx context.Context, q agent.ProviderQuery, page, pageSize int) ([]*agent.Provider, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.AgentProviderPO{})
 	if q.Name != "" {
 		tx = tx.Where("name LIKE ? ESCAPE '/'", security.EscapeLike(q.Name)+"%")
@@ -139,7 +118,7 @@ func (r *repo) ListProviders(ctx context.Context, q agent.ProviderQuery, page, p
 	return out, total, nil
 }
 
-func (r *repo) CountModelsByProvider(ctx context.Context, providerID uint) (int64, error) {
+func (r *Repo) CountModelsByProvider(ctx context.Context, providerID uint) (int64, error) {
 	var n int64
 	err := r.data.DB.WithContext(ctx).Model(&model.AgentModelPO{}).
 		Where("provider_id = ?", providerID).Count(&n).Error
@@ -148,7 +127,7 @@ func (r *repo) CountModelsByProvider(ctx context.Context, providerID uint) (int6
 
 // ---- 模型 ----
 
-func (r *repo) CreateModel(ctx context.Context, m *agent.Model) error {
+func (r *Repo) CreateModel(ctx context.Context, m *agent.Model) error {
 	po := model.AgentModelToPO(m)
 	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
 		return err
@@ -157,7 +136,7 @@ func (r *repo) CreateModel(ctx context.Context, m *agent.Model) error {
 	return nil
 }
 
-func (r *repo) UpdateModel(ctx context.Context, m *agent.Model) error {
+func (r *Repo) UpdateModel(ctx context.Context, m *agent.Model) error {
 	return r.data.DB.WithContext(ctx).Model(&model.AgentModelPO{}).Where("id = ?", m.ID).
 		Updates(map[string]interface{}{
 			"provider_id": m.ProviderID, "name": m.Name, "display_name": m.DisplayName,
@@ -167,7 +146,7 @@ func (r *repo) UpdateModel(ctx context.Context, m *agent.Model) error {
 		}).Error
 }
 
-func (r *repo) DeleteModel(ctx context.Context, id uint) error {
+func (r *Repo) DeleteModel(ctx context.Context, id uint) error {
 	res := r.data.DB.WithContext(ctx).Delete(&model.AgentModelPO{}, id)
 	if res.Error != nil {
 		return res.Error
@@ -178,7 +157,7 @@ func (r *repo) DeleteModel(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (r *repo) FindModelByID(ctx context.Context, id uint) (*agent.Model, error) {
+func (r *Repo) FindModelByID(ctx context.Context, id uint) (*agent.Model, error) {
 	var po model.AgentModelPO
 	if err := r.data.DB.WithContext(ctx).First(&po, id).Error; err != nil {
 		return nil, mapModelErr(err)
@@ -186,7 +165,7 @@ func (r *repo) FindModelByID(ctx context.Context, id uint) (*agent.Model, error)
 	return model.AgentModelFromPO(&po), nil
 }
 
-func (r *repo) FindModelByName(ctx context.Context, providerID uint, name string) (*agent.Model, error) {
+func (r *Repo) FindModelByName(ctx context.Context, providerID uint, name string) (*agent.Model, error) {
 	var po model.AgentModelPO
 	if err := r.data.DB.WithContext(ctx).
 		Where("provider_id = ? AND name = ?", providerID, name).First(&po).Error; err != nil {
@@ -195,7 +174,7 @@ func (r *repo) FindModelByName(ctx context.Context, providerID uint, name string
 	return model.AgentModelFromPO(&po), nil
 }
 
-func (r *repo) FindFirstEnabledModel(ctx context.Context, providerID uint) (*agent.Model, error) {
+func (r *Repo) FindFirstEnabledModel(ctx context.Context, providerID uint) (*agent.Model, error) {
 	var po model.AgentModelPO
 	if err := r.data.DB.WithContext(ctx).
 		Where("provider_id = ? AND status = ?", providerID, int(agent.StatusEnabled)).
@@ -208,7 +187,7 @@ func (r *repo) FindFirstEnabledModel(ctx context.Context, providerID uint) (*age
 	return model.AgentModelFromPO(&po), nil
 }
 
-func (r *repo) ListModels(ctx context.Context, q agent.ModelQuery, page, pageSize int) ([]*agent.Model, int64, error) {
+func (r *Repo) ListModels(ctx context.Context, q agent.ModelQuery, page, pageSize int) ([]*agent.Model, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.AgentModelPO{})
 	if q.ProviderID != nil {
 		tx = tx.Where("provider_id = ?", *q.ProviderID)
@@ -234,7 +213,7 @@ func (r *repo) ListModels(ctx context.Context, q agent.ModelQuery, page, pageSiz
 	return out, total, nil
 }
 
-func (r *repo) CountAgentsByModel(ctx context.Context, modelID uint) (int64, error) {
+func (r *Repo) CountAgentsByModel(ctx context.Context, modelID uint) (int64, error) {
 	var n int64
 	err := r.data.DB.WithContext(ctx).Model(&model.AgentPO{}).
 		Where("model_id = ?", modelID).Count(&n).Error
@@ -243,7 +222,7 @@ func (r *repo) CountAgentsByModel(ctx context.Context, modelID uint) (int64, err
 
 // ---- Agent ----
 
-func (r *repo) CreateAgent(ctx context.Context, a *agent.Agent) error {
+func (r *Repo) CreateAgent(ctx context.Context, a *agent.Agent) error {
 	po := model.AgentToPO(a)
 	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
 		return err
@@ -252,7 +231,7 @@ func (r *repo) CreateAgent(ctx context.Context, a *agent.Agent) error {
 	return nil
 }
 
-func (r *repo) UpdateAgent(ctx context.Context, a *agent.Agent) error {
+func (r *Repo) UpdateAgent(ctx context.Context, a *agent.Agent) error {
 	return r.data.DB.WithContext(ctx).Model(&model.AgentPO{}).Where("id = ?", a.ID).
 		Updates(map[string]interface{}{
 			"name": a.Name, "code": a.Code, "model_id": a.ModelID,
@@ -261,7 +240,7 @@ func (r *repo) UpdateAgent(ctx context.Context, a *agent.Agent) error {
 		}).Error
 }
 
-func (r *repo) DeleteAgent(ctx context.Context, id uint) error {
+func (r *Repo) DeleteAgent(ctx context.Context, id uint) error {
 	res := r.data.DB.WithContext(ctx).Delete(&model.AgentPO{}, id)
 	if res.Error != nil {
 		return res.Error
@@ -272,7 +251,7 @@ func (r *repo) DeleteAgent(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (r *repo) FindAgentByID(ctx context.Context, id uint) (*agent.Agent, error) {
+func (r *Repo) FindAgentByID(ctx context.Context, id uint) (*agent.Agent, error) {
 	var po model.AgentPO
 	if err := r.data.DB.WithContext(ctx).First(&po, id).Error; err != nil {
 		return nil, mapAgentErr(err)
@@ -280,7 +259,7 @@ func (r *repo) FindAgentByID(ctx context.Context, id uint) (*agent.Agent, error)
 	return model.AgentFromPO(&po), nil
 }
 
-func (r *repo) FindAgentByCode(ctx context.Context, code string) (*agent.Agent, error) {
+func (r *Repo) FindAgentByCode(ctx context.Context, code string) (*agent.Agent, error) {
 	var po model.AgentPO
 	if err := r.data.DB.WithContext(ctx).Where("code = ?", code).First(&po).Error; err != nil {
 		return nil, mapAgentErr(err)
@@ -288,7 +267,7 @@ func (r *repo) FindAgentByCode(ctx context.Context, code string) (*agent.Agent, 
 	return model.AgentFromPO(&po), nil
 }
 
-func (r *repo) ListAgents(ctx context.Context, q agent.AgentQuery, page, pageSize int) ([]*agent.Agent, int64, error) {
+func (r *Repo) ListAgents(ctx context.Context, q agent.AgentQuery, page, pageSize int) ([]*agent.Agent, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.AgentPO{})
 	if q.Name != "" {
 		tx = tx.Where("name LIKE ? ESCAPE '/'", security.EscapeLike(q.Name)+"%")
@@ -323,7 +302,7 @@ func mapConversationErr(err error) error {
 	return err
 }
 
-func (r *repo) CreateConversation(ctx context.Context, cv *agent.Conversation) error {
+func (r *Repo) CreateConversation(ctx context.Context, cv *agent.Conversation) error {
 	po := model.AgentConversationToPO(cv)
 	po.CreatedAt, po.UpdatedAt = po.LastMsgAt, po.LastMsgAt
 	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
@@ -333,7 +312,7 @@ func (r *repo) CreateConversation(ctx context.Context, cv *agent.Conversation) e
 	return nil
 }
 
-func (r *repo) UpdateConversation(ctx context.Context, cv *agent.Conversation) error {
+func (r *Repo) UpdateConversation(ctx context.Context, cv *agent.Conversation) error {
 	return r.data.DB.WithContext(ctx).Model(&model.AgentConversationPO{}).Where("id = ?", cv.ID).
 		Updates(map[string]interface{}{
 			"title": cv.Title, "agent_name": cv.AgentName, "last_msg_at": cv.LastMsgAt,
@@ -341,7 +320,7 @@ func (r *repo) UpdateConversation(ctx context.Context, cv *agent.Conversation) e
 }
 
 // DeleteConversation 事务：软删会话 + 物理删除其全部消息（追加流水无需留痕）
-func (r *repo) DeleteConversation(ctx context.Context, userID, id uint) error {
+func (r *Repo) DeleteConversation(ctx context.Context, userID, id uint) error {
 	return r.data.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Where("id = ? AND user_id = ?", id, userID).Delete(&model.AgentConversationPO{})
 		if res.Error != nil {
@@ -354,7 +333,7 @@ func (r *repo) DeleteConversation(ctx context.Context, userID, id uint) error {
 	})
 }
 
-func (r *repo) FindConversation(ctx context.Context, userID, id uint) (*agent.Conversation, error) {
+func (r *Repo) FindConversation(ctx context.Context, userID, id uint) (*agent.Conversation, error) {
 	var po model.AgentConversationPO
 	if err := r.data.DB.WithContext(ctx).Where("user_id = ?", userID).First(&po, id).Error; err != nil {
 		return nil, mapConversationErr(err)
@@ -362,7 +341,7 @@ func (r *repo) FindConversation(ctx context.Context, userID, id uint) (*agent.Co
 	return model.AgentConversationFromPO(&po), nil
 }
 
-func (r *repo) ListConversations(ctx context.Context, userID uint, q agent.ConversationQuery, page, pageSize int) ([]*agent.Conversation, int64, error) {
+func (r *Repo) ListConversations(ctx context.Context, userID uint, q agent.ConversationQuery, page, pageSize int) ([]*agent.Conversation, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.AgentConversationPO{}).Where("user_id = ?", userID)
 	if q.AgentID != nil {
 		tx = tx.Where("agent_id = ?", *q.AgentID)
@@ -383,7 +362,7 @@ func (r *repo) ListConversations(ctx context.Context, userID uint, q agent.Conve
 	return out, total, nil
 }
 
-func (r *repo) AppendMessage(ctx context.Context, m *agent.ConversationMessage) error {
+func (r *Repo) AppendMessage(ctx context.Context, m *agent.ConversationMessage) error {
 	po := model.AgentMsgToPO(m)
 	po.CreatedAt = time.Now()
 	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
@@ -393,7 +372,7 @@ func (r *repo) AppendMessage(ctx context.Context, m *agent.ConversationMessage) 
 	return nil
 }
 
-func (r *repo) ListMessages(ctx context.Context, conversationID uint, page, pageSize int) ([]*agent.ConversationMessage, int64, error) {
+func (r *Repo) ListMessages(ctx context.Context, conversationID uint, page, pageSize int) ([]*agent.ConversationMessage, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.AgentConversationMsgPO{}).Where("conversation_id = ?", conversationID)
 	var total int64
 	if err := tx.Count(&total).Error; err != nil {
@@ -413,7 +392,7 @@ func (r *repo) ListMessages(ctx context.Context, conversationID uint, page, page
 
 // ---- 用量计量 ----
 
-func (r *repo) AppendUsage(ctx context.Context, u *agent.UsageLog) error {
+func (r *Repo) AppendUsage(ctx context.Context, u *agent.UsageLog) error {
 	po := model.AgentUsageToPO(u)
 	po.CreatedAt = time.Now()
 	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
@@ -423,7 +402,7 @@ func (r *repo) AppendUsage(ctx context.Context, u *agent.UsageLog) error {
 	return nil
 }
 
-func (r *repo) ListUsageSince(ctx context.Context, since time.Time) ([]*agent.UsageLog, error) {
+func (r *Repo) ListUsageSince(ctx context.Context, since time.Time) ([]*agent.UsageLog, error) {
 	var pos []model.AgentUsageLogPO
 	if err := r.data.DB.WithContext(ctx).Where("created_at >= ?", since).
 		Order("id ASC").Find(&pos).Error; err != nil {
@@ -436,7 +415,15 @@ func (r *repo) ListUsageSince(ctx context.Context, since time.Time) ([]*agent.Us
 	return out, nil
 }
 
-func (r *repo) CleanupUsageBefore(ctx context.Context, before time.Time) error {
+func (r *Repo) CleanupUsageBefore(ctx context.Context, before time.Time) error {
 	return r.data.DB.WithContext(ctx).Where("created_at < ?", before).
 		Delete(&model.AgentUsageLogPO{}).Error
+}
+
+// CleanupExpired 清理保留期外用量流水（定时任务 handler 调用；保留期<=0 永久保留）
+func (r *Repo) CleanupExpired(ctx context.Context) error {
+	if r.usageRetentionDays <= 0 {
+		return nil
+	}
+	return r.CleanupUsageBefore(ctx, time.Now().AddDate(0, 0, -r.usageRetentionDays))
 }
