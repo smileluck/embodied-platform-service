@@ -121,8 +121,25 @@
           </n-dropdown>
         </div>
       </n-layout-header>
+
+      <!-- 多标签页：路由访问即入列（上限 12，首个常驻），点击切换/关闭 -->
+      <div class="tabs-bar">
+        <div
+          v-for="tb in tabs" :key="tb.path"
+          class="tab-item" :class="{ active: tb.path === activeTabPath }"
+          :title="tabTitle(tb)" @click="gotoTab(tb)"
+        >
+          <span class="tab-label">{{ tabTitle(tb) }}</span>
+          <span v-if="tb.closable" class="tab-close" @click.stop="closeTab(tb)">✕</span>
+        </div>
+      </div>
+
       <n-layout-content class="content" content-style="padding: 8px;" :native-scrollbar="false">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <keep-alive :max="14">
+            <component :is="Component" />
+          </keep-alive>
+        </router-view>
       </n-layout-content>
     </n-layout>
 
@@ -279,6 +296,7 @@ const localeOptions: DropdownOption[] = [
 ]
 
 async function onLocaleChange(key: string | number) {
+  tabsLocaleKey.value++
   const next = String(key) as AppLocale
   if (next === getLocale()) return
   setLocale(next)
@@ -558,6 +576,58 @@ function onGlobalKeydown(e: KeyboardEvent) {
 }
 
 // ---- 顶栏导出记录悬浮框（打开时拉取近期 5 条；有进行中任务时每 5s 轮询） ----
+// ---- 多标签页：访问即入列（上限 12，首个常驻）；关闭当前跳相邻 ----
+interface PageTab { path: string; name: string | null; closable: boolean }
+const TABS_KEY = 'sx-tabs'
+const tabs = ref<PageTab[]>([])
+const activeTabPath = ref('')
+const tabsLocaleKey = ref(0) // 语言切换后强制重取标题
+
+function loadTabs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TABS_KEY) || '[]')
+    if (Array.isArray(saved)) tabs.value = saved.filter((x) => x?.path)
+  } catch { tabs.value = [] }
+}
+function persistTabs() {
+  localStorage.setItem(TABS_KEY, JSON.stringify(tabs.value.slice(-12)))
+}
+
+function syncTab(r: { path: string; name?: unknown; meta?: { title?: string; hidden?: boolean } }) {
+  activeTabPath.value = r.path
+  if (r.path === '/login' || !r.name) return
+  if (!tabs.value.find((tb) => tb.path === r.path)) {
+    tabs.value.push({ path: r.path, name: (r.name as string) ?? null, closable: tabs.value.length > 0 })
+    if (tabs.value.length > 12) tabs.value.splice(0, tabs.value.length - 12)
+    persistTabs()
+  }
+}
+loadTabs()
+
+// 标题实时取路由 meta.title（语言切换后 refreshRouteTitles 就地更新）
+function tabTitle(tb: PageTab): string {
+  void tabsLocaleKey.value
+  const rec = router.getRoutes().find((r) => r.path === tb.path)
+  return (rec?.meta?.title as string) || String(tb.name || tb.path)
+}
+
+function gotoTab(tb: PageTab) {
+  if (tb.path !== route.path) router.push(tb.path)
+}
+
+function closeTab(tb: PageTab) {
+  const i = tabs.value.findIndex((x) => x.path === tb.path)
+  if (i < 0) return
+  tabs.value.splice(i, 1)
+  persistTabs()
+  if (tb.path === route.path) {
+    const next = tabs.value[Math.min(i, tabs.value.length - 1)]
+    if (next) router.push(next.path)
+  }
+}
+
+watch(() => route.fullPath, () => syncTab(route), { immediate: true })
+
 // ---- 顶栏通知公告：未读角标 + 弹层（打开时拉取，点击展开正文并上报已读） ----
 const showNotices = ref(false)
 const noticeRows = ref<NoticeInfo[]>([])
@@ -914,6 +984,58 @@ onUnmounted(() => {
   background: rgba(63, 117, 171, 0.08);
   padding: 0 4px;
   border-radius: 4px;
+}
+
+.tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px 0;
+  background: var(--sx-surface);
+  border-bottom: 1px solid var(--sx-line);
+  overflow-x: auto;
+  flex: none;
+}
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--sx-line);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  font-size: 12.5px;
+  color: var(--sx-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+}
+.tab-item:hover {
+  color: var(--sx-accent);
+}
+.tab-item.active {
+  color: var(--sx-accent);
+  border-color: var(--sx-accent);
+  background: var(--sx-accent-soft);
+  font-weight: 600;
+}
+.tab-close {
+  font-size: 10px;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  line-height: 13px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.tab-item:hover .tab-close {
+  opacity: 0.8;
+}
+.tab-close:hover {
+  background: var(--sx-danger);
+  color: #fff;
+  opacity: 1;
 }
 
 .header-right {
