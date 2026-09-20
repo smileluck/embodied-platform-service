@@ -1,0 +1,22 @@
+// Scheduled job module messages
+export default {
+  title: 'Scheduled Jobs',
+  new: 'New Job',
+  edit: 'Edit Job',
+  name: 'Name',
+  cron: 'Cron',
+  handler: 'Handler',
+  lastRun: 'Last Run',
+  logs: 'Run Logs',
+  runNow: 'Run',
+  runSubmitted: 'Submitted, refresh later to see the log',
+  runSuccess: 'Success',
+  runFailed: 'Failed',
+  duration: 'Duration',
+  startedAt: 'Started At',
+  output: 'Output',
+  nameRequired: 'Please enter the job name',
+  cronRequired: 'Please enter the cron expression',
+  handlerRequired: 'Please select a handler',
+  deleteConfirm: 'Delete job "{name}"?',
+}

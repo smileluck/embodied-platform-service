@@ -1,0 +1,22 @@
+// 定时任务模块文案
+export default {
+  title: '定时任务',
+  new: '新增任务',
+  edit: '编辑任务',
+  name: '任务名称',
+  cron: 'cron 表达式',
+  handler: '处理器',
+  lastRun: '上次执行',
+  logs: '执行记录',
+  runNow: '执行',
+  runSubmitted: '已提交执行，稍后刷新查看记录',
+  runSuccess: '成功',
+  runFailed: '失败',
+  duration: '耗时',
+  startedAt: '开始时间',
+  output: '输出',
+  nameRequired: '请输入任务名称',
+  cronRequired: '请输入 cron 表达式',
+  handlerRequired: '请选择处理器',
+  deleteConfirm: '确定删除任务「{name}」吗？',
+}

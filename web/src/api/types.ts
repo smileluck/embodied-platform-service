@@ -497,3 +497,33 @@ export interface NoticeInfo {
   updated_at: string
   has_read?: boolean
 }
+
+// 定时任务
+export interface JobInfo {
+  id: number
+  name: string
+  cron: string
+  handler_key: string
+  params?: string
+  remark: string
+  status: number
+  last_run_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface JobHandler {
+  key: string
+  description: string
+}
+
+export interface JobLog {
+  id: number
+  job_id: number
+  job_name: string
+  handler_key: string
+  status: 'success' | 'failed'
+  output: string
+  duration_ms: number
+  started_at: string
+}
