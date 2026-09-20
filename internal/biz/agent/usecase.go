@@ -637,7 +637,7 @@ func (uc *Usecase) UsageStats(ctx context.Context, days int) (*UsageStats, error
 	if days <= 0 || days > 90 {
 		days = 7
 	}
-	logs, err := uc.repo.ListUsageSince(ctx, time.Now().AddDate(0, 0, -(days - 1)).Truncate(24*time.Hour))
+	logs, err := uc.repo.ListUsageSince(ctx, time.Now().AddDate(0, 0, -(days-1)).Truncate(24*time.Hour))
 	if err != nil {
 		return nil, err
 	}

@@ -38,9 +38,9 @@ type UsageAgentPoint struct {
 
 // UsageStats 统计聚合结果
 type UsageStats struct {
-	Days    []UsageDailyPoint `json:"days"`    // 最近 N 日（含无调用日补零），按日期升序
-	Agents  []UsageAgentPoint `json:"agents"`  // Top Agent（按总 token 降序，最多 10 个）
-	Calls   int               `json:"calls"`   // 区间内总调用次数
-	Tokens  int64             `json:"tokens"`  // 区间内总 token
-	Cost    float64           `json:"cost"`    // 区间费用估算合计
+	Days   []UsageDailyPoint `json:"days"`   // 最近 N 日（含无调用日补零），按日期升序
+	Agents []UsageAgentPoint `json:"agents"` // Top Agent（按总 token 降序，最多 10 个）
+	Calls  int               `json:"calls"`  // 区间内总调用次数
+	Tokens int64             `json:"tokens"` // 区间内总 token
+	Cost   float64           `json:"cost"`   // 区间费用估算合计
 }

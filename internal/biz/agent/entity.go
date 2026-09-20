@@ -37,13 +37,13 @@ func (p *Provider) HasAPIKey() bool { return p.APIKeyEnc != "" }
 
 // Model 供应商下的模型配置
 type Model struct {
-	ID            uint      `json:"id"`
-	ProviderID    uint      `json:"provider_id"`
-	Name          string    `json:"name"`           // 上游模型标识（如 glm-4.7）
-	DisplayName   string    `json:"display_name"`   // 展示名（空则回退 name）
-	ContextWindow int       `json:"context_window"` // 上下文窗口（token，0=未知）
-	MaxOutput     int       `json:"max_output"`     // 单次最大输出（token，0=上游默认）
-	SupportsTools bool      `json:"supports_tools"` // 是否支持工具调用（function call）
+	ID            uint   `json:"id"`
+	ProviderID    uint   `json:"provider_id"`
+	Name          string `json:"name"`           // 上游模型标识（如 glm-4.7）
+	DisplayName   string `json:"display_name"`   // 展示名（空则回退 name）
+	ContextWindow int    `json:"context_window"` // 上下文窗口（token，0=未知）
+	MaxOutput     int    `json:"max_output"`     // 单次最大输出（token，0=上游默认）
+	SupportsTools bool   `json:"supports_tools"` // 是否支持工具调用（function call）
 	// 每千 token 计费单价（货币单位由运营口径自定，仅用于费用估算展示）；0=未设置不估算
 	InputPrice  float64   `json:"input_price"`
 	OutputPrice float64   `json:"output_price"`

@@ -20,8 +20,10 @@ import (
 
 // Message 对话消息（OpenAI 兼容 role/content）
 type Message struct {
-	Role    string `json:"role"` // system | user | assistant
-	Content string `json:"content"`
+	Role       string     `json:"role"` // system | user | assistant | tool
+	Content    string     `json:"content"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`   // assistant 发起的工具调用（回传上游）
+	ToolCallID string     `json:"tool_call_id,omitempty"` // tool 角色：对应的调用 ID
 }
 
 // Usage token 用量
@@ -38,6 +40,7 @@ type ChatRequest struct {
 	Temperature float64   `json:"temperature,omitempty"`
 	TopP        float64   `json:"top_p,omitempty"`
 	MaxTokens   int       `json:"max_tokens,omitempty"`
+	Tools       []ToolDef `json:"tools,omitempty"` // function calling 工具定义（模型支持时下发）
 }
 
 // ChatResponse 非流式调用结果
@@ -53,7 +56,11 @@ type StreamEvent struct {
 	Delta        string `json:"delta,omitempty"`
 	FinishReason string `json:"finish_reason,omitempty"`
 	Usage        *Usage `json:"usage,omitempty"`
-	Err          error  `json:"-"`
+	// Calls 终帧聚合出的原始工具调用请求（运行时 -> 用例层执行；不直接下发前端）
+	Calls []ToolCall `json:"-"`
+	// ToolCalls 工具调用执行结果（含 Result/Error）；传输层以独立 tool 帧下发
+	ToolCalls []ToolCallResult `json:"tool_calls,omitempty"`
+	Err       error            `json:"-"`
 }
 
 // LLMClient LLM 调用客户端抽象
@@ -105,8 +112,19 @@ type wireChatRequest struct {
 	Temperature   float64            `json:"temperature,omitempty"`
 	TopP          float64            `json:"top_p,omitempty"`
 	MaxTokens     int                `json:"max_tokens,omitempty"`
+	Tools         []ToolDef          `json:"tools,omitempty"`
 	Stream        bool               `json:"stream,omitempty"`
 	StreamOptions *wireStreamOptions `json:"stream_options,omitempty"`
+}
+
+// wireToolCallChunk 流式 tool_calls 分片：按 index 增量下发，name/arguments 逐段拼接
+type wireToolCallChunk struct {
+	Index    int    `json:"index"`
+	ID       string `json:"id"`
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
 }
 
 type wireChatResponse struct {
@@ -121,7 +139,8 @@ type wireChatResponse struct {
 type wireStreamChunk struct {
 	Choices []struct {
 		Delta struct {
-			Content string `json:"content"`
+			Content   string              `json:"content"`
+			ToolCalls []wireToolCallChunk `json:"tool_calls"`
 		} `json:"delta"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
@@ -261,6 +280,17 @@ func (c *openaiClient) StreamCompletion(ctx context.Context, req ChatRequest) (<
 	go func() {
 		defer close(ch)
 		defer resp.Body.Close()
+		// tool_calls 分片按 index 聚合（id/name 首帧给出，arguments 逐段拼接），
+		// 终帧（finish_reason=tool_calls）以聚合结果整体下发
+		pending := make(map[int]*ToolCall)
+		emit := func(ev StreamEvent) bool {
+			select {
+			case ch <- ev:
+				return true
+			case <-ctx.Done():
+				return false
+			}
+		}
 		// 单行上限 1MB（长 delta）；默认 64KB 缓冲
 		sc := bufio.NewScanner(resp.Body)
 		sc.Buffer(make([]byte, 64<<10), 1<<20)
@@ -281,24 +311,51 @@ func (c *openaiClient) StreamCompletion(ctx context.Context, req ChatRequest) (<
 			if len(chunk.Choices) > 0 {
 				ev.Delta = chunk.Choices[0].Delta.Content
 				ev.FinishReason = chunk.Choices[0].FinishReason
+				for _, tc := range chunk.Choices[0].Delta.ToolCalls {
+					p, ok := pending[tc.Index]
+					if !ok {
+						p = &ToolCall{}
+						pending[tc.Index] = p
+					}
+					if tc.ID != "" {
+						p.ID = tc.ID
+					}
+					if tc.Function.Name != "" {
+						p.Function.Name += tc.Function.Name
+					}
+					p.Function.Arguments += tc.Function.Arguments
+				}
+			}
+			if ev.FinishReason == "tool_calls" {
+				ev.Calls = aggregateToolCalls(pending)
 			}
 			if ev.Delta == "" && ev.FinishReason == "" && ev.Usage == nil {
 				continue
 			}
-			select {
-			case ch <- ev:
-			case <-ctx.Done():
+			if !emit(ev) {
 				return
 			}
 		}
 		if err := sc.Err(); err != nil && ctx.Err() == nil {
-			select {
-			case ch <- StreamEvent{Err: mapTransportErr(err)}:
-			case <-ctx.Done():
-			}
+			emit(StreamEvent{Err: mapTransportErr(err)})
 		}
 	}()
 	return ch, nil
+}
+
+func aggregateToolCalls(pending map[int]*ToolCall) []ToolCall {
+	idx := make([]int, 0, len(pending))
+	for i := range pending {
+		idx = append(idx, i)
+	}
+	sort.Ints(idx)
+	out := make([]ToolCall, 0, len(idx))
+	for _, i := range idx {
+		if pending[i].Function.Name != "" {
+			out = append(out, *pending[i])
+		}
+	}
+	return out
 }
 
 // ListModels 拉取上游 /models 列表（升序去重）
