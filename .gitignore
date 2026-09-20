@@ -5,6 +5,7 @@ gui-test-screenshots/
 # ---- Go ----
 bin/
 tmp/
+cmd/server/server
 *.exe
 *.exe~
 *.dll
@@ -18,6 +19,7 @@ coverage.html
 # ---- 前端 ----
 web/node_modules/
 web/dist/
+web/tsconfig.tsbuildinfo
 web/dist-ssr/
 web/*.local
 npm-debug.log*
