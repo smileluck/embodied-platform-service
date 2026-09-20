@@ -1,8 +1,8 @@
 <template>
-  <!-- 智能体底座 · 聊天测试：左右 4:6 固定分栏（同 Providers 页范式），左选 Agent 右对话 -->
+  <!-- 智能体底座 · 聊天测试：左右 4:6 固定分栏，左栏上选 Agent 下选会话，右栏对话 -->
   <div class="chat-page">
     <div class="cols">
-      <!-- 左栏：Agent 列表（客户端过滤，禁用的不可选） -->
+      <!-- 左栏：Agent 列表 + 会话列表（客户端过滤，禁用的不可选） -->
       <div class="col col-left">
         <n-card size="small" class="agents-card">
           <template #header>
@@ -29,36 +29,81 @@
             </div>
           </div>
         </n-card>
+
+        <!-- 会话列表：选中 Agent 后展示（消息持久化） -->
+        <n-card v-if="selected" size="small" class="convs-card">
+          <template #header>
+            <span class="card-title">{{ t('agent.chat.conversations') }}</span>
+          </template>
+          <template #header-extra>
+            <n-button size="tiny" type="primary" ghost :disabled="!canCreateConv" @click="newConversation">
+              {{ t('agent.chat.newConversation') }}
+            </n-button>
+          </template>
+          <div v-if="convsLoading" class="agents-loading"><n-spin size="small" /></div>
+          <n-empty v-else-if="!conversations.length" size="small" :description="t('agent.chat.emptyConversations')" style="padding: 24px 0" />
+          <div v-else class="convs-list">
+            <div
+              v-for="cv in conversations" :key="cv.id"
+              class="conv-item" :class="{ active: selectedConv?.id === cv.id }"
+              @click="selectedConv = cv"
+            >
+              <div class="conv-title">{{ cv.title }}</div>
+              <div class="conv-meta mono">{{ fmtTime(cv.last_msg_at) }}</div>
+              <div class="conv-ops">
+                <n-button size="tiny" quaternary @click.stop="openRename(cv)">{{ t('agent.chat.rename') }}</n-button>
+                <n-button size="tiny" quaternary type="error" @click.stop="confirmDelete(cv)">✕</n-button>
+              </div>
+            </div>
+          </div>
+        </n-card>
       </div>
 
-      <!-- 右栏：对话区（切换 Agent 重挂载，会话重置） -->
+      <!-- 右栏：对话区（切换会话重挂载加载历史；未选会话为无状态调试） -->
       <div class="col col-right">
         <n-card size="small" class="chat-card">
           <template #header>
             <span class="card-title">{{ selected ? `${t('agent.chat.title')} · ${selected.name}` : t('agent.chat.title') }}</span>
           </template>
           <ChatPanel
-            v-if="selected" :key="selected.id"
-            :agent-id="selected.id" :model-label="modelLabel(selected)" :rows="4"
+            v-if="selected" :key="`${selected.id}-${selectedConv?.id ?? 0}`"
+            :agent-id="selected.id" :conversation-id="selectedConv?.id ?? 0"
+            :model-label="modelLabel(selected)" :rows="4"
           />
           <n-empty v-else size="small" :description="t('agent.chat.selectHint')" style="padding: 60px 0" />
         </n-card>
       </div>
     </div>
+
+    <!-- 重命名会话 -->
+    <n-modal v-model:show="renameShow" preset="dialog" :title="t('agent.chat.renameTitle')" :positive-text="t('common.confirm')" :negative-text="t('common.cancel')" @positive="submitRename">
+      <n-form>
+        <n-form-item :label="t('agent.chat.newTitle')" :feedback="renameFeedback" :validation-status="renameFeedback ? 'error' : undefined">
+          <n-input v-model:value="renameTitle" :maxlength="20" show-count @keydown.enter.prevent="submitRename" />
+        </n-form-item>
+      </n-form>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { NCard, NEmpty, NInput, NSpin, NTag } from 'naive-ui'
+import { NButton, NCard, NEmpty, NForm, NFormItem, NInput, NModal, NSpin, NTag, useDialog, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import ChatPanel from './ChatPanel.vue'
-import { listAgentModels, listAgentProviders, listAgents } from '../../api'
-import type { AgentInfo, AgentModel, AgentProvider } from '../../api/types'
+import {
+  createAgentConversation, deleteAgentConversation, listAgentConversations,
+  listAgentModels, listAgentProviders, listAgents, renameAgentConversation,
+} from '../../api'
+import type { AgentConversation, AgentInfo, AgentModel, AgentProvider } from '../../api/types'
+import { useUserStore } from '../../stores/user'
 
 const { t } = useI18n()
 const route = useRoute()
+const message = useMessage()
+const dialog = useDialog()
+const userStore = useUserStore()
 
 const loading = ref(false)
 const agents = ref<AgentInfo[]>([])
@@ -66,6 +111,22 @@ const providers = ref<AgentProvider[]>([])
 const models = ref<AgentModel[]>([])
 const kw = ref('')
 const selected = ref<AgentInfo | null>(null)
+
+// 会话列表（当前 Agent 的本人会话）
+const conversations = ref<AgentConversation[]>([])
+const selectedConv = ref<AgentConversation | null>(null)
+const convsLoading = ref(false)
+
+// 重命名弹窗
+const renameShow = ref(false)
+const renameTitle = ref('')
+const renameTarget = ref<AgentConversation | null>(null)
+
+const canCreateConv = computed(() => userStore.has('agent:conversation:create'))
+const renameFeedback = computed(() => {
+  if (!renameTitle.value.trim()) return t('agent.chat.titleRequired')
+  return ''
+})
 
 const providerName = computed(() => new Map(providers.value.map((p) => [p.id, p.name])))
 const modelById = computed(() => new Map(models.value.map((m) => [m.id, m])))
@@ -85,10 +146,82 @@ function modelLabel(a: AgentInfo): string {
   return `${providerName.value.get(m.provider_id) ?? ''} · ${m.display_name || m.name}`
 }
 
-// 禁用的 Agent 不可选（对话会被后端拒绝），保持可见以便辨识
+function fmtTime(iso: string): string {
+  const d = new Date(iso)
+  const now = new Date()
+  const sameDay = d.toDateString() === now.toDateString()
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  return sameDay ? hm : `${d.getMonth() + 1}-${String(d.getDate()).padStart(2, '0')} ${hm}`
+}
+
+// 选中 Agent：加载其会话并自动选中最近一个（无会话则无状态模式，点新建后开始持久对话）
 function select(a: AgentInfo) {
-  if (a.status !== 1) return
+  if (a.status !== 1 || selected.value?.id === a.id) return
   selected.value = a
+  selectedConv.value = null
+  loadConversations(a.id)
+}
+
+async function loadConversations(agentId: number) {
+  convsLoading.value = true
+  try {
+    const res = await listAgentConversations({ page: 1, page_size: 50, agent_id: agentId })
+    conversations.value = res.data.data.list
+    selectedConv.value = conversations.value[0] ?? null
+  } catch (e: any) {
+    message.error(e?.response?.data?.msg || t('common.loadFailed'))
+  } finally {
+    convsLoading.value = false
+  }
+}
+
+async function newConversation() {
+  if (!selected.value) return
+  try {
+    const res = await createAgentConversation(selected.value.id)
+    conversations.value.unshift(res.data.data)
+    selectedConv.value = res.data.data
+  } catch (e: any) {
+    message.error(e?.response?.data?.msg || t('agent.saveFailed'))
+  }
+}
+
+function openRename(cv: AgentConversation) {
+  renameTarget.value = cv
+  renameTitle.value = cv.title
+  renameShow.value = true
+}
+
+async function submitRename() {
+  const cv = renameTarget.value
+  if (!cv || renameFeedback.value) return
+  try {
+    const res = await renameAgentConversation(cv.id, renameTitle.value.trim())
+    const i = conversations.value.findIndex((c) => c.id === cv.id)
+    if (i >= 0) conversations.value[i] = res.data.data
+    if (selectedConv.value?.id === cv.id) selectedConv.value = res.data.data
+    renameShow.value = false
+  } catch (e: any) {
+    message.error(e?.response?.data?.msg || t('agent.saveFailed'))
+  }
+}
+
+function confirmDelete(cv: AgentConversation) {
+  dialog.warning({
+    title: t('common.tips'),
+    content: t('agent.chat.deleteConfirm', { title: cv.title }),
+    positiveText: t('common.delete'),
+    negativeText: t('common.cancel'),
+    onPositiveClick: async () => {
+      try {
+        await deleteAgentConversation(cv.id)
+        conversations.value = conversations.value.filter((c) => c.id !== cv.id)
+        if (selectedConv.value?.id === cv.id) selectedConv.value = conversations.value[0] ?? null
+      } catch (e: any) {
+        message.error(e?.response?.data?.msg || t('agent.deleteFailed'))
+      }
+    },
+  })
 }
 
 onMounted(async () => {
@@ -104,10 +237,9 @@ onMounted(async () => {
     models.value = mRes.data.data.list
     // 支持 /agent/chat?agent=<id> 预选（深链/页间跳转）
     const qid = Number(route.query.agent) || 0
-    selected.value =
-      agents.value.find((a) => a.id === qid && a.status === 1) ??
-      agents.value.find((a) => a.status === 1) ??
-      null
+    const pick = agents.value.find((a) => a.id === qid && a.status === 1) ?? agents.value.find((a) => a.status === 1) ?? null
+    selected.value = pick
+    if (pick) loadConversations(pick.id)
   } finally {
     loading.value = false
   }
@@ -136,6 +268,7 @@ onMounted(async () => {
 }
 .col-left {
   flex: 4 1 0;
+  gap: 12px;
   overflow: auto;
 }
 .col-right {
@@ -147,12 +280,26 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-/* 左栏 Agent 卡片：卡内列表滚动 */
+/* 左栏 Agent 卡：占上部，卡内列表滚动 */
 .agents-card {
+  flex: 1 1 55%;
   display: flex;
   flex-direction: column;
+  min-height: 220px;
 }
 .agents-card :deep(.n-card__content) {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+/* 左栏会话卡：占下部 */
+.convs-card {
+  flex: 1 1 45%;
+  display: flex;
+  flex-direction: column;
+  min-height: 180px;
+}
+.convs-card :deep(.n-card__content) {
   flex: 1;
   overflow: auto;
   min-height: 0;
@@ -206,6 +353,51 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 会话列表项：标题 + 时间 + hover 操作 */
+.convs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.conv-item {
+  position: relative;
+  padding: 7px 10px;
+  border: 1px solid var(--sx-line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.conv-item:hover {
+  border-color: var(--sx-accent);
+}
+.conv-item.active {
+  border-color: var(--sx-accent);
+  background-color: rgba(63, 117, 171, 0.08);
+}
+.conv-title {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 4px;
+}
+.conv-meta {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--sx-muted);
+}
+.conv-ops {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: none;
+  gap: 2px;
+}
+.conv-item:hover .conv-ops {
+  display: flex;
 }
 
 /* 右栏对话卡：撑满高度，滚动在 ChatPanel 内部 */

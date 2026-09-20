@@ -400,3 +400,25 @@ export interface TMVersion {
   published_at: string
   created_at: string
 }
+
+// 对话会话（本人数据；AgentName 冗余，Agent 删除后历史仍可读）
+export interface AgentConversation {
+  id: number
+  user_id: number
+  agent_id: number
+  agent_name: string
+  title: string
+  last_msg_at: string
+  created_at: string
+  updated_at: string
+}
+
+// 会话消息（追加流水）
+export interface AgentConversationMessage {
+  id: number
+  conversation_id: number
+  role: 'user' | 'assistant'
+  content: string
+  total_tokens: number // assistant 消息的 usage.total_tokens
+  created_at: string
+}

@@ -1,12 +1,14 @@
 <template>
-  <!-- Agent 聊天面板：无状态调试对话（SSE 流式），供 调试抽屉 与 聊天测试页 复用 -->
+  <!-- Agent 聊天面板：SSE 流式对话，供 调试抽屉 与 聊天测试页 复用。
+       传入 conversation 时加载历史并持久化消息；不传则为无状态调试（不落库） -->
   <div class="chat-panel">
     <div class="chat-head">
       <span class="chat-model mono">{{ currentModel || '—' }}</span>
-      <span class="chat-sub">{{ t('agent.playground.subtitle') }}</span>
+      <span class="chat-sub">{{ subtitle }}</span>
     </div>
     <div ref="listRef" class="chat-list">
-      <div v-if="!messages.length" class="chat-empty">{{ t('agent.playground.empty') }}</div>
+      <div v-if="loadingHistory" class="chat-empty"><n-spin size="small" /></div>
+      <div v-else-if="!messages.length" class="chat-empty">{{ t('agent.playground.empty') }}</div>
       <div v-for="(m, i) in messages" :key="i" class="chat-msg" :class="m.role">
         <div class="chat-bubble">
           <div class="chat-text">{{ m.content || (m.role === 'assistant' && m.streaming ? t('agent.playground.streaming') : '') }}</div>
@@ -34,9 +36,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
-import { NButton, NInput } from 'naive-ui'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { NButton, NInput, NSpin, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
+import { listAgentConversationMessages } from '../../api'
 import { useUserStore } from '../../stores/user'
 
 interface ChatMsg {
@@ -49,18 +52,23 @@ interface ChatMsg {
 
 const props = withDefaults(defineProps<{
   agentId: number
+  conversationId?: number // 会话 ID：传入则加载历史 + 消息落库；不传为无状态调试
   modelLabel?: string // 初始模型标签（后续以 SSE meta 帧为准）
   rows?: number // 输入框行数（页面场景更高）
-}>(), { modelLabel: '', rows: 3 })
+}>(), { conversationId: 0, modelLabel: '', rows: 3 })
 
 const { t, locale } = useI18n()
 const userStore = useUserStore()
+const message = useMessage()
 
 const canChat = computed(() => userStore.has('agent:chat'))
+const subtitle = computed(() =>
+  props.conversationId ? t('agent.playground.subtitlePersist') : t('agent.playground.subtitle'))
 
 const messages = ref<ChatMsg[]>([])
 const input = ref('')
 const sending = ref(false)
+const loadingHistory = ref(false)
 const abortCtrl = ref<AbortController | null>(null)
 const listRef = ref<HTMLElement | null>(null)
 const currentModel = ref(props.modelLabel)
@@ -73,6 +81,30 @@ watch(
     if (el) el.scrollTop = el.scrollHeight
   }),
 )
+
+onMounted(loadHistory)
+
+// 加载会话历史消息（时间正序；无状态模式跳过）
+async function loadHistory() {
+  if (!props.conversationId) return
+  loadingHistory.value = true
+  try {
+    const res = await listAgentConversationMessages(props.conversationId, { page: 1, page_size: 100 })
+    messages.value = res.data.data.list.map((m) => ({
+      role: m.role,
+      content: m.content,
+      usage: m.role === 'assistant' && m.total_tokens ? { total_tokens: m.total_tokens } : undefined,
+    }))
+    nextTick(() => {
+      const el = listRef.value
+      if (el) el.scrollTop = el.scrollHeight
+    })
+  } catch (e: any) {
+    message.error(e?.response?.data?.msg || t('agent.playground.loadHistoryFailed'))
+  } finally {
+    loadingHistory.value = false
+  }
+}
 
 function clear() {
   messages.value = []
@@ -104,7 +136,7 @@ async function send() {
         Authorization: `Bearer ${userStore.accessToken}`,
         'Accept-Language': locale.value,
       },
-      body: JSON.stringify({ messages: history }),
+      body: JSON.stringify({ messages: history, conversation_id: props.conversationId || undefined }),
       signal: ctrl.signal,
     })
     if (!resp.ok || !resp.body) {
