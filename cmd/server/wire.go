@@ -7,6 +7,7 @@ import (
 	"github.com/google/wire"
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	bizagent "github.com/smilex/smilex-admin-gin/internal/biz/agent"
+
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
@@ -16,6 +17,7 @@ import (
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
+	bizsys "github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
 
 	bizmonitor "github.com/smilex/smilex-admin-gin/internal/biz/monitor"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
@@ -24,6 +26,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	dataadmission "github.com/smilex/smilex-admin-gin/internal/data/admission"
 	dataagent "github.com/smilex/smilex-admin-gin/internal/data/agent"
+
 	dataappuser "github.com/smilex/smilex-admin-gin/internal/data/appuser"
 	dataauth "github.com/smilex/smilex-admin-gin/internal/data/auth"
 	datablacklist "github.com/smilex/smilex-admin-gin/internal/data/blacklist"
@@ -36,10 +39,12 @@ import (
 	dataperm "github.com/smilex/smilex-admin-gin/internal/data/permission"
 	"github.com/smilex/smilex-admin-gin/internal/data/platform"
 	datarole "github.com/smilex/smilex-admin-gin/internal/data/role"
+	datasys "github.com/smilex/smilex-admin-gin/internal/data/sysconfig"
 	datatenant "github.com/smilex/smilex-admin-gin/internal/data/tenant"
 	"github.com/smilex/smilex-admin-gin/internal/server"
 	admissionsvc "github.com/smilex/smilex-admin-gin/internal/service/admission"
 	agentsvc "github.com/smilex/smilex-admin-gin/internal/service/agent"
+
 	appusersvc "github.com/smilex/smilex-admin-gin/internal/service/appuser"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	blacklistsvc "github.com/smilex/smilex-admin-gin/internal/service/blacklist"
@@ -49,6 +54,7 @@ import (
 	exportsvc "github.com/smilex/smilex-admin-gin/internal/service/export"
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
+	syssvc "github.com/smilex/smilex-admin-gin/internal/service/sysconfig"
 
 	monitorsvc "github.com/smilex/smilex-admin-gin/internal/service/monitor"
 	permsvc "github.com/smilex/smilex-admin-gin/internal/service/permission"
@@ -68,6 +74,7 @@ var bizSet = wire.NewSet(
 	bizdevice.NewUsecase,
 	bizdevmodel.NewUsecase,
 	bizdict.NewUsecase,
+	bizsys.NewUsecase,
 	bizmonitor.NewUsecase,
 	bizagent.NewUsecase,
 	bizexport.NewUsecase,
@@ -101,6 +108,8 @@ var dataRepoSet = wire.NewSet(
 	dataagent.NewRepo,
 
 	datadict.NewRepo,
+
+	datasys.NewRepo,
 	dataexport.NewRepo,
 	dataexport.NewWorker,
 	// 平台集成层（商户 HMAC 开放面 + 身份自省 + 存储）
@@ -148,6 +157,7 @@ var serviceSet = wire.NewSet(
 	monitorsvc.NewService,
 	agentsvc.NewService,
 	dictsvc.NewService,
+	syssvc.NewService,
 )
 
 var providerSet = wire.NewSet(bizSet, dataRepoSet, serviceSet, ProvideConfig, server.NewHTTPServer)

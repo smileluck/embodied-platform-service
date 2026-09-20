@@ -92,6 +92,10 @@ var messagesZh = map[string]string{
 	"dict.type.has_items":                "该类型下存在字典项，请先删除",
 	"dict.item.not_found":                "字典项不存在",
 	"dict.item.exists":                   "该类型下已存在相同标签或取值，请更换",
+	"sysconfig.not_found":                "参数不存在",
+	"sysconfig.key_exists":               "参数键已存在，请更换",
+	"sysconfig.bad_value":                "参数值与类型不匹配",
+	"sysconfig.key_invalid":              "参数键只能包含字母、数字、下划线、点",
 	// 开放 API 验签中间件
 	"openapi.missing_sign_headers": "缺少签名请求头",
 	"openapi.invalid_timestamp":    "时间戳无效或超出允许偏差",

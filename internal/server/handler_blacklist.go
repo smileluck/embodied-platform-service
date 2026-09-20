@@ -16,7 +16,7 @@ import (
 // ---- IP 黑名单 ----
 
 func (s *HTTPServer) listIPBlacklist(c *gin.Context) {
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	list, pg, err := s.blacklist.List(c.Request.Context(), bizblacklist.Query{IP: c.Query("ip")}, page, size)
 	if err != nil {
 		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)

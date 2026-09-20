@@ -51,7 +51,7 @@ func (s *HTTPServer) listExports(c *gin.Context) {
 		response.OK(c, vos)
 		return
 	}
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	vos, pg, err := s.export.List(c.Request.Context(), sub.UserID, page, size)
 	if err != nil {
 		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)

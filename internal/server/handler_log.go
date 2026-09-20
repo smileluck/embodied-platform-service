@@ -18,7 +18,7 @@ type logListResult struct {
 }
 
 func (s *HTTPServer) listOperationLogs(c *gin.Context) {
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	q := bizlog.OperationLogQuery{Username: c.Query("username"), Method: c.Query("method"), Keyword: c.Query("kw")}
 	if t, ok := parseUnixParam(c.Query("start")); ok {
 		q.Start = t

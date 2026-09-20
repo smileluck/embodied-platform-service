@@ -21,7 +21,7 @@ func (s *HTTPServer) dictErr(c *gin.Context, err error) {
 // ---- 字典类型 ----
 
 func (s *HTTPServer) listDictTypes(c *gin.Context) {
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	q := bizdict.Query{Name: c.Query("name"), Code: c.Query("code")}
 	list, pg, err := s.dict.ListTypes(c.Request.Context(), q, page, size)
 	if err != nil {
@@ -95,7 +95,7 @@ func (s *HTTPServer) listDictItems(c *gin.Context) {
 		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
 		return
 	}
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	list, pg, err := s.dict.ListItems(c.Request.Context(), uint(typeID), page, size)
 	if err != nil {
 		s.dictErr(c, err)

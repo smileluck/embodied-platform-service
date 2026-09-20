@@ -15,7 +15,7 @@ import (
 // ---- 应用用户（管理端） ----
 
 func (s *HTTPServer) listAppUsers(c *gin.Context) {
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	q := bizappuser.Query{
 		Keyword: strings.TrimSpace(c.Query("kw")),
 		Phone:   strings.TrimSpace(c.Query("phone")),

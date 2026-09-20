@@ -18,7 +18,7 @@ type listResult struct {
 }
 
 func (s *HTTPServer) listUsers(c *gin.Context) {
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	var req admissionsvc.ListRequest
 	_ = c.ShouldBindQuery(&req)
 	users, pg, err := s.admission.List(c.Request.Context(), req, page, size)

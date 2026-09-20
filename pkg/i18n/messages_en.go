@@ -92,6 +92,10 @@ var messagesEn = map[string]string{
 	"dict.type.has_items":                "Dict items exist under this type, delete them first",
 	"dict.item.not_found":                "Dict item not found",
 	"dict.item.exists":                   "An item with the same label or value exists under this type",
+	"sysconfig.not_found":                "Config not found",
+	"sysconfig.key_exists":               "Config key already exists",
+	"sysconfig.bad_value":                "Value does not match the type",
+	"sysconfig.key_invalid":              "Key allows letters, digits, underscore and dot only",
 	// Open API sign middleware
 	"openapi.missing_sign_headers": "Missing signature headers",
 	"openapi.invalid_timestamp":    "Timestamp is invalid or out of the allowed skew",

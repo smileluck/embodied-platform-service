@@ -130,7 +130,7 @@ func (d *Data) migrateAndSeed() error {
 		&model.FilePO{}, &model.ExportRecordPO{}, &model.IPBlacklistPO{},
 		&model.TenantPO{}, &model.AppUserPO{}, &model.AppUserTenantPO{},
 		&model.AgentProviderPO{}, &model.AgentModelPO{}, &model.AgentPO{},
-		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{},
+		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{}, &model.SysConfigPO{},
 	); err != nil {
 		return err
 	}
@@ -178,6 +178,7 @@ var systemMenus = []systemMenuDef{
 	// 租户中心（顶级目录分组）
 	{Name: "租户中心", Code: "menu:tenantCenter", Type: "dir", Icon: "BusinessOutline", Sort: 4},
 	{Name: "数据字典", Code: "menu:dict", Path: "/system/dicts", Icon: "BookOutline", Sort: 10, ParentCode: "menu:system"},
+	{Name: "系统参数", Code: "menu:sysConfig", Path: "/system/configs", Icon: "SettingsOutline", Sort: 11, ParentCode: "menu:system"},
 	{Name: "关于我们", Code: "menu:about", Path: "/about", Icon: "InformationCircleOutline", Sort: 9},
 	{Name: "日志管理", Code: "menu:log", Type: "dir", Icon: "DocumentTextOutline", Sort: 3},
 	{Name: "操作日志", Code: "menu:opLog", Path: "/log/operation-logs", Icon: "ClipboardOutline", Sort: 2, ParentCode: "menu:log"},
@@ -416,6 +417,12 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "新增字典项", Code: "dict:item:create", Menu: "menu:dict", Method: "POST", Path: "/api/v1/dict-types/*/items", Sort: 7},
 	{Name: "编辑字典项", Code: "dict:item:update", Menu: "menu:dict", Method: "PUT", Path: "/api/v1/dict-items/*", Sort: 8},
 	{Name: "删除字典项", Code: "dict:item:delete", Menu: "menu:dict", Method: "DELETE", Path: "/api/v1/dict-items/*", Sort: 9},
+
+	// 系统参数
+	{Name: "查询参数", Code: "sysconfig:list", Menu: "menu:sysConfig", Method: "GET", Path: "/api/v1/sys-configs", Sort: 1},
+	{Name: "新增参数", Code: "sysconfig:create", Menu: "menu:sysConfig", Method: "POST", Path: "/api/v1/sys-configs", Sort: 2},
+	{Name: "编辑参数", Code: "sysconfig:update", Menu: "menu:sysConfig", Method: "PUT", Path: "/api/v1/sys-configs/*", Sort: 3},
+	{Name: "删除参数", Code: "sysconfig:delete", Menu: "menu:sysConfig", Method: "DELETE", Path: "/api/v1/sys-configs/*", Sort: 4},
 }
 
 // ensureSystemButtonPerms 幂等补齐系统管理接口权限点并绑定商户管理员角色（每次启动执行）：

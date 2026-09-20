@@ -15,7 +15,7 @@ import (
 )
 
 func (s *HTTPServer) listDevices(c *gin.Context) {
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	var req devicesvc.ListRequest
 	_ = c.ShouldBindQuery(&req)
 	devices, pg, err := s.device.List(c.Request.Context(), req, page, size)
@@ -71,7 +71,7 @@ func (s *HTTPServer) listDeviceCommands(c *gin.Context) {
 	if !ok {
 		return
 	}
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	cmds, pg, err := s.device.ListCommands(c.Request.Context(), id, c.Query("status"), page, size)
 	if err != nil {
 		s.deviceErr(c, err)

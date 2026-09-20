@@ -9,7 +9,7 @@ import (
 )
 
 func (s *HTTPServer) listDeviceModels(c *gin.Context) {
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	var req devmodelsvc.ListRequest
 	_ = c.ShouldBindQuery(&req)
 	models, pg, err := s.devmodel.List(c.Request.Context(), req, page, size)

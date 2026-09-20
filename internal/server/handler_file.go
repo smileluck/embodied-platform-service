@@ -15,7 +15,7 @@ import (
 // ---- 文件 ----
 
 func (s *HTTPServer) listFiles(c *gin.Context) {
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	files, pg, err := s.file.List(c.Request.Context(), bizfile.Query{Name: c.Query("name")}, page, size)
 	if err != nil {
 		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)

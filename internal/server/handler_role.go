@@ -13,7 +13,7 @@ import (
 // ---- 角色 ----
 
 func (s *HTTPServer) listRoles(c *gin.Context) {
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	roles, pg, err := s.role.List(c.Request.Context(), role.Query{Name: c.Query("name")}, page, size)
 	if err != nil {
 		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)

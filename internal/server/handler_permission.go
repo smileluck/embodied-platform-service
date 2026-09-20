@@ -13,7 +13,7 @@ import (
 // ---- 权限 ----
 
 func (s *HTTPServer) listPerms(c *gin.Context) {
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	// page_size=0：全量返回（菜单管理树/角色分配权限树需要整表构建，分页会静默截断）
 	if c.Query("page_size") == "0" {
 		size = 0

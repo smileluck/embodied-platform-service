@@ -15,7 +15,7 @@ import (
 // ---- 租户 ----
 
 func (s *HTTPServer) listTenants(c *gin.Context) {
-	page, size := pageParams(c)
+	page, size := s.pageParams(c)
 	q := biztenant.Query{
 		Name: strings.TrimSpace(c.Query("name")),
 		Code: strings.TrimSpace(c.Query("code")),

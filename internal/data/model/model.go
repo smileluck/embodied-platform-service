@@ -16,6 +16,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/biz/log"
 	"github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/role"
+	"github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
 	"github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	"gorm.io/gorm"
 )
@@ -618,4 +619,24 @@ func DictItemFromPO(p *DictItemPO) *dict.DictItem {
 		Sort: p.Sort, Remark: p.Remark, Status: dict.Status(p.Status),
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
+}
+
+// SysConfigPO 系统参数表（key 唯一；运行时可调，读走缓存）
+type SysConfigPO struct {
+	Key         string `gorm:"column:key;primaryKey;size:64"`
+	Value       string `gorm:"size:512"`
+	Type        string `gorm:"size:16"` // string | number | bool
+	Description string `gorm:"size:200"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+func (SysConfigPO) TableName() string { return "sys_configs" }
+
+func SysConfigToPO(c *sysconfig.Config) *SysConfigPO {
+	return &SysConfigPO{Key: c.Key, Value: c.Value, Type: string(c.Type), Description: c.Description}
+}
+
+func SysConfigFromPO(p *SysConfigPO) *sysconfig.Config {
+	return &sysconfig.Config{Key: p.Key, Value: p.Value, Type: sysconfig.ValueType(p.Type), Description: p.Description, UpdatedAt: p.UpdatedAt}
 }

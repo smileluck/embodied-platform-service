@@ -32,6 +32,7 @@ import (
 	monitorsvc "github.com/smilex/smilex-admin-gin/internal/service/monitor"
 	permsvc "github.com/smilex/smilex-admin-gin/internal/service/permission"
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
+	syssvc "github.com/smilex/smilex-admin-gin/internal/service/sysconfig"
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
 	"github.com/smilex/smilex-admin-gin/pkg/cache"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
@@ -56,6 +57,7 @@ type HTTPServer struct {
 	monitor       *monitorsvc.Service
 	agent         *agentsvc.Service
 	dict          *dictsvc.Service
+	syscfg        *syssvc.Service
 	tenant        *tenantsvc.Service
 	appuser       *appusersvc.Service
 	appuserUC     *bizappuser.Usecase    // AppJWT 中间件直连领域用例（校验用户启用状态）
@@ -76,7 +78,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	file *filesvc.Service, export *exportsvc.Service, blacklist *blacklistsvc.Service,
 	tenant *tenantsvc.Service, appuser *appusersvc.Service, appuserUC *bizappuser.Usecase,
 	appIssuer bizappuser.TokenIssuer, device *devicesvc.Service, devmodel *devmodelsvc.Service,
-	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service,
+	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service, syscfg *syssvc.Service,
 	rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
 	gin.SetMode(cfg.Server.Mode)
 	e := gin.New()
@@ -99,7 +101,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 		role: role, perm: perm, log: log,
 		file: file, export: export, blacklist: blacklist, tenant: tenant,
 		appuser: appuser, appuserUC: appuserUC, appIssuer: appIssuer,
-		device: device, devmodel: devmodel, monitor: monitor, agent: agent, dict: dict,
+		device: device, devmodel: devmodel, monitor: monitor, agent: agent, dict: dict, syscfg: syscfg,
 		rdb:       rdb,
 		rbacCache: rbacCache.TwoLevel, identityCache: identityCache, engine: e,
 	}
@@ -332,6 +334,15 @@ func (s *HTTPServer) registerRoutes() {
 		agentModels.POST("/:id/test", s.testAgentModel)
 	}
 
+	// ---- 系统参数（运行时可调） ----
+	syscfgs := protected.Group("/sys-configs")
+	{
+		syscfgs.GET("", s.listSysConfigs)
+		syscfgs.POST("", s.createSysConfig)
+		syscfgs.PUT("/:key", s.updateSysConfig)
+		syscfgs.DELETE("/:key", s.deleteSysConfig)
+	}
+
 	// ---- 数据字典 ----
 	dictTypes := protected.Group("/dict-types")
 	{
@@ -455,13 +466,14 @@ func (s *HTTPServer) Stop(ctx context.Context) error {
 	return s.srv.Shutdown(ctx)
 }
 
-func pageParams(c *gin.Context) (int, int) {
+// pageParams 解析分页参数：单页上限取运行时参数 page.sizeMax（系统参数页可调，未配置回退 100）
+func (s *HTTPServer) pageParams(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 	if page < 1 {
 		page = 1
 	}
-	if size < 1 || size > 100 {
+	if size < 1 || size > s.syscfg.IntDefault(c.Request.Context(), "page.sizeMax", 100) {
 		size = 10
 	}
 	return page, size
