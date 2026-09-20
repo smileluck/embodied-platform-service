@@ -1,50 +1,9 @@
 /* ============================================================
    SmileX Admin 设计规范（Design Tokens）
-   具身领域风格：石墨深色仪表外壳 + 暖白工作面 + 工业琥珀主色。
-   签名元素「状态灯语」(.sx-led) 与「铭牌卡头」(.sx-plate) 定义于此。
-   所有自定义样式与 Naive UI themeOverrides 均从本文件取值。
-   修改主题只改这里（App.vue / index.html 两处同步色值）。
+   变量定义见 variables.css（亮/暗双套，主题唯一来源）；
+   本文件是全局基础样式与通用工具类。
    ============================================================ */
-
-:root {
-  /* 色板 · 深壳（侧栏/顶栏/登录品牌面板） */
-  --sx-ink: #17191E;          /* 石墨黑：深壳底色、浅底主文字 */
-  --sx-ink-soft: #20242C;     /* 石墨浅一档：顶栏等深壳层次 */
-  --sx-shell-line: rgba(255, 255, 255, 0.08);       /* 深壳内分隔线 */
-  --sx-shell-text: #E9E7E2;   /* 深壳主文字（暖白） */
-  --sx-shell-muted: rgba(233, 231, 226, 0.52);      /* 深壳次级文字 */
-
-  /* 色板 · 浅芯（内容区） */
-  --sx-bg: #F4F4F2;           /* 暖瓷白：全局底 */
-  --sx-surface: #FFFFFF;      /* 纯净面：卡片、表格 */
-  --sx-line: #E5E3DE;         /* 分隔线、描边（暖发丝线） */
-  --sx-muted: #6E7681;        /* 次级文字（中性灰，去蓝调） */
-
-  /* 色板 · 工业琥珀（品牌主色） */
-  --sx-accent: #D97706;       /* 深琥珀：主按钮、链接、铭牌刻度线 */
-  --sx-accent-hover: #E8960C; /* 主色 hover */
-  --sx-accent-pressed: #B8620A;
-  --sx-accent-soft: #FBEED7;  /* 浅琥珀衬底：选中态、标签 */
-  --sx-accent-bright: #FFB224;            /* 高亮琥珀：深底（深壳/品牌面板）上的高亮 */
-  --sx-accent-bright-rgb: 255, 178, 36;   /* 同色 RGB 三元组：canvas/rgba 场景 */
-
-  /* 色板 · 状态灯语 */
-  --sx-ok: #16A34A;           /* 信号绿：在线、运行、成功 */
-  --sx-ok-bright: #34D399;    /* 磷光绿：深底上的在线/正常 */
-  --sx-warn: #E8960C;         /* 警示琥珀：未激活、进行中 */
-  --sx-danger: #DC2626;       /* 急停红：禁用、失败、P0 急停 */
-
-  /* 字体 */
-  --sx-font-body: -apple-system, BlinkMacSystemFont, "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
-  --sx-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
-    "Liberation Mono", monospace;
-
-  /* 圆角与投影 */
-  --sx-radius: 8px;
-  --sx-radius-lg: 14px;
-  --sx-shadow: 0 1px 3px rgba(23, 25, 30, 0.06), 0 8px 24px rgba(23, 25, 30, 0.05);
-}
+@import './variables.css';
 
 /* 全局基础 */
 html,
@@ -164,4 +123,21 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---- 暗色局部适配（组件内固定亮色的部分在此覆盖） ---- */
+html.dark .chat-text.md .md-code {
+  background: #0F1621;
+}
+html.dark .chat-text.md .md-code-bar {
+  background: #16202D;
+}
+html.dark .chat-text.md p code,
+html.dark .chat-text.md li code {
+  background: rgba(63, 117, 171, 0.25);
+}
+/* hljs 亮色主题的暗色基础覆盖 */
+html.dark .md-code code.hljs {
+  color: #C9D4E3;
+  background: transparent;
 }

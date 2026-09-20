@@ -1,5 +1,7 @@
 // Main layout: header / sider / user dropdown / change-password modal / search palette / exports popover
 export default {
+  toLight: 'Switch to light',
+  toDark: 'Switch to dark',
   notice: { title: 'Notices', empty: 'No notices', new: 'NEW' },
   toggleSider: 'Toggle sidebar',
   searchMenu: 'Search menu pages',

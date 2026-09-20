@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0 0 32 32'%3E%3Crect%20width='32'%20height='32'%20rx='8'%20fill='%23D97706'/%3E%3Ctext%20x='16'%20y='22.5'%20font-family='Menlo,monospace'%20font-size='17'%20font-weight='700'%20text-anchor='middle'%20fill='%2317191E'%3ES%3C/text%3E%3C/svg%3E" />
     <title>SmileX Admin</title>
+    <link rel="stylesheet" href="/src/styles/variables.css">
     <!-- 首次加载全屏动画：必须纯静态（bundle 加载前无任何外部资源可用）。
-         色值与 src/styles/tokens.css 同源（--sx-ink #17191E / --sx-accent-bright #FFB224），
+         色值与 src/styles/tokens.css 同源（--sx-ink var(--sx-panel, #151E2B) / --sx-accent-bright var(--sx-accent-bright, #8FC5E8)），
          改主题两处同步调整。main.ts 在首次导航就绪后挂载应用，并给本层加 .is-done 淡出移除。 -->
     <style>
       #app-loading {
@@ -100,6 +101,14 @@
     </style>
   </head>
   <body>
+    <script>
+      // 主题防闪：渲染前根据存储/系统偏好设置暗色 class
+      try {
+        var t = localStorage.getItem('sx-theme')
+        var dark = t ? t === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        if (dark) document.documentElement.classList.add('dark')
+      } catch (e) {}
+    </script>
     <div id="app"></div>
     <div id="app-loading" role="status" aria-label="加载中">
       <svg class="bl-wave" viewBox="0 0 160 160" aria-hidden="true">

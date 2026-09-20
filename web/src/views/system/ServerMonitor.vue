@@ -134,6 +134,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NRadioButton, NRadioGroup } from 'naive-ui'
+import { isDarkRef } from '../../stores/theme'
 import { getMonitorHistory } from '../../api'
 import type { MonitorHistoryPoint } from '../../api/types'
 import { NButton, NCard, NSelect, useMessage } from 'naive-ui'
@@ -149,7 +150,6 @@ echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, Canvas
 // 曲线配色与 styles/tokens.css 同源（清水蓝主题）
 // 主题色从 CSS 变量读取（亮/暗切换后刷新图表）
 const ACCENT = ref('#3F75AB')
-const ACCENT_SOFT = ref('#8FC5E8')
 function refreshAccent() {
   const cs = getComputedStyle(document.documentElement)
   ACCENT.value = cs.getPropertyValue('--sx-accent').trim() || '#3F75AB'
@@ -161,6 +161,7 @@ watch(isDarkRef, () => {
   renderHistory()
   refreshNow() // 立即重拉一帧并重绘实时图表（配色已更新）
 })
+const ACCENT_SOFT = ref('#8FC5E8')
 const MUTED = '#6B7787'
 const DANGER = '#C2453A'
 // 曲线滚动窗口：5s 轮询下约覆盖最近 5 分钟
@@ -288,8 +289,8 @@ function initCharts() {
     series: [{
       name: 'CPU', type: 'line' as const, smooth: true, showSymbol: false,
       data: cpuHistory, animation: false,
-      lineStyle: { color: ACCENT, width: 1.5 },
-      itemStyle: { color: ACCENT },
+      lineStyle: { color: ACCENT.value, width: 1.5 },
+      itemStyle: { color: ACCENT.value },
       areaStyle: { color: 'rgba(63, 117, 171, 0.12)' },
     }],
   })
@@ -301,15 +302,15 @@ function initCharts() {
       {
         name: t('monitor.memLegend'), type: 'line' as const, smooth: true, showSymbol: false,
         data: memHistory, animation: false,
-        lineStyle: { color: ACCENT, width: 1.5 },
-        itemStyle: { color: ACCENT },
+        lineStyle: { color: ACCENT.value, width: 1.5 },
+        itemStyle: { color: ACCENT.value },
         areaStyle: { color: 'rgba(63, 117, 171, 0.12)' },
       },
       {
         name: t('monitor.swap'), type: 'line' as const, smooth: true, showSymbol: false,
         data: swapHistory, animation: false,
-        lineStyle: { color: ACCENT_SOFT, width: 1.5, type: 'dashed' as const },
-        itemStyle: { color: ACCENT_SOFT },
+        lineStyle: { color: ACCENT_SOFT.value, width: 1.5, type: 'dashed' as const },
+        itemStyle: { color: ACCENT_SOFT.value },
       },
     ],
   })
@@ -413,7 +414,7 @@ function renderHistory() {
       { type: 'value', name: 'B/s', splitLine: { show: false } },
     ],
     series: [
-      { name: 'CPU %', type: 'line', showSymbol: false, itemStyle: { color: ACCENT }, data: pts.map((p) => p.cpu_percent.toFixed(1)) },
+      { name: 'CPU %', type: 'line', showSymbol: false, itemStyle: { color: ACCENT.value }, data: pts.map((p) => p.cpu_percent.toFixed(1)) },
       { name: t('monitor.memTitle') + ' %', type: 'line', showSymbol: false, itemStyle: { color: '#7FB069' }, data: pts.map((p) => p.mem_percent.toFixed(1)) },
       { name: 'NET', type: 'line', yAxisIndex: 1, showSymbol: false, itemStyle: { color: '#d9903f' }, data: pts.map((p) => Math.round(p.net_recv_rate + p.net_send_rate)) },
     ],

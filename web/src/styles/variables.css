@@ -1,0 +1,47 @@
+/* ============================================================
+   SmileX Admin 设计变量（Design Variables）
+   亮色为 :root 基准，暗色在 html.dark 覆盖——主题唯一来源：
+   naive-ui themeOverrides（App.vue 运行时读取）、canvas 图表常量、
+   首屏加载动画均取本文件变量。
+   ============================================================ */
+
+:root {
+  /* 色板（亮色） */
+  --sx-panel: #151E2B;       /* 藏蓝黑：品牌面板底色（亮暗不变） */
+  --sx-panel-soft: #212C3E;  /* 品牌面板内层次（亮暗不变） */
+  --sx-ink: #151E2B;         /* 主文字 */
+  --sx-bg: #F5F7FA;          /* 全局底 */
+  --sx-surface: #FFFFFF;     /* 卡片、表格面 */
+  --sx-accent: #3F75AB;      /* 清水蓝：主色、链接、主按钮（亮暗不变） */
+  --sx-accent-hover: #518CC8;
+  --sx-accent-pressed: #315E8C;
+  --sx-accent-soft: #E4EDF6; /* 浅蓝衬底：选中态、标签 */
+  --sx-accent-bright: #8FC5E8;
+  --sx-accent-bright-rgb: 143, 197, 232;
+  --sx-line: #E3E8EF;        /* 分隔线、描边 */
+  --sx-muted: #6B7787;       /* 次级文字 */
+  --sx-danger: #C2453A;
+
+  /* 字体 */
+  --sx-font-body: -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
+  --sx-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* 圆角与投影 */
+  --sx-radius: 8px;
+  --sx-radius-lg: 14px;
+  --sx-shadow: 0 1px 3px rgba(21, 30, 43, 0.06), 0 8px 24px rgba(21, 30, 43, 0.05);
+}
+
+/* 暗色覆盖：底/面/线/文字反转，主色与品牌面板保持不变 */
+html.dark {
+  --sx-ink: #E6EBF2;
+  --sx-bg: #10161F;
+  --sx-surface: #1A2330;
+  --sx-accent-soft: rgba(63, 117, 171, 0.24);
+  --sx-line: #2A3547;
+  --sx-muted: #8B98A9;
+  --sx-danger: #D9665B;
+  --sx-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.3);
+}

@@ -256,8 +256,8 @@ onMounted(() => {
   flex-direction: column;
   justify-content: space-between;
   padding: 40px 48px;
-  background: var(--sx-ink);
-  color: var(--sx-shell-text);
+  background: var(--sx-panel);
+  color: #EDF2F8;
   overflow: hidden;
 }
 /* 面板内的工程网格 */

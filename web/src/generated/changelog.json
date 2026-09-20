@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-23T03:48:31.537Z",
+  "generatedAt": "2026-09-23T03:49:44.840Z",
   "commits": [
+    {
+      "hash": "3fca66cd",
+      "date": "2026-09-20",
+      "type": "fix",
+      "scope": "security",
+      "message": "RBAC 通配改单段语义防越权，软删归档释放唯一索引"
+    },
     {
       "hash": "98df6069",
       "date": "2026-09-20",

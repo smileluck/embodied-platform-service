@@ -1,6 +1,9 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
+import { applyTheme } from './stores/theme'
+
+applyTheme()
 import router from './router'
 import { i18n } from './locales'
 import { permissionDirective } from './directives/permission'

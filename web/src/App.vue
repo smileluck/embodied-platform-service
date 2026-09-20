@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :theme="null" :theme-overrides="themeOverrides" :locale="naiveLocale" :date-locale="naiveDateLocale">
+  <n-config-provider :theme="naiveTheme" :theme-overrides="themeOverrides" :locale="naiveLocale" :date-locale="naiveDateLocale">
     <n-message-provider>
       <n-dialog-provider>
         <router-view />
@@ -18,39 +18,33 @@ const { locale } = useI18n()
 const naiveLocale = computed(() => (locale.value === 'en-US' ? enUS : zhCN))
 const naiveDateLocale = computed(() => (locale.value === 'en-US' ? dateEnUS : dateZhCN))
 
-// 主题规范：色值与 src/styles/tokens.css 同源，改主题两处同步调整。
-// info 固定为板岩灰（中性信息色）：主色是品牌琥珀后，info 若随主色会与 warning（警示琥珀）混淆。
-const themeOverrides: GlobalThemeOverrides = {
-  common: {
-    primaryColor: '#D97706',
-    primaryColorHover: '#E8960C',
-    primaryColorPressed: '#B8620A',
-    primaryColorSuppl: '#E8960C',
-    infoColor: '#64748B',
-    infoColorHover: '#75879C',
-    infoColorPressed: '#5A6B7D',
-    infoColorSuppl: '#75879C',
-    successColor: '#16A34A',
-    successColorHover: '#2DB35F',
-    successColorPressed: '#128A3E',
-    successColorSuppl: '#2DB35F',
-    warningColor: '#E8960C',
-    warningColorHover: '#F2A62B',
-    warningColorPressed: '#CF820A',
-    warningColorSuppl: '#F2A62B',
-    errorColor: '#DC2626',
-    errorColorHover: '#E7443F',
-    errorColorPressed: '#C01E1E',
-    errorColorSuppl: '#E7443F',
-    borderRadius: '8px',
-    borderRadiusSmall: '5px',
-    bodyColor: '#F4F4F2',
-    cardColor: '#FFFFFF',
-    textColorBase: '#17191E',
-    borderColor: '#E5E3DE',
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', sans-serif",
-  },
+// 主题单一来源：naive-ui overrides 运行时读取 variables.css 的 CSS 变量，
+// 暗色切换（html.dark）时 computed 重算自动跟随，无需维护双份色值
+import { darkTheme } from 'naive-ui'
+import { isDarkRef } from './stores/theme'
+
+function readVar(name: string, fallback: string): string {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return v || fallback
 }
+
+const naiveTheme = computed(() => (isDarkRef.value ? darkTheme : null))
+
+const themeOverrides = computed<GlobalThemeOverrides>(() => ({
+  common: {
+    primaryColor: readVar('--sx-accent', '#3F75AB'),
+    primaryColorHover: readVar('--sx-accent-hover', '#518CC8'),
+    primaryColorPressed: readVar('--sx-accent-pressed', '#315E8C'),
+    primaryColorSuppl: readVar('--sx-accent-hover', '#518CC8'),
+    borderRadius: readVar('--sx-radius', '8px'),
+    borderRadiusSmall: '5px',
+    bodyColor: readVar('--sx-bg', '#F5F7FA'),
+    cardColor: readVar('--sx-surface', '#FFFFFF'),
+    textColorBase: readVar('--sx-ink', '#151E2B'),
+    borderColor: readVar('--sx-line', '#E3E8EF'),
+    fontFamily: readVar('--sx-font-body', 'sans-serif'),
+  },
+}))
 </script>
 
 <style>

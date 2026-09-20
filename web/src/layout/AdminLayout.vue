@@ -30,6 +30,14 @@
           </div>
         </div>
         <div class="header-right">
+          <n-button
+            class="theme-trigger" quaternary circle :focusable="false"
+            :aria-label="isDarkRef ? t('layout.toLight') : t('layout.toDark')" @click="toggleTheme"
+          >
+            <template #icon>
+              <n-icon :component="isDarkRef ? SunnyOutline : MoonOutline" />
+            </template>
+          </n-button>
           <n-dropdown :options="localeOptions" @select="onLocaleChange">
             <n-button
               class="locale-trigger"
@@ -210,8 +218,9 @@ import {
   type DropdownOption, type FormInst, type FormRules, type TagProps,
   NBadge,
 } from 'naive-ui'
-import { MenuOutline, SearchOutline, DownloadOutline, LanguageOutline, NotificationsOutline } from '@vicons/ionicons5'
+import { MenuOutline, SearchOutline, DownloadOutline, LanguageOutline, NotificationsOutline, MoonOutline, SunnyOutline } from '@vicons/ionicons5'
 import { useUserStore } from '../stores/user'
+import { isDarkRef, toggleTheme } from '../stores/theme'
 import { renderMenuIcon } from '../utils/menuIcon'
 import { changePassword, searchMenus, listRecentExports, getExportBlob, listActiveNotices, getUnreadNoticeCount, markNoticeRead } from '../api'
 import { saveBlob, parseDispositionFilename } from '../utils/download'
