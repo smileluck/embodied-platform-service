@@ -541,3 +541,13 @@ export interface DashboardStats {
   op_trend: { date: string; total: number }[]
   recent_logins: { username: string; ip: string; status: string; created_at: string }[]
 }
+
+// 监控历史快照
+export interface MonitorHistoryPoint {
+  ts: number
+  cpu_percent: number
+  mem_percent: number
+  swap_percent: number
+  net_send_rate: number
+  net_recv_rate: number
+}

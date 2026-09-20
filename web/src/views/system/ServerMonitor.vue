@@ -111,12 +111,31 @@
         </n-card>
       </div>
     </div>
+
+    <!-- 历史回看：60s 一点，最长 72h -->
+    <n-card size="small" class="history-card">
+      <template #header>
+        <span class="card-title">{{ t('monitor.historyTitle') }}</span>
+      </template>
+      <template #header-extra>
+        <n-radio-group v-model:value="historyHours" size="small" @update:value="loadHistory">
+          <n-radio-button :value="6">6h</n-radio-button>
+          <n-radio-button :value="24">24h</n-radio-button>
+          <n-radio-button :value="72">72h</n-radio-button>
+        </n-radio-group>
+      </template>
+      <div v-if="!history.length" class="empty" style="padding: 24px 0">{{ t('monitor.noHistory') }}</div>
+      <div v-show="history.length" ref="histChartRef" class="chart" />
+    </n-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { NRadioButton, NRadioGroup } from 'naive-ui'
+import { getMonitorHistory } from '../../api'
+import type { MonitorHistoryPoint } from '../../api/types'
 import { NButton, NCard, NSelect, useMessage } from 'naive-ui'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
@@ -347,12 +366,57 @@ function onVisibility() {
 }
 watch(intervalSec, () => schedule())
 
+// ---- 历史回看 ----
+const historyHours = ref(24)
+const history = ref<MonitorHistoryPoint[]>([])
+const histChartRef = ref<HTMLElement | null>(null)
+let histChart: echarts.ECharts | null = null
+let histResizeOb: ResizeObserver | null = null
+
+async function loadHistory() {
+  try {
+    const res = await getMonitorHistory(historyHours.value)
+    history.value = res.data.data
+    await nextTick()
+    renderHistory()
+  } catch { /* 历史加载失败不影响实时区 */ }
+}
+
+function renderHistory() {
+  if (!histChartRef.value || !history.value.length) return
+  if (!histChart) {
+    histChart = echarts.init(histChartRef.value)
+    histResizeOb = new ResizeObserver(() => histChart?.resize())
+    histResizeOb.observe(histChartRef.value)
+  }
+  const pts = history.value
+  const times = pts.map((p) => new Date(p.ts * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
+  histChart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['CPU %', t('monitor.memTitle') + ' %', 'NET'] },
+    grid: { left: 48, right: 48, top: 36, bottom: 28 },
+    xAxis: { type: 'category', data: times },
+    yAxis: [
+      { type: 'value', max: 100, name: '%' },
+      { type: 'value', name: 'B/s', splitLine: { show: false } },
+    ],
+    series: [
+      { name: 'CPU %', type: 'line', showSymbol: false, itemStyle: { color: ACCENT }, data: pts.map((p) => p.cpu_percent.toFixed(1)) },
+      { name: t('monitor.memTitle') + ' %', type: 'line', showSymbol: false, itemStyle: { color: '#7FB069' }, data: pts.map((p) => p.mem_percent.toFixed(1)) },
+      { name: 'NET', type: 'line', yAxisIndex: 1, showSymbol: false, itemStyle: { color: '#d9903f' }, data: pts.map((p) => Math.round(p.net_recv_rate + p.net_send_rate)) },
+    ],
+  })
+}
+
 onMounted(() => {
+  loadHistory()
   initCharts()
   document.addEventListener('visibilitychange', onVisibility)
   void load().then(schedule)
 })
 onBeforeUnmount(() => {
+  histResizeOb?.disconnect()
+  histChart?.dispose()
   clearTimer()
   document.removeEventListener('visibilitychange', onVisibility)
   ro?.disconnect()
@@ -362,6 +426,10 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.history-card {
+  margin-top: 12px;
+}
+
 /* 撑满一屏：100vh - 顶栏 64px - 内容区上下 padding（与 Profile 页同范式） */
 .monitor-page {
   display: flex;

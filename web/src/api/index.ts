@@ -30,6 +30,7 @@ import type {
   MenuNode,
   Merchant,
   MerchantAPILog,
+  MonitorHistoryPoint,
   NoticeInfo,
   OnlineSession,
   OperationLogInfo,
@@ -335,3 +336,8 @@ export const listJobLogs = (id: number, params: { page: number; page_size: numbe
 // ---- 仪表盘 ----
 
 export const getDashboardStats = () => request.get<R<DashboardStats>>('/dashboard/stats')
+
+// ---- 监控历史 ----
+
+export const getMonitorHistory = (hours = 24) =>
+  request.get<R<MonitorHistoryPoint[]>>('/monitor/history', { params: { hours } })

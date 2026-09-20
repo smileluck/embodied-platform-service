@@ -1,6 +1,20 @@
 {
-  "generatedAt": "2026-09-23T03:45:06.274Z",
+  "generatedAt": "2026-09-23T03:45:52.346Z",
   "commits": [
+    {
+      "hash": "24490a31",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "monitor",
+      "message": "监控快照落库与历史查询接口"
+    },
+    {
+      "hash": "f17ce83d",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "web",
+      "message": "Dashboard 实质化——统计卡、趋势图与最近登录"
+    },
     {
       "hash": "9ebe1c75",
       "date": "2026-09-20",

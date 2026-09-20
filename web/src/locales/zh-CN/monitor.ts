@@ -1,5 +1,7 @@
 // 服务器状态监控文案
 export default {
+  historyTitle: '历史回看（每分钟一点，保留 7 天）',
+  noHistory: '暂无历史数据（数据按分钟积累）',
   pause: '暂停',
   resume: '继续',
   refreshNow: '立即刷新',

@@ -1,5 +1,7 @@
 // Server monitor page copy
 export default {
+  historyTitle: 'History (per-minute points, kept 7 days)',
+  noHistory: 'No history yet (accumulates per minute)',
   pause: 'Pause',
   resume: 'Resume',
   refreshNow: 'Refresh',
