@@ -257,6 +257,7 @@ func (c *openaiClient) StreamCompletion(ctx context.Context, req ChatRequest) (<
 	payload, err := json.Marshal(wireChatRequest{
 		Model: req.Model, Messages: req.Messages,
 		Temperature: req.Temperature, TopP: req.TopP, MaxTokens: req.MaxTokens,
+		Tools:         req.Tools,
 		Stream:        true,
 		StreamOptions: &wireStreamOptions{IncludeUsage: true}, // 主流兼容实现忽略未知字段；支持者据此在末帧回 usage
 	})
