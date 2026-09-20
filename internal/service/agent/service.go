@@ -187,14 +187,16 @@ type ChatMessage struct {
 type ChatRequest struct {
 	// Messages 对话历史（末条须为 user）；最后一条 user 消息之后的 assistant 增量由 SSE 流返回
 	Messages []ChatMessage `json:"messages" binding:"required,min=1,max=50,dive"`
+	// ConversationID 持久化会话（可选）：提供时本轮消息落库；须为本人创建且归属当前 Agent
+	ConversationID uint `json:"conversation_id" binding:"omitempty,gt=0"`
 }
 
-func (s *Service) ChatStream(ctx context.Context, agentID uint, req ChatRequest) (<-chan bizagent.StreamEvent, *bizagent.ChatMeta, error) {
+func (s *Service) ChatStream(ctx context.Context, agentID, userID uint, req ChatRequest) (<-chan bizagent.StreamEvent, *bizagent.ChatMeta, error) {
 	msgs := make([]bizagent.Message, 0, len(req.Messages))
 	for _, m := range req.Messages {
 		msgs = append(msgs, bizagent.Message{Role: m.Role, Content: m.Content})
 	}
-	return s.uc.ChatStream(ctx, agentID, msgs)
+	return s.uc.ChatStream(ctx, agentID, userID, req.ConversationID, msgs)
 }
 
 // statusOf 状态缺省启用（未传时默认 1）

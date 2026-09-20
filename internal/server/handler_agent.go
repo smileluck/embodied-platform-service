@@ -298,7 +298,8 @@ func (s *HTTPServer) chatAgent(c *gin.Context) {
 		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
 		return
 	}
-	events, meta, err := s.agent.ChatStream(c.Request.Context(), id, req)
+	sub := middleware.Subject(c)
+	events, meta, err := s.agent.ChatStream(c.Request.Context(), id, sub.UserID, req)
 	if err != nil {
 		s.agentErr(c, err)
 		return

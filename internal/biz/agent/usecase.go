@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/smilex/smilex-admin-gin/internal/conf"
+	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
+	"go.uber.org/zap"
 )
 
 // Usecase 智能体领域用例：三层配置 CRUD + LLM 调用编排（harness 底座入口）
@@ -339,16 +341,19 @@ func (uc *Usecase) RemoteModels(ctx context.Context, providerID uint) ([]string,
 
 // ChatMeta 对话元信息（SSE 首帧，前端展示模型归属）
 type ChatMeta struct {
-	AgentID    uint   `json:"agent_id"`
-	AgentName  string `json:"agent_name"`
-	ProviderID uint   `json:"provider_id"`
-	ModelID    uint   `json:"model_id"`
-	Model      string `json:"model"`
+	AgentID        uint   `json:"agent_id"`
+	AgentName      string `json:"agent_name"`
+	ProviderID     uint   `json:"provider_id"`
+	ModelID        uint   `json:"model_id"`
+	Model          string `json:"model"`
+	ConversationID uint   `json:"conversation_id,omitempty"` // 持久化会话（0=无状态调用）
 }
 
-// ChatStream Agent 调试对话（Playground）：system prompt 由 Agent 配置注入，
-// 历史消息由前端带入（role 仅 user/assistant，system 不可注入）；无状态，不落库。
-func (uc *Usecase) ChatStream(ctx context.Context, agentID uint, history []Message) (<-chan StreamEvent, *ChatMeta, error) {
+// ChatStream Agent 调试对话：system prompt 由 Agent 配置注入，
+// 历史消息由前端带入（role 仅 user/assistant，system 不可注入）。
+// conversationID > 0 时接入持久化：user 消息在流建立后立即落库，
+// assistant 回复（含 usage）在流结束后落库并刷新会话活跃时间；中途停止时已生成部分照常保存。
+func (uc *Usecase) ChatStream(ctx context.Context, agentID uint, userID, conversationID uint, history []Message) (<-chan StreamEvent, *ChatMeta, error) {
 	a, err := uc.repo.FindAgentByID(ctx, agentID)
 	if err != nil {
 		return nil, nil, err
@@ -375,6 +380,18 @@ func (uc *Usecase) ChatStream(ctx context.Context, agentID uint, history []Messa
 		return nil, nil, err
 	}
 
+	// 会话归属校验（本人 + Agent 匹配），在调用上游之前完成
+	var conv *Conversation
+	if conversationID > 0 {
+		conv, err = uc.repo.FindConversation(ctx, userID, conversationID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if conv.AgentID != agentID {
+			return nil, nil, ErrConversationAgentMismatch
+		}
+	}
+
 	msgs := make([]Message, 0, len(history)+1)
 	if a.SystemPrompt != "" {
 		msgs = append(msgs, Message{Role: "system", Content: a.SystemPrompt})
@@ -388,8 +405,68 @@ func (uc *Usecase) ChatStream(ctx context.Context, agentID uint, history []Messa
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// 上游接受请求后再落 user 消息：避免上游拒绝时留下无回复的孤儿消息。
+	// 末条历史即本轮新输入（调用方保证末条为 user）
+	if conv != nil {
+		uc.recordUserMessage(conv, history)
+		ch = uc.persistAssistant(conv, ch)
+	}
+
 	meta := &ChatMeta{AgentID: a.ID, AgentName: a.Name, ProviderID: p.ID, ModelID: m.ID, Model: m.Name}
+	if conv != nil {
+		meta.ConversationID = conv.ID
+	}
 	return ch, meta, nil
+}
+
+// recordUserMessage 落库本轮 user 消息；默认标题的会话用消息前 20 字命名
+func (uc *Usecase) recordUserMessage(conv *Conversation, history []Message) {
+	if len(history) == 0 || history[len(history)-1].Role != MsgRoleUser {
+		return
+	}
+	last := history[len(history)-1]
+	if err := uc.repo.AppendMessage(context.Background(), &ConversationMessage{
+		ConversationID: conv.ID, Role: MsgRoleUser, Content: last.Content,
+	}); err != nil {
+		logger.Warn("append user message failed", zap.Uint("conversation", conv.ID), zap.Error(err))
+	}
+	if conv.Title == DefaultConversationTitle {
+		if t := truncateRunes(strings.TrimSpace(last.Content), ConversationTitleMax); t != "" {
+			conv.Title = t
+		}
+	}
+	conv.LastMsgAt = time.Now()
+	if err := uc.repo.UpdateConversation(context.Background(), conv); err != nil {
+		logger.Warn("touch conversation failed", zap.Uint("conversation", conv.ID), zap.Error(err))
+	}
+}
+
+// persistAssistant 包装流通道：透传事件的同时聚合 assistant 回复，
+// 通道关闭后落库（出错/停止时已生成部分也保存）；DB 写失败仅告警不影响流输出
+func (uc *Usecase) persistAssistant(conv *Conversation, in <-chan StreamEvent) <-chan StreamEvent {
+	out := make(chan StreamEvent)
+	go func() {
+		defer close(out)
+		var content strings.Builder
+		var usage int
+		for ev := range in {
+			content.WriteString(ev.Delta)
+			if ev.Usage != nil {
+				usage = ev.Usage.TotalTokens
+			}
+			out <- ev
+		}
+		if content.Len() == 0 {
+			return
+		}
+		if err := uc.repo.AppendMessage(context.Background(), &ConversationMessage{
+			ConversationID: conv.ID, Role: MsgRoleAssistant, Content: content.String(), TotalTokens: usage,
+		}); err != nil {
+			logger.Warn("append assistant message failed", zap.Uint("conversation", conv.ID), zap.Error(err))
+		}
+	}()
+	return out
 }
 
 // resolveModel 供应商下定位测试模型：modelID 为 0 取首个启用模型，否则须归属该供应商

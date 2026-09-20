@@ -310,7 +310,7 @@ func TestChatStreamEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ch, meta, err := uc.ChatStream(context.Background(), a.ID, []Message{{Role: "user", Content: "你好"}})
+	ch, meta, err := uc.ChatStream(context.Background(), a.ID, 0, 0, []Message{{Role: "user", Content: "你好"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -337,7 +337,7 @@ func TestChatStreamDisabledAgentRejected(t *testing.T) {
 	uc := newTestUsecase(newFakeRepo())
 	_, _, a := seed(t, uc)
 	a.Status = StatusDisabled
-	if _, _, err := uc.ChatStream(context.Background(), a.ID, []Message{{Role: "user", Content: "hi"}}); err != ErrAgentDisabled {
+	if _, _, err := uc.ChatStream(context.Background(), a.ID, 0, 0, []Message{{Role: "user", Content: "hi"}}); err != ErrAgentDisabled {
 		t.Fatalf("expected ErrAgentDisabled, got %v", err)
 	}
 }
