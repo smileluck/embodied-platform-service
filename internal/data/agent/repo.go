@@ -7,9 +7,12 @@ import (
 	"time"
 
 	"github.com/smilex/smilex-admin-gin/internal/biz/agent"
+	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	"github.com/smilex/smilex-admin-gin/internal/data/model"
+	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/security"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -17,8 +20,30 @@ type repo struct {
 	data *data.Data
 }
 
-// NewRepo 创建智能体仓储
-func NewRepo(d *data.Data) agent.Repo { return &repo{data: d} }
+// NewRepo 创建智能体仓储：usageRetentionDays > 0 时启动用量流水每日保留期清理
+func NewRepo(d *data.Data, c *conf.Bootstrap) agent.Repo {
+	r := &repo{data: d}
+	if c.Agent.UsageRetentionDays > 0 {
+		go r.usageRetentionLoop(c.Agent.UsageRetentionDays)
+	}
+	return r
+}
+
+// usageRetentionLoop 用量流水保留期清理（单机版定时，与日志/导出清理同范式）
+func (r *repo) usageRetentionLoop(days int) {
+	cleanup := func() {
+		before := time.Now().AddDate(0, 0, -days)
+		if err := r.CleanupUsageBefore(context.Background(), before); err != nil {
+			logger.Warn("agent usage cleanup failed", zap.Error(err))
+		}
+	}
+	cleanup()
+	t := time.NewTicker(24 * time.Hour)
+	defer t.Stop()
+	for range t.C {
+		cleanup()
+	}
+}
 
 func mapProviderErr(err error) error {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -137,7 +162,8 @@ func (r *repo) UpdateModel(ctx context.Context, m *agent.Model) error {
 		Updates(map[string]interface{}{
 			"provider_id": m.ProviderID, "name": m.Name, "display_name": m.DisplayName,
 			"context_window": m.ContextWindow, "max_output": m.MaxOutput,
-			"supports_tools": m.SupportsTools, "remark": m.Remark, "status": int(m.Status),
+			"supports_tools": m.SupportsTools, "input_price": m.InputPrice, "output_price": m.OutputPrice,
+			"remark": m.Remark, "status": int(m.Status),
 		}).Error
 }
 
@@ -383,4 +409,34 @@ func (r *repo) ListMessages(ctx context.Context, conversationID uint, page, page
 		out = append(out, model.AgentMsgFromPO(&pos[i]))
 	}
 	return out, total, nil
+}
+
+// ---- 用量计量 ----
+
+func (r *repo) AppendUsage(ctx context.Context, u *agent.UsageLog) error {
+	po := model.AgentUsageToPO(u)
+	po.CreatedAt = time.Now()
+	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
+		return err
+	}
+	u.ID, u.CreatedAt = po.ID, po.CreatedAt
+	return nil
+}
+
+func (r *repo) ListUsageSince(ctx context.Context, since time.Time) ([]*agent.UsageLog, error) {
+	var pos []model.AgentUsageLogPO
+	if err := r.data.DB.WithContext(ctx).Where("created_at >= ?", since).
+		Order("id ASC").Find(&pos).Error; err != nil {
+		return nil, err
+	}
+	out := make([]*agent.UsageLog, 0, len(pos))
+	for i := range pos {
+		out = append(out, model.AgentUsageFromPO(&pos[i]))
+	}
+	return out, nil
+}
+
+func (r *repo) CleanupUsageBefore(ctx context.Context, before time.Time) error {
+	return r.data.DB.WithContext(ctx).Where("created_at < ?", before).
+		Delete(&model.AgentUsageLogPO{}).Error
 }

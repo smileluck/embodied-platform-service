@@ -422,3 +422,14 @@ func (s *HTTPServer) listAgentConversationMessages(c *gin.Context) {
 	}
 	response.OK(c, listResult{List: list, Page: pg})
 }
+
+// getAgentUsage 用量统计（最近 N 日聚合；N 缺省 7，上限 90）
+func (s *HTTPServer) getAgentUsage(c *gin.Context) {
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "7"))
+	stats, err := s.agent.UsageStats(c.Request.Context(), days)
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, stats)
+}

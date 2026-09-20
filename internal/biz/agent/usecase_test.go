@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 )
@@ -370,3 +371,11 @@ func (r *fakeRepo) AppendMessage(_ context.Context, m *ConversationMessage) erro
 func (r *fakeRepo) ListMessages(_ context.Context, conversationID uint, page, pageSize int) ([]*ConversationMessage, int64, error) {
 	return nil, 0, nil
 }
+
+// ---- 用量接口的空实现（fakeRepo 不参与用量测试，仅满足接口） ----
+
+func (r *fakeRepo) AppendUsage(_ context.Context, u *UsageLog) error { return nil }
+func (r *fakeRepo) ListUsageSince(_ context.Context, since time.Time) ([]*UsageLog, error) {
+	return nil, nil
+}
+func (r *fakeRepo) CleanupUsageBefore(_ context.Context, before time.Time) error { return nil }

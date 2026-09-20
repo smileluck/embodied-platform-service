@@ -227,6 +227,8 @@ type AgentModelPO struct {
 	ContextWindow int    // 上下文窗口（token，0=未知）
 	MaxOutput     int    // 单次最大输出（token，0=上游默认）
 	SupportsTools bool   // 支持工具调用（function call）
+	InputPrice    float64 // 每千 token 输入单价（0=未设置不估算）
+	OutputPrice   float64 // 每千 token 输出单价
 	Remark        string `gorm:"size:200"`
 	Status        int    // 1 启用 0 禁用
 	CreatedAt     time.Time
@@ -281,6 +283,21 @@ type AgentConversationMsgPO struct {
 }
 
 func (AgentConversationMsgPO) TableName() string { return "agent_conversation_msgs" }
+
+// AgentUsageLogPO 用量计量流水表（追加；保留期每日清理）
+type AgentUsageLogPO struct {
+	ID               uint `gorm:"primaryKey"`
+	AgentID          uint `gorm:"index"`
+	ModelID          uint
+	UserID           uint `gorm:"index"`
+	PromptTokens     int
+	CompletionTokens int
+	TotalTokens      int
+	LatencyMs        int64
+	CreatedAt        time.Time `gorm:"index"`
+}
+
+func (AgentUsageLogPO) TableName() string { return "agent_usage_logs" }
 
 // ---- 转换器 ----
 
@@ -445,6 +462,7 @@ func AgentModelToPO(m *agent.Model) *AgentModelPO {
 	return &AgentModelPO{
 		ID: m.ID, ProviderID: m.ProviderID, Name: m.Name, DisplayName: m.DisplayName,
 		ContextWindow: m.ContextWindow, MaxOutput: m.MaxOutput, SupportsTools: m.SupportsTools,
+		InputPrice: m.InputPrice, OutputPrice: m.OutputPrice,
 		Remark: m.Remark, Status: int(m.Status),
 	}
 }
@@ -453,6 +471,7 @@ func AgentModelFromPO(p *AgentModelPO) *agent.Model {
 	return &agent.Model{
 		ID: p.ID, ProviderID: p.ProviderID, Name: p.Name, DisplayName: p.DisplayName,
 		ContextWindow: p.ContextWindow, MaxOutput: p.MaxOutput, SupportsTools: p.SupportsTools,
+		InputPrice: p.InputPrice, OutputPrice: p.OutputPrice,
 		Remark: p.Remark, Status: agent.Status(p.Status),
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
@@ -500,5 +519,21 @@ func AgentMsgFromPO(p *AgentConversationMsgPO) *agent.ConversationMessage {
 	return &agent.ConversationMessage{
 		ID: p.ID, ConversationID: p.ConversationID, Role: p.Role,
 		Content: p.Content, TotalTokens: p.TotalTokens, CreatedAt: p.CreatedAt,
+	}
+}
+
+func AgentUsageToPO(u *agent.UsageLog) *AgentUsageLogPO {
+	return &AgentUsageLogPO{
+		ID: u.ID, AgentID: u.AgentID, ModelID: u.ModelID, UserID: u.UserID,
+		PromptTokens: u.PromptTokens, CompletionTokens: u.CompletionTokens,
+		TotalTokens: u.TotalTokens, LatencyMs: u.LatencyMs, CreatedAt: u.CreatedAt,
+	}
+}
+
+func AgentUsageFromPO(p *AgentUsageLogPO) *agent.UsageLog {
+	return &agent.UsageLog{
+		ID: p.ID, AgentID: p.AgentID, ModelID: p.ModelID, UserID: p.UserID,
+		PromptTokens: p.PromptTokens, CompletionTokens: p.CompletionTokens,
+		TotalTokens: p.TotalTokens, LatencyMs: p.LatencyMs, CreatedAt: p.CreatedAt,
 	}
 }

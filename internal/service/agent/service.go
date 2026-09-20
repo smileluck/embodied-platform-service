@@ -81,8 +81,11 @@ type ModelCreateRequest struct {
 	ContextWindow int    `json:"context_window" binding:"gte=0,lte=100000000"`
 	MaxOutput     int    `json:"max_output" binding:"gte=0,lte=100000000"`
 	SupportsTools bool   `json:"supports_tools"`
-	Remark        string `json:"remark" binding:"max=200"`
-	Status        *int   `json:"status" binding:"omitempty,gte=0,lte=1"`
+	// 每千 token 单价（0~10000，货币单位自定）；nil=不设置
+	InputPrice  *float64 `json:"input_price" binding:"omitempty,gte=0,lte=10000"`
+	OutputPrice *float64 `json:"output_price" binding:"omitempty,gte=0,lte=10000"`
+	Remark      string   `json:"remark" binding:"max=200"`
+	Status      *int     `json:"status" binding:"omitempty,gte=0,lte=1"`
 }
 
 type ModelUpdateRequest struct {
@@ -92,14 +95,18 @@ type ModelUpdateRequest struct {
 	ContextWindow int    `json:"context_window" binding:"gte=0,lte=100000000"`
 	MaxOutput     int    `json:"max_output" binding:"gte=0,lte=100000000"`
 	SupportsTools bool   `json:"supports_tools"`
-	Remark        string `json:"remark" binding:"max=200"`
-	Status        *int   `json:"status" binding:"omitempty,gte=0,lte=1"`
+	// 单价：nil=保持原值（显式传 0 表示清除）
+	InputPrice  *float64 `json:"input_price" binding:"omitempty,gte=0,lte=10000"`
+	OutputPrice *float64 `json:"output_price" binding:"omitempty,gte=0,lte=10000"`
+	Remark      string   `json:"remark" binding:"max=200"`
+	Status      *int     `json:"status" binding:"omitempty,gte=0,lte=1"`
 }
 
 func (s *Service) CreateModel(ctx context.Context, req ModelCreateRequest) (*bizagent.Model, error) {
 	return s.uc.CreateModel(ctx, bizagent.ModelInput{
 		ProviderID: req.ProviderID, Name: req.Name, DisplayName: req.DisplayName,
 		ContextWindow: req.ContextWindow, MaxOutput: req.MaxOutput, SupportsTools: req.SupportsTools,
+		InputPrice: req.InputPrice, OutputPrice: req.OutputPrice,
 		Remark: req.Remark, Status: statusOf(req.Status),
 	})
 }
@@ -108,6 +115,7 @@ func (s *Service) UpdateModel(ctx context.Context, id uint, req ModelUpdateReque
 	return s.uc.UpdateModel(ctx, id, bizagent.ModelInput{
 		ProviderID: req.ProviderID, Name: req.Name, DisplayName: req.DisplayName,
 		ContextWindow: req.ContextWindow, MaxOutput: req.MaxOutput, SupportsTools: req.SupportsTools,
+		InputPrice: req.InputPrice, OutputPrice: req.OutputPrice,
 		Remark: req.Remark, Status: statusOf(req.Status),
 	})
 }
@@ -238,4 +246,10 @@ func (s *Service) ListConversations(ctx context.Context, userID uint, agentID *u
 
 func (s *Service) ListConversationMessages(ctx context.Context, userID, conversationID uint, page, pageSize int) ([]*bizagent.ConversationMessage, interface{}, error) {
 	return s.uc.ListConversationMessages(ctx, userID, conversationID, page, pageSize)
+}
+
+// ---- 用量统计 ----
+
+func (s *Service) UsageStats(ctx context.Context, days int) (*bizagent.UsageStats, error) {
+	return s.uc.UsageStats(ctx, days)
 }

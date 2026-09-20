@@ -44,10 +44,13 @@ type Model struct {
 	ContextWindow int       `json:"context_window"` // 上下文窗口（token，0=未知）
 	MaxOutput     int       `json:"max_output"`     // 单次最大输出（token，0=上游默认）
 	SupportsTools bool      `json:"supports_tools"` // 是否支持工具调用（function call）
-	Remark        string    `json:"remark"`
-	Status        Status    `json:"status"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	// 每千 token 计费单价（货币单位由运营口径自定，仅用于费用估算展示）；0=未设置不估算
+	InputPrice  float64   `json:"input_price"`
+	OutputPrice float64   `json:"output_price"`
+	Remark      string    `json:"remark"`
+	Status      Status    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // Display 展示名（未设置时回退模型标识）

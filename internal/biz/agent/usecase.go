@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"sort"
 	"strings"
 	"time"
 
@@ -116,8 +117,11 @@ type ModelInput struct {
 	ContextWindow int
 	MaxOutput     int
 	SupportsTools bool
-	Remark        string
-	Status        Status
+	// 每千 token 单价；nil=保持原值（更新）/未设置（新建），显式 0 表示清除
+	InputPrice  *float64
+	OutputPrice *float64
+	Remark      string
+	Status      Status
 }
 
 func (uc *Usecase) CreateModel(ctx context.Context, in ModelInput) (*Model, error) {
@@ -133,6 +137,12 @@ func (uc *Usecase) CreateModel(ctx context.Context, in ModelInput) (*Model, erro
 		ProviderID: in.ProviderID, Name: in.Name, DisplayName: in.DisplayName,
 		ContextWindow: in.ContextWindow, MaxOutput: in.MaxOutput, SupportsTools: in.SupportsTools,
 		Remark: in.Remark, Status: in.Status,
+	}
+	if in.InputPrice != nil {
+		m.InputPrice = *in.InputPrice
+	}
+	if in.OutputPrice != nil {
+		m.OutputPrice = *in.OutputPrice
 	}
 	if err := uc.repo.CreateModel(ctx, m); err != nil {
 		return nil, err
@@ -170,6 +180,12 @@ func (uc *Usecase) UpdateModel(ctx context.Context, id uint, in ModelInput) erro
 	m.ContextWindow = in.ContextWindow
 	m.MaxOutput = in.MaxOutput
 	m.SupportsTools = in.SupportsTools
+	if in.InputPrice != nil {
+		m.InputPrice = *in.InputPrice
+	}
+	if in.OutputPrice != nil {
+		m.OutputPrice = *in.OutputPrice
+	}
 	if in.Remark != "" {
 		m.Remark = in.Remark
 	}
@@ -354,6 +370,7 @@ type ChatMeta struct {
 // conversationID > 0 时接入持久化：user 消息在流建立后立即落库，
 // assistant 回复（含 usage）在流结束后落库并刷新会话活跃时间；中途停止时已生成部分照常保存。
 func (uc *Usecase) ChatStream(ctx context.Context, agentID uint, userID, conversationID uint, history []Message) (<-chan StreamEvent, *ChatMeta, error) {
+	start := time.Now()
 	a, err := uc.repo.FindAgentByID(ctx, agentID)
 	if err != nil {
 		return nil, nil, err
@@ -412,6 +429,8 @@ func (uc *Usecase) ChatStream(ctx context.Context, agentID uint, userID, convers
 		uc.recordUserMessage(conv, history)
 		ch = uc.persistAssistant(conv, ch)
 	}
+	// 用量计量对全部调用生效（含无状态调试）：流结束带 usage 时落一条流水
+	ch = uc.recordUsage(agentID, m.ID, userID, start, ch)
 
 	meta := &ChatMeta{AgentID: a.ID, AgentName: a.Name, ProviderID: p.ID, ModelID: m.ID, Model: m.Name}
 	if conv != nil {
@@ -584,4 +603,114 @@ func truncateRunes(s string, n int) string {
 		return s
 	}
 	return string(runes[:n])
+}
+
+// recordUsage 包装流通道：捕获 usage 帧并在流结束后落用量流水；
+// 上游未回传 usage（调用失败/中断）时不记录
+func (uc *Usecase) recordUsage(agentID, modelID, userID uint, start time.Time, in <-chan StreamEvent) <-chan StreamEvent {
+	out := make(chan StreamEvent)
+	go func() {
+		defer close(out)
+		var usage *Usage
+		for ev := range in {
+			if ev.Usage != nil {
+				usage = ev.Usage
+			}
+			out <- ev
+		}
+		if usage == nil {
+			return
+		}
+		if err := uc.repo.AppendUsage(context.Background(), &UsageLog{
+			AgentID: agentID, ModelID: modelID, UserID: userID,
+			PromptTokens: usage.PromptTokens, CompletionTokens: usage.CompletionTokens,
+			TotalTokens: usage.TotalTokens, LatencyMs: time.Since(start).Milliseconds(),
+		}); err != nil {
+			logger.Warn("append usage log failed", zap.Uint("agent", agentID), zap.Error(err))
+		}
+	}()
+	return out
+}
+
+// UsageStats 最近 days 日用量统计（Go 侧聚合，费用按模型当前单价估算）
+func (uc *Usecase) UsageStats(ctx context.Context, days int) (*UsageStats, error) {
+	if days <= 0 || days > 90 {
+		days = 7
+	}
+	logs, err := uc.repo.ListUsageSince(ctx, time.Now().AddDate(0, 0, -(days - 1)).Truncate(24*time.Hour))
+	if err != nil {
+		return nil, err
+	}
+	models, _, err := uc.repo.ListModels(ctx, ModelQuery{}, 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	priceByModel := make(map[uint]*Model, len(models))
+	for _, m := range models {
+		priceByModel[m.ID] = m
+	}
+	agents, _, err := uc.repo.ListAgents(ctx, AgentQuery{}, 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	nameByAgent := make(map[uint]string, len(agents))
+	for _, a := range agents {
+		nameByAgent[a.ID] = a.Name
+	}
+
+	cost := func(modelID uint, prompt, completion int) float64 {
+		m := priceByModel[modelID]
+		if m == nil {
+			return 0
+		}
+		return float64(prompt)/1000*m.InputPrice + float64(completion)/1000*m.OutputPrice
+	}
+
+	// 日期桶（含无调用日补零），本地时区
+	buckets := make(map[string]*UsageDailyPoint, days)
+	dates := make([]string, 0, days)
+	for i := days - 1; i >= 0; i-- {
+		d := time.Now().AddDate(0, 0, -i).Format("2006-01-02")
+		dates = append(dates, d)
+		buckets[d] = &UsageDailyPoint{Date: d}
+	}
+	byAgent := make(map[uint]*UsageAgentPoint)
+	stats := &UsageStats{Days: make([]UsageDailyPoint, 0, days)}
+	for _, l := range logs {
+		c := cost(l.ModelID, l.PromptTokens, l.CompletionTokens)
+		if b, ok := buckets[l.CreatedAt.Format("2006-01-02")]; ok {
+			b.Calls++
+			b.PromptTokens += int64(l.PromptTokens)
+			b.CompletionTokens += int64(l.CompletionTokens)
+			b.TotalTokens += int64(l.TotalTokens)
+			b.Cost += c
+		}
+		ap, ok := byAgent[l.AgentID]
+		if !ok {
+			ap = &UsageAgentPoint{AgentID: l.AgentID, AgentName: nameByAgent[l.AgentID]}
+			byAgent[l.AgentID] = ap
+		}
+		ap.Calls++
+		ap.TotalTokens += int64(l.TotalTokens)
+		ap.Cost += c
+		stats.Calls++
+		stats.Tokens += int64(l.TotalTokens)
+		stats.Cost += c
+	}
+	for _, d := range dates {
+		stats.Days = append(stats.Days, *buckets[d])
+	}
+	for _, ap := range byAgent {
+		stats.Agents = append(stats.Agents, *ap)
+	}
+	sort.Slice(stats.Agents, func(i, j int) bool {
+		if stats.Agents[i].TotalTokens != stats.Agents[j].TotalTokens {
+			return stats.Agents[i].TotalTokens > stats.Agents[j].TotalTokens
+		}
+		return stats.Agents[i].Calls > stats.Agents[j].Calls
+	})
+	if len(stats.Agents) > 10 {
+		stats.Agents = stats.Agents[:10]
+	}
+	return stats, nil
 }

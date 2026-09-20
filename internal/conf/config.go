@@ -124,6 +124,8 @@ type Agent struct {
 	// 为空时从 jwt.secret 派生 —— 更换 jwt.secret 会使已存密钥不可解密（错误表现为 agent.decrypt_failed），
 	// 重新保存一次供应商密钥即可恢复
 	CryptoKey string `mapstructure:"cryptoKey"`
+	// UsageRetentionDays 用量计量流水保留天数，超期每日自动清理；0 表示永久保留
+	UsageRetentionDays int `mapstructure:"usageRetentionDays"`
 }
 type Log struct {
 	// RetentionDays 登录/操作日志保留天数，超期每日自动清理；0 表示永久保留
@@ -195,6 +197,8 @@ func Load(path string) (*Bootstrap, error) {
 	// 默认值：平台调用超时 15s；文件桶缺省 default
 	v.SetDefault("platform.timeoutSeconds", 15)
 	v.SetDefault("platform.storage.bucket", "default")
+	// 默认值：agent 用量流水保留 90 天
+	v.SetDefault("agent.usageRetentionDays", 90)
 	if err := v.ReadInConfig(); err != nil {
 		return nil, err
 	}

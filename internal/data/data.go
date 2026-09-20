@@ -130,7 +130,7 @@ func (d *Data) migrateAndSeed() error {
 		&model.FilePO{}, &model.ExportRecordPO{}, &model.IPBlacklistPO{},
 		&model.TenantPO{}, &model.AppUserPO{}, &model.AppUserTenantPO{},
 		&model.AgentProviderPO{}, &model.AgentModelPO{}, &model.AgentPO{},
-		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{},
+		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{},
 	); err != nil {
 		return err
 	}
@@ -184,6 +184,7 @@ var systemMenus = []systemMenuDef{
 	{Name: "模型供应商", Code: "menu:agentProvider", Path: "/agent/providers", Icon: "ServerOutline", Sort: 1, ParentCode: "menu:agent"},
 	{Name: "Agent 配置", Code: "menu:agentList", Path: "/agent/agents", Icon: "ChatbubblesOutline", Sort: 2, ParentCode: "menu:agent"},
 	{Name: "聊天测试", Code: "menu:agentChat", Path: "/agent/chat", Icon: "ChatboxEllipsesOutline", Sort: 3, ParentCode: "menu:agent"},
+	{Name: "用量统计", Code: "menu:agentUsage", Path: "/agent/usage", Icon: "StatsChartOutline", Sort: 4, ParentCode: "menu:agent"},
 	// 日志管理（顶级目录分组）
 	{Name: "日志管理", Code: "menu:log", Type: "dir", Icon: "DocumentTextOutline", Sort: 5},
 	{Name: "操作日志", Code: "menu:opLog", Path: "/log/operation-logs", Icon: "ClipboardOutline", Sort: 2, ParentCode: "menu:log"},
@@ -392,6 +393,9 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "新建会话", Code: "agent:conversation:create", Menu: "menu:agentChat", Method: "POST", Path: "/api/v1/agent/conversations", Sort: 3},
 	{Name: "重命名会话", Code: "agent:conversation:update", Menu: "menu:agentChat", Method: "PUT", Path: "/api/v1/agent/conversations/*", Sort: 4},
 	{Name: "删除会话", Code: "agent:conversation:delete", Menu: "menu:agentChat", Method: "DELETE", Path: "/api/v1/agent/conversations/*", Sort: 5},
+
+	// 用量统计
+	{Name: "查询用量统计", Code: "agent:usage", Menu: "menu:agentUsage", Method: "GET", Path: "/api/v1/agent/usage", Sort: 1},
 }
 
 // ensureSystemButtonPerms 幂等补齐系统管理接口权限点并绑定商户管理员角色（每次启动执行）：

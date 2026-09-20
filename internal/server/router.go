@@ -329,6 +329,12 @@ func (s *HTTPServer) registerRoutes() {
 		agentModels.POST("/:id/test", s.testAgentModel)
 	}
 
+	// 用量统计（读聚合）
+	usage := protected.Group("/agent/usage")
+	{
+		usage.GET("", s.getAgentUsage)
+	}
+
 	// 会话（本人数据，biz 层强制 user_id 过滤）
 	convs := protected.Group("/agent/conversations")
 	{

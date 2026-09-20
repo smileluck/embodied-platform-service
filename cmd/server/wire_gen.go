@@ -140,7 +140,7 @@ func wireApp() (*server.HTTPServer, func(), error) {
 	devmodelService := devmodel3.NewService(devmodelUsecase)
 	monitorUsecase, cleanup5 := monitor.NewUsecase()
 	monitorService := monitor2.NewService(monitorUsecase)
-	agentRepo := agent.NewRepo(dataData)
+	agentRepo := agent.NewRepo(dataData, bootstrap)
 	agentUsecase := agent2.NewUsecase(agentRepo, bootstrap)
 	agentService := agent3.NewService(agentUsecase)
 	httpServer := server.NewHTTPServer(bootstrap, service, admissionService, usecase, roleService, permissionService, logService, fileService, exportService, blacklistService, tenantService, appuserService, appuserUsecase, tokenIssuer, deviceService, devmodelService, monitorService, agentService, rbacCache, redisClient)

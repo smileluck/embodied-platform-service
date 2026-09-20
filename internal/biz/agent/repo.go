@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"time"
 )
 
 var (
@@ -109,4 +110,13 @@ type Repo interface {
 	AppendMessage(ctx context.Context, m *ConversationMessage) error
 	// ListMessages 按会话取消息（时间正序；归属校验由 usecase 先行完成）
 	ListMessages(ctx context.Context, conversationID uint, page, pageSize int) ([]*ConversationMessage, int64, error)
+
+	// ---- 用量计量 ----
+
+	// AppendUsage 落一条调用用量流水
+	AppendUsage(ctx context.Context, u *UsageLog) error
+	// ListUsageSince 取区间内用量流水（Go 侧聚合，三数据库可移植）
+	ListUsageSince(ctx context.Context, since time.Time) ([]*UsageLog, error)
+	// CleanupUsageBefore 清理保留期外用量流水
+	CleanupUsageBefore(ctx context.Context, before time.Time) error
 }

@@ -76,6 +76,7 @@ agent: # 智能体模块（LLM 配置底座）
   # 供应商 API Key 的 AES 加密密钥（任意长度，内部派生 AES-256）；留空则从 jwt.secret 派生，
   # 注意：更换 jwt.secret 后已存密钥不可解密，需到「模型供应商」重新保存一次密钥
   cryptoKey: ""
+  usageRetentionDays: 90 # 用量计量流水保留天数，超期每日自动清理；0 永久保留
 
 log:
   retentionDays: 90 # 登录/操作日志保留天数，超期每日自动清理；0 表示永久保留
