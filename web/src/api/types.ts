@@ -474,3 +474,12 @@ export interface DictItem {
   created_at: string
   updated_at: string
 }
+
+// 系统参数（运行时可调）
+export interface SysConfig {
+  key: string
+  value: string
+  type: 'string' | 'number' | 'bool'
+  description: string
+  updated_at: string
+}
