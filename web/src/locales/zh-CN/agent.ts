@@ -95,6 +95,7 @@ export default {
     modelLabel: '模型',
     tokenUsage: 'Tokens',
     streaming: '生成中…',
+    stopped: '（已停止）',
     error: '调用失败',
     noPermission: '无对话权限（agent:chat）',
     empty: '发送第一条消息开始调试',

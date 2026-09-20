@@ -132,7 +132,7 @@ async function send() {
     }
   } catch (e: any) {
     if (e?.name === 'AbortError') {
-      assistant.content += '\n（已停止）'
+      assistant.content += `\n${t('agent.playground.stopped')}`
     } else {
       assistant.error = e?.message || t('agent.playground.error')
     }

@@ -95,6 +95,7 @@ export default {
     modelLabel: 'Model',
     tokenUsage: 'Tokens',
     streaming: 'Generating…',
+    stopped: '(stopped)',
     error: 'Call failed',
     noPermission: 'No chat permission (agent:chat)',
     empty: 'Send the first message to start debugging',
