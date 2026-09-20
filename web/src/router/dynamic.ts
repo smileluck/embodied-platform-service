@@ -23,6 +23,8 @@ const viewModules: Record<string, () => Promise<any>> = {
   'menu:tenant': () => import('../views/tenant/Tenants.vue'),
   'menu:appUser': () => import('../views/tenant/AppUsers.vue'),
   'menu:about': () => import('../views/about/About.vue'),
+  'menu:agentProvider': () => import('../views/agent/Providers.vue'),
+  'menu:agentList': () => import('../views/agent/Agents.vue'),
 }
 
 // 将后端菜单树转换为路由

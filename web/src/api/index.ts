@@ -1,6 +1,6 @@
 import request from './request'
 import type {
-  AdmissionProjection, AppUser, BlacklistItem, DataEvent, Device, DeviceCommand, DeviceModel, DeviceShadow,
+  AgentInfo, AgentModel, AgentProvider, AgentTestResult, AdmissionProjection, AppUser, BlacklistItem, DataEvent, Device, DeviceCommand, DeviceModel, DeviceShadow,
   ExportRecord, FileInfo, LogPageResult, MenuHit, MenuNode, MemberRow, OperationLogInfo, PageResult, Permission,
   R, Role, ServerStatus, TelemetryHistory, Tenant, TMNode, TMVersion, UserInfo,
 } from './types'
@@ -187,3 +187,37 @@ export const listExportRecords = (params: { page: number; page_size: number }) =
 export const getExportBlob = (id: number) =>
   request.get<Blob>(`/exports/${id}/download`, { responseType: 'blob', timeout: 0 })
 export const deleteExport = (id: number) => request.delete<R<null>>(`/exports/${id}`)
+
+// ---- 智能体（LLM 配置底座）----
+// 供应商
+export const listAgentProviders = (params: { page: number; page_size: number; name?: string; code?: string; status?: number }) =>
+  request.get<R<PageResult<AgentProvider>>>('/agent/providers', { params })
+export const createAgentProvider = (data: Partial<AgentProvider> & { api_key?: string }) =>
+  request.post<R<AgentProvider>>('/agent/providers', data)
+export const getAgentProvider = (id: number) => request.get<R<AgentProvider>>(`/agent/providers/${id}`)
+export const updateAgentProvider = (id: number, data: Partial<AgentProvider> & { api_key?: string }) =>
+  request.put<R<null>>(`/agent/providers/${id}`, data)
+export const deleteAgentProvider = (id: number) => request.delete<R<null>>(`/agent/providers/${id}`)
+// 连通性测试：真实调用一次上游（model_id 缺省取该供应商首个启用模型）
+export const testAgentProvider = (id: number, model_id?: number) =>
+  request.post<R<AgentTestResult>>(`/agent/providers/${id}/test`, { model_id })
+// 拉取上游 /models 列表（录入辅助）
+export const listAgentRemoteModels = (id: number) =>
+  request.get<R<string[]>>(`/agent/providers/${id}/remote-models`)
+// 模型
+export const listAgentModels = (params: { page: number; page_size: number; provider_id?: number; name?: string; status?: number }) =>
+  request.get<R<PageResult<AgentModel>>>('/agent/models', { params })
+export const createAgentModel = (data: Partial<AgentModel>) =>
+  request.post<R<AgentModel>>('/agent/models', data)
+export const updateAgentModel = (id: number, data: Partial<AgentModel>) =>
+  request.put<R<null>>(`/agent/models/${id}`, data)
+export const deleteAgentModel = (id: number) => request.delete<R<null>>(`/agent/models/${id}`)
+export const testAgentModel = (id: number) => request.post<R<AgentTestResult>>(`/agent/models/${id}/test`)
+// Agent 配置
+export const listAgents = (params: { page: number; page_size: number; name?: string; code?: string; status?: number }) =>
+  request.get<R<PageResult<AgentInfo>>>('/agents', { params })
+export const createAgent = (data: Partial<AgentInfo>) => request.post<R<AgentInfo>>('/agents', data)
+export const getAgent = (id: number) => request.get<R<AgentInfo>>(`/agents/${id}`)
+export const updateAgent = (id: number, data: Partial<AgentInfo>) =>
+  request.put<R<null>>(`/agents/${id}`, data)
+export const deleteAgent = (id: number) => request.delete<R<null>>(`/agents/${id}`)

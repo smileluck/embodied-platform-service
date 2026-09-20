@@ -4,6 +4,8 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -18,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
+	bizagent "github.com/smilex/smilex-admin-gin/internal/biz/agent"
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
@@ -30,6 +33,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	"github.com/smilex/smilex-admin-gin/internal/server/middleware"
 	admissionsvc "github.com/smilex/smilex-admin-gin/internal/service/admission"
+	agentsvc "github.com/smilex/smilex-admin-gin/internal/service/agent"
 	appusersvc "github.com/smilex/smilex-admin-gin/internal/service/appuser"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	blacklistsvc "github.com/smilex/smilex-admin-gin/internal/service/blacklist"
@@ -62,6 +66,7 @@ type HTTPServer struct {
 	export        *exportsvc.Service
 	blacklist     *blacklistsvc.Service
 	monitor       *monitorsvc.Service
+	agent         *agentsvc.Service
 	tenant        *tenantsvc.Service
 	appuser       *appusersvc.Service
 	appuserUC     *bizappuser.Usecase    // AppJWT 中间件直连领域用例（校验用户启用状态）
@@ -81,7 +86,8 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	file *filesvc.Service, export *exportsvc.Service, blacklist *blacklistsvc.Service,
 	tenant *tenantsvc.Service, appuser *appusersvc.Service, appuserUC *bizappuser.Usecase,
 	appIssuer bizappuser.TokenIssuer, device *devicesvc.Service, devmodel *devmodelsvc.Service,
-	monitor *monitorsvc.Service, rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
+	monitor *monitorsvc.Service, agent *agentsvc.Service,
+	rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
 	gin.SetMode(cfg.Server.Mode)
 	e := gin.New()
 	// multipart 表单内存上限保持较小值（超出部分落临时文件）；上传大小由 handler 显式校验
@@ -103,7 +109,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 		role: role, perm: perm, log: log,
 		file: file, export: export, blacklist: blacklist, tenant: tenant,
 		appuser: appuser, appuserUC: appuserUC, appIssuer: appIssuer,
-		device: device, devmodel: devmodel, monitor: monitor,
+		device: device, devmodel: devmodel, monitor: monitor, agent: agent,
 		rbacCache: rbacCache.TwoLevel, identityCache: identityCache, engine: e,
 	}
 	s.registerRoutes()
@@ -302,6 +308,40 @@ func (s *HTTPServer) registerRoutes() {
 	monitors := protected.Group("/monitor")
 	{
 		monitors.GET("", s.getServerStatus)
+	}
+
+	// 智能体（LLM 配置底座）：供应商 -> 模型 -> Agent
+	agentProviders := protected.Group("/agent/providers")
+	{
+		agentProviders.GET("", s.listAgentProviders)
+		agentProviders.POST("", s.createAgentProvider)
+		agentProviders.GET("/:id", s.getAgentProvider)
+		agentProviders.PUT("/:id", s.updateAgentProvider)
+		agentProviders.DELETE("/:id", s.deleteAgentProvider)
+		// 连通性测试：真实调用一次上游（model_id 缺省取首个启用模型）
+		agentProviders.POST("/:id/test", s.testAgentProvider)
+		// 拉取上游 /models 列表（录入辅助）
+		agentProviders.GET("/:id/remote-models", s.listAgentRemoteModels)
+	}
+
+	agentModels := protected.Group("/agent/models")
+	{
+		agentModels.GET("", s.listAgentModels)
+		agentModels.POST("", s.createAgentModel)
+		agentModels.PUT("/:id", s.updateAgentModel)
+		agentModels.DELETE("/:id", s.deleteAgentModel)
+		agentModels.POST("/:id/test", s.testAgentModel)
+	}
+
+	agents := protected.Group("/agents")
+	{
+		agents.GET("", s.listAgents)
+		agents.POST("", s.createAgent)
+		agents.GET("/:id", s.getAgent)
+		agents.PUT("/:id", s.updateAgent)
+		agents.DELETE("/:id", s.deleteAgent)
+		// 调试对话（Playground，SSE 流式；无状态，不落库）
+		agents.POST("/:id/chat", s.chatAgent)
 	}
 
 	// 设备（纯代理平台开放面；租户范围由平台按商户绑定服务端收敛）
@@ -1298,4 +1338,335 @@ func idParam(c *gin.Context) (uint, bool) {
 		return 0, false
 	}
 	return uint(id), true
+}
+
+// truncate 按字节长度截断（UA 摘要存储用）
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
+}
+
+// ---- 智能体（LLM 配置底座） ----
+
+// agentErr 智能体操作错误映射：上游错误带具体原因渲染，其余走 i18n 注册表
+func (s *HTTPServer) agentErr(c *gin.Context, err error) {
+	if errors.Is(err, bizagent.ErrLLMUpstream) {
+		response.Fail(c, http.StatusBadRequest, response.CodeErr,
+			i18n.T(c.Request.Context(), "agent.upstream_error", bizagent.UpstreamDetail(err)))
+		return
+	}
+	response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
+}
+
+func statusQuery(c *gin.Context) *int {
+	if v := c.Query("status"); v != "" {
+		if st, err := strconv.Atoi(v); err == nil {
+			return &st
+		}
+	}
+	return nil
+}
+
+func (s *HTTPServer) listAgentProviders(c *gin.Context) {
+	page, size := pageParams(c)
+	q := bizagent.ProviderQuery{Name: c.Query("name"), Code: c.Query("code"), Status: statusQuery(c)}
+	list, pg, err := s.agent.ListProviders(c.Request.Context(), q, page, size)
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, listResult{List: list, Page: pg})
+}
+
+func (s *HTTPServer) createAgentProvider(c *gin.Context) {
+	var req agentsvc.ProviderCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	p, err := s.agent.CreateProvider(c.Request.Context(), req)
+	if err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, p)
+}
+
+func (s *HTTPServer) getAgentProvider(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	p, err := s.agent.GetProvider(c.Request.Context(), id)
+	if err != nil {
+		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
+		return
+	}
+	response.OK(c, p)
+}
+
+func (s *HTTPServer) updateAgentProvider(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	var req agentsvc.ProviderUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	if err := s.agent.UpdateProvider(c.Request.Context(), id, req); err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) deleteAgentProvider(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	if err := s.agent.DeleteProvider(c.Request.Context(), id); err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) testAgentProvider(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	var req agentsvc.TestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	// 测试为同步短调用（MaxTokens=64），适当放宽 ctx 超时由 LLM 客户端整体超时兜底
+	result, err := s.agent.TestProvider(c.Request.Context(), id, req)
+	if err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, result)
+}
+
+func (s *HTTPServer) listAgentRemoteModels(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	models, err := s.agent.RemoteModels(c.Request.Context(), id)
+	if err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, models)
+}
+
+func (s *HTTPServer) listAgentModels(c *gin.Context) {
+	page, size := pageParams(c)
+	q := bizagent.ModelQuery{Name: c.Query("name"), Status: statusQuery(c)}
+	if v := c.Query("provider_id"); v != "" {
+		if pid, err := strconv.ParseUint(v, 10, 64); err == nil && pid > 0 {
+			id := uint(pid)
+			q.ProviderID = &id
+		}
+	}
+	list, pg, err := s.agent.ListModels(c.Request.Context(), q, page, size)
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, listResult{List: list, Page: pg})
+}
+
+func (s *HTTPServer) createAgentModel(c *gin.Context) {
+	var req agentsvc.ModelCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	m, err := s.agent.CreateModel(c.Request.Context(), req)
+	if err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, m)
+}
+
+func (s *HTTPServer) updateAgentModel(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	var req agentsvc.ModelUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	if err := s.agent.UpdateModel(c.Request.Context(), id, req); err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) deleteAgentModel(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	if err := s.agent.DeleteModel(c.Request.Context(), id); err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) testAgentModel(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	result, err := s.agent.TestModel(c.Request.Context(), id)
+	if err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, result)
+}
+
+func (s *HTTPServer) listAgents(c *gin.Context) {
+	page, size := pageParams(c)
+	q := bizagent.AgentQuery{Name: c.Query("name"), Code: c.Query("code"), Status: statusQuery(c)}
+	list, pg, err := s.agent.ListAgents(c.Request.Context(), q, page, size)
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, listResult{List: list, Page: pg})
+}
+
+func (s *HTTPServer) createAgent(c *gin.Context) {
+	var req agentsvc.AgentCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	a, err := s.agent.CreateAgent(c.Request.Context(), req)
+	if err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, a)
+}
+
+func (s *HTTPServer) getAgent(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	a, err := s.agent.GetAgent(c.Request.Context(), id)
+	if err != nil {
+		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
+		return
+	}
+	response.OK(c, a)
+}
+
+func (s *HTTPServer) updateAgent(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	var req agentsvc.AgentUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	if err := s.agent.UpdateAgent(c.Request.Context(), id, req); err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) deleteAgent(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	if err := s.agent.DeleteAgent(c.Request.Context(), id); err != nil {
+		s.agentErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+// writeSSE 写一帧 SSE 事件（event + data JSON）
+func writeSSE(w io.Writer, event string, payload interface{}) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, data)
+}
+
+// chatAgent Agent 调试对话（Playground）：SSE 流式输出。
+// 帧协议：meta(元信息) -> delta*(增量) -> error(中断,可选) ；流结束即关闭
+func (s *HTTPServer) chatAgent(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	var req agentsvc.ChatRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	events, meta, err := s.agent.ChatStream(c.Request.Context(), id, req)
+	if err != nil {
+		s.agentErr(c, err)
+		return
+	}
+
+	c.Header("Content-Type", "text/event-stream; charset=utf-8")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("X-Accel-Buffering", "no") // 反代（nginx）禁用缓冲，保证流式透传
+	keepalive := time.NewTicker(15 * time.Second)
+	defer keepalive.Stop()
+
+	// 首帧元信息（Agent/模型归属，前端展示用）
+	writeSSE(c.Writer, "meta", meta)
+	c.Writer.Flush()
+
+	c.Stream(func(w io.Writer) bool {
+		select {
+		case ev, ok := <-events:
+			if !ok {
+				return false
+			}
+			if ev.Err != nil {
+				if errors.Is(ev.Err, bizagent.ErrLLMUpstream) {
+					writeSSE(w, "error", gin.H{"message": i18n.T(c.Request.Context(), "agent.upstream_error", bizagent.UpstreamDetail(ev.Err))})
+				} else {
+					writeSSE(w, "error", gin.H{"message": ev.Err.Error()})
+				}
+				return false
+			}
+			writeSSE(w, "delta", ev)
+			return true
+		case <-keepalive.C:
+			// 保活注释帧，防中间层空闲断连
+			fmt.Fprint(w, ": ping\n\n")
+			return true
+		case <-c.Request.Context().Done():
+			return false
+		}
+	})
 }

@@ -6,6 +6,7 @@ package main
 import (
 	"github.com/google/wire"
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
+	bizagent "github.com/smilex/smilex-admin-gin/internal/biz/agent"
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
@@ -21,6 +22,7 @@ import (
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	dataadmission "github.com/smilex/smilex-admin-gin/internal/data/admission"
+	dataagent "github.com/smilex/smilex-admin-gin/internal/data/agent"
 	dataappuser "github.com/smilex/smilex-admin-gin/internal/data/appuser"
 	dataauth "github.com/smilex/smilex-admin-gin/internal/data/auth"
 	datablacklist "github.com/smilex/smilex-admin-gin/internal/data/blacklist"
@@ -35,6 +37,7 @@ import (
 	datatenant "github.com/smilex/smilex-admin-gin/internal/data/tenant"
 	"github.com/smilex/smilex-admin-gin/internal/server"
 	admissionsvc "github.com/smilex/smilex-admin-gin/internal/service/admission"
+	agentsvc "github.com/smilex/smilex-admin-gin/internal/service/agent"
 	appusersvc "github.com/smilex/smilex-admin-gin/internal/service/appuser"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	blacklistsvc "github.com/smilex/smilex-admin-gin/internal/service/blacklist"
@@ -62,6 +65,7 @@ var bizSet = wire.NewSet(
 	bizdevice.NewUsecase,
 	bizdevmodel.NewUsecase,
 	bizmonitor.NewUsecase,
+	bizagent.NewUsecase,
 	bizexport.NewUsecase,
 	bizexport.NewRegistry,
 	bizexport.NewUserExporter,
@@ -87,6 +91,8 @@ var dataRepoSet = wire.NewSet(
 	datablacklist.NewRepo,
 	datatenant.NewRepo,
 	dataappuser.NewRepo,
+
+	dataagent.NewRepo,
 	dataexport.NewRepo,
 	dataexport.NewWorker,
 	// 平台集成层（商户 HMAC 开放面 + 身份自省 + 存储）
@@ -132,6 +138,7 @@ var serviceSet = wire.NewSet(
 	devicesvc.NewService,
 	devmodelsvc.NewService,
 	monitorsvc.NewService,
+	agentsvc.NewService,
 )
 
 var providerSet = wire.NewSet(bizSet, dataRepoSet, serviceSet, ProvideConfig, server.NewHTTPServer)

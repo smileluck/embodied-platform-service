@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/smilex/smilex-admin-gin/internal/biz/admission"
+	"github.com/smilex/smilex-admin-gin/internal/biz/agent"
 	"github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
 	"github.com/smilex/smilex-admin-gin/internal/biz/export"
@@ -199,6 +200,61 @@ type AppUserTenantPO struct {
 
 func (AppUserTenantPO) TableName() string { return "app_user_tenants" }
 
+// AgentProviderPO LLM 供应商配置表（智能体底座；api_key 只存 AES-GCM 密文，掩码仅展示用）
+type AgentProviderPO struct {
+	ID         uint   `gorm:"primaryKey"`
+	Name       string `gorm:"size:20"`
+	Code       string `gorm:"size:64;uniqueIndex"`
+	BaseURL    string `gorm:"size:255"`
+	APIKeyEnc  string `gorm:"size:512"`               // AES-GCM 密文（base64），永不输出
+	APIKeyMask string `gorm:"size:32"`                // 展示掩码（如 sk-****abcd）
+	Protocol   string `gorm:"size:32;default:openai"` // 调用协议（预留多协议扩展）
+	Remark     string `gorm:"size:200"`
+	Status     int    // 1 启用 0 禁用
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	DeletedAt  gorm.DeletedAt `gorm:"index"`
+}
+
+func (AgentProviderPO) TableName() string { return "agent_providers" }
+
+// AgentModelPO 供应商下的模型配置表（同一供应商下模型名唯一）
+type AgentModelPO struct {
+	ID            uint   `gorm:"primaryKey"`
+	ProviderID    uint   `gorm:"index;uniqueIndex:uk_agent_provider_model"`
+	Name          string `gorm:"size:128;uniqueIndex:uk_agent_provider_model"`
+	DisplayName   string `gorm:"size:20"`
+	ContextWindow int    // 上下文窗口（token，0=未知）
+	MaxOutput     int    // 单次最大输出（token，0=上游默认）
+	SupportsTools bool   // 支持工具调用（function call）
+	Remark        string `gorm:"size:200"`
+	Status        int    // 1 启用 0 禁用
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	DeletedAt     gorm.DeletedAt `gorm:"index"`
+}
+
+func (AgentModelPO) TableName() string { return "agent_models" }
+
+// AgentPO 智能体配置表（业务按 code 稳定引用）
+type AgentPO struct {
+	ID           uint   `gorm:"primaryKey"`
+	Name         string `gorm:"size:20"`
+	Code         string `gorm:"size:64;uniqueIndex"`
+	ModelID      uint   `gorm:"index"` // 绑定 agent_models.id（经模型定位供应商）
+	SystemPrompt string `gorm:"type:text"`
+	Temperature  float64
+	TopP         float64
+	MaxTokens    int    // 0=上游默认
+	Remark       string `gorm:"size:200"`
+	Status       int    // 1 启用 0 禁用
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	DeletedAt    gorm.DeletedAt `gorm:"index"`
+}
+
+func (AgentPO) TableName() string { return "agents" }
+
 // ---- 转换器 ----
 
 func PlatformUserToPO(p *admission.Projection) *PlatformUserPO {
@@ -337,6 +393,57 @@ func AppUserFromPO(p *AppUserPO) *appuser.AppUser {
 	return &appuser.AppUser{
 		ID: p.ID, Username: p.Username, PasswordHash: p.PasswordHash,
 		Nickname: p.Nickname, Phone: p.Phone, Email: p.Email, Status: appuser.Status(p.Status),
+		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+}
+
+func AgentProviderToPO(a *agent.Provider) *AgentProviderPO {
+	return &AgentProviderPO{
+		ID: a.ID, Name: a.Name, Code: a.Code, BaseURL: a.BaseURL,
+		APIKeyEnc: a.APIKeyEnc, APIKeyMask: a.APIKeyMask,
+		Protocol: a.Protocol, Remark: a.Remark, Status: int(a.Status),
+	}
+}
+
+func AgentProviderFromPO(p *AgentProviderPO) *agent.Provider {
+	return &agent.Provider{
+		ID: p.ID, Name: p.Name, Code: p.Code, BaseURL: p.BaseURL,
+		APIKeyEnc: p.APIKeyEnc, APIKeyMask: p.APIKeyMask,
+		Protocol: p.Protocol, Remark: p.Remark, Status: agent.Status(p.Status),
+		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+}
+
+func AgentModelToPO(m *agent.Model) *AgentModelPO {
+	return &AgentModelPO{
+		ID: m.ID, ProviderID: m.ProviderID, Name: m.Name, DisplayName: m.DisplayName,
+		ContextWindow: m.ContextWindow, MaxOutput: m.MaxOutput, SupportsTools: m.SupportsTools,
+		Remark: m.Remark, Status: int(m.Status),
+	}
+}
+
+func AgentModelFromPO(p *AgentModelPO) *agent.Model {
+	return &agent.Model{
+		ID: p.ID, ProviderID: p.ProviderID, Name: p.Name, DisplayName: p.DisplayName,
+		ContextWindow: p.ContextWindow, MaxOutput: p.MaxOutput, SupportsTools: p.SupportsTools,
+		Remark: p.Remark, Status: agent.Status(p.Status),
+		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+}
+
+func AgentToPO(a *agent.Agent) *AgentPO {
+	return &AgentPO{
+		ID: a.ID, Name: a.Name, Code: a.Code, ModelID: a.ModelID,
+		SystemPrompt: a.SystemPrompt, Temperature: a.Temperature, TopP: a.TopP,
+		MaxTokens: a.MaxTokens, Remark: a.Remark, Status: int(a.Status),
+	}
+}
+
+func AgentFromPO(p *AgentPO) *agent.Agent {
+	return &agent.Agent{
+		ID: p.ID, Name: p.Name, Code: p.Code, ModelID: p.ModelID,
+		SystemPrompt: p.SystemPrompt, Temperature: p.Temperature, TopP: p.TopP,
+		MaxTokens: p.MaxTokens, Remark: p.Remark, Status: agent.Status(p.Status),
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
 }

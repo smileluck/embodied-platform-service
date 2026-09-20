@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
+	bizagent "github.com/smilex/smilex-admin-gin/internal/biz/agent"
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
@@ -71,6 +72,21 @@ var errKeys = []struct {
 	{bizappuser.ErrBadCredentials, "auth.invalid_credentials"},
 	// 服务器监控
 	{bizmonitor.ErrCollectFailed, "monitor.collect_failed"},
+	// 智能体（LLM 配置底座）
+	{bizagent.ErrProviderNotFound, "agent.provider.not_found"},
+	{bizagent.ErrProviderCodeExists, "agent.provider.code_exists"},
+	{bizagent.ErrProviderHasModels, "agent.provider.has_models"},
+	{bizagent.ErrProviderNoModels, "agent.provider.no_models"},
+	{bizagent.ErrProviderDisabled, "agent.provider.disabled"},
+	{bizagent.ErrModelNotFound, "agent.model.not_found"},
+	{bizagent.ErrModelExists, "agent.model.exists"},
+	{bizagent.ErrModelInUse, "agent.model.in_use"},
+	{bizagent.ErrModelDisabled, "agent.model.disabled"},
+	{bizagent.ErrAgentNotFound, "agent.not_found"},
+	{bizagent.ErrAgentCodeExists, "agent.code_exists"},
+	{bizagent.ErrAgentDisabled, "agent.disabled"},
+	{bizagent.ErrDecryptFailed, "agent.decrypt_failed"},
+	{bizagent.ErrLLMTimeout, "agent.timeout"},
 }
 
 // init 将错误 -> i18n key 匹配函数注册到 response 包（response 不便反向依赖 server，走钩子）

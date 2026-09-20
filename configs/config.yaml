@@ -65,6 +65,11 @@ platform:
     bucket: default
   timeoutSeconds: 15 # 平台无本地引导账号（准入唯一来源=平台商户成员绑定/商户管理员标记）
 
+agent: # 智能体模块（LLM 配置底座）
+  # 供应商 API Key 的 AES 加密密钥（任意长度，内部派生 AES-256）；留空则从 jwt.secret 派生，
+  # 注意：更换 jwt.secret 后已存密钥不可解密，需到「模型供应商」重新保存一次密钥
+  cryptoKey: ""
+
 log:
   retentionDays: 90 # 登录/操作日志保留天数，超期每日自动清理；0 表示永久保留
   # 应用运行日志：按日期滚动落盘（dir/filename-2006-01-02.log）

@@ -67,6 +67,22 @@ var messagesEn = map[string]string{
 	"appuser.name_exists": "Username already exists, please choose another one",
 	// Server monitor
 	"monitor.collect_failed": "Failed to collect server metrics, please try again later",
+	// Agent (LLM configuration base)
+	"agent.provider.not_found":   "LLM provider not found",
+	"agent.provider.code_exists": "Provider code already exists, please choose another one",
+	"agent.provider.has_models":  "Models still exist under this provider; delete them first",
+	"agent.provider.no_models":   "No enabled model under this provider; add one first",
+	"agent.provider.disabled":    "This provider has been disabled",
+	"agent.model.not_found":      "Model not found",
+	"agent.model.exists":         "A model with the same name already exists under this provider",
+	"agent.model.in_use":         "This model is referenced by an agent; update the agent first",
+	"agent.model.disabled":       "This model has been disabled",
+	"agent.not_found":            "Agent not found",
+	"agent.code_exists":          "Agent code already exists, please choose another one",
+	"agent.disabled":             "This agent has been disabled",
+	"agent.decrypt_failed":       "Failed to decrypt the API key (encryption key may have changed); save the key again",
+	"agent.upstream_error":       "LLM upstream call failed: %s",
+	"agent.timeout":              "LLM upstream call timed out, please try again later",
 	// Open API sign middleware
 	"openapi.missing_sign_headers": "Missing signature headers",
 	"openapi.invalid_timestamp":    "Timestamp is invalid or out of the allowed skew",
@@ -93,4 +109,9 @@ var messagesEn = map[string]string{
 	"menu.menu:tenant":       "Tenants",
 	"menu.menu:appUser":      "App Users",
 	"menu.menu:monitor":      "Server Monitor",
+	"menu.menu:agent":         "Agents",
+	"menu.menu:agentProvider": "LLM Providers",
+	"menu.menu:agentList":     "Agent Configs",
+	// Agent (LLM config foundation)
+
 }

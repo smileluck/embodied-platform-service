@@ -1,8 +1,50 @@
 {
+<<<<<<< HEAD
   "generatedAt": "2026-09-18T08:50:59.876Z",
   "commits": [
     {
       "hash": "528de76",
+=======
+  "generatedAt": "2026-09-20T05:31:53.058Z",
+  "commits": [
+    {
+      "hash": "1e3f4c9",
+      "date": "2026-09-20",
+      "type": "feat",
+      "scope": "monitor",
+      "message": "增加服务器状态监控"
+    },
+    {
+      "hash": "4a76111",
+      "date": "2026-09-19",
+      "type": "fix",
+      "scope": "captcha",
+      "message": "修复空验证码绕过登录校验"
+    },
+    {
+      "hash": "5707a06",
+      "date": "2026-09-19",
+      "type": "feat",
+      "scope": "deploy",
+      "message": "增加 Docker 与 docker-compose 部署"
+    },
+    {
+      "hash": "675abf9",
+      "date": "2026-09-19",
+      "type": "refactor",
+      "scope": "permission",
+      "message": "清理 all 通配权限残留死代码"
+    },
+    {
+      "hash": "5667d5a",
+      "date": "2026-09-18",
+      "type": "feat",
+      "scope": "user",
+      "message": "add super admin role assignment protection"
+    },
+    {
+      "hash": "fa7c09c",
+>>>>>>> 16299e58 (feat(agent): 新增智能体模块——LLM 配置底座与 harness 运行时)
       "date": "2026-09-18",
       "type": "refactor",
       "scope": "login",

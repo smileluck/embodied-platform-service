@@ -248,6 +248,66 @@ export interface ServerStatus {
   go: ServerGoRuntime
 }
 
+// ---- 智能体（LLM 配置底座）----
+
+// LLM 供应商配置（api_key 全链路仅展示掩码，明文只在创建/编辑时提交）
+export interface AgentProvider {
+  id: number
+  name: string
+  code: string
+  base_url: string
+  api_key_mask: string // 展示掩码（如 sk-****abcd；空=未配置，本地服务可不需要）
+  protocol: string
+  remark: string
+  status: number
+  created_at: string
+  updated_at: string
+}
+
+// 供应商下的模型配置
+export interface AgentModel {
+  id: number
+  provider_id: number
+  name: string // 上游模型标识（如 glm-4.7）
+  display_name: string
+  context_window: number // 上下文窗口（token，0=未知）
+  max_output: number // 单次最大输出（token，0=上游默认）
+  supports_tools: boolean
+  remark: string
+  status: number
+  created_at: string
+  updated_at: string
+}
+
+// Agent 配置（业务按 code 稳定引用）
+export interface AgentInfo {
+  id: number
+  name: string
+  code: string
+  model_id: number
+  system_prompt: string
+  temperature: number // 0~2；0=上游默认
+  top_p: number // 0~1；0=上游默认
+  max_tokens: number // 0=上游默认
+  remark: string
+  status: number
+  created_at: string
+  updated_at: string
+}
+
+// 连通性测试结果
+export interface AgentTestResult {
+  content: string
+  model: string
+  latency_ms: number
+  usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
+}
+
+// 调试对话消息（system 由 Agent 配置注入，前端仅传 user/assistant）
+export interface AgentChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+
 // ---- 设备（平台开放面契约镜像，字段与平台 SDK types.go 一致） ----
 
 export interface Device {
