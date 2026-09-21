@@ -1,15 +1,17 @@
 <template>
   <!-- 定时任务：列表 + 启停/立即执行 + 执行记录抽屉 -->
-  <n-card size="small">
+  <SearchCard storage-key="jobs" @search="load" @reset="query.name = ''">
+    <n-input v-model:value="query.name" :placeholder="t('job.name')" clearable style="width: 220px" @keyup.enter="load" />
+  </SearchCard>
+
+  <n-card>
     <template #header>
-      <span class="card-title">{{ t('job.title') }}</span>
+      <div class="page-actions">
+        <n-button v-permission="['job:create']" type="primary" ghost @click="openCreate">
+          {{ t('job.new') }}
+        </n-button>
+      </div>
     </template>
-    <SearchCard storage-key="jobs" @search="load" @reset="query.name = ''">
-      <n-input v-model:value="query.name" size="small" :placeholder="t('job.name')" clearable @keyup.enter="load" />
-      <n-button v-permission="['job:create']" size="small" type="primary" ghost @click="openCreate">
-        {{ t('job.new') }}
-      </n-button>
-    </SearchCard>
 
     <n-data-table size="small" :columns="columns" :data="rows" :loading="loading" :pagination="pagination" remote :bordered="false" />
   </n-card>
@@ -240,8 +242,12 @@ async function openLogs(row: JobInfo) {
 </script>
 
 <style scoped>
-.card-title {
-  font-weight: 600;
+.page-actions {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
 }
 .mono {
   font-family: var(--sx-font-mono);

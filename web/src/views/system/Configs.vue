@@ -1,15 +1,17 @@
 <template>
   <!-- 系统参数：键值列表 + 行内编辑值；键与类型创建后不可变 -->
-  <n-card size="small">
+  <SearchCard storage-key="sysConfigs" @search="load" @reset="kw = ''">
+    <n-input v-model:value="kw" :placeholder="t('sysconfig.keyword')" clearable style="width: 220px" @keyup.enter="load" />
+  </SearchCard>
+
+  <n-card>
     <template #header>
-      <span class="card-title">{{ t('sysconfig.title') }}</span>
+      <div class="page-actions">
+        <n-button v-permission="['sysconfig:create']" type="primary" ghost @click="openCreate">
+          {{ t('sysconfig.new') }}
+        </n-button>
+      </div>
     </template>
-    <SearchCard storage-key="sysConfigs" @search="load" @reset="kw = ''">
-      <n-input v-model:value="kw" size="small" :placeholder="t('sysconfig.keyword')" clearable @keyup.enter="load" />
-      <n-button v-permission="['sysconfig:create']" size="small" type="primary" ghost @click="openCreate">
-        {{ t('sysconfig.new') }}
-      </n-button>
-    </SearchCard>
 
     <n-data-table size="small" :columns="columns" :data="rows" :loading="loading" :bordered="false" />
   </n-card>
@@ -172,8 +174,12 @@ onMounted(load)
 </script>
 
 <style scoped>
-.card-title {
-  font-weight: 600;
+.page-actions {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
 }
 .mono {
   font-family: var(--sx-font-mono);
