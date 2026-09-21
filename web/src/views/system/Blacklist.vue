@@ -5,16 +5,15 @@
 
   <n-card>
     <template #header>
-      <div class="page-header">
-        <span>{{ t('blacklist.title') }}</span>
-        <n-button type="primary" v-permission="['blacklist:create']" @click="showModal = true">{{ t('common.add') }}</n-button>
+      <div class="page-actions">
+        <n-button type="primary" ghost v-permission="['blacklist:create']" @click="showModal = true">{{ t('common.add') }}</n-button>
       </div>
     </template>
 
     <n-data-table :columns="columns" :data="rows" :loading="loading" :pagination="pagination" paginate-single-page remote />
   </n-card>
 
-  <n-modal v-model:show="showModal" :title="t('blacklist.addTitle')" preset="card" style="width: 420px" :bordered="false" @after-leave="resetForm">
+  <n-modal v-model:show="showModal" :title="t('blacklist.addTitle')" preset="dialog" style="width: 420px" @after-leave="resetForm">
     <n-form ref="formRef" :model="form" :rules="rules" label-placement="left" label-width="80">
       <n-form-item :label="t('blacklist.ip')" path="ip">
         <n-input v-model:value="form.ip" :placeholder="t('blacklist.ipPlaceholder')" clearable />
@@ -26,18 +25,16 @@
         <n-date-picker v-model:value="form.expire_at" type="datetime" clearable style="width: 100%" :placeholder="t('blacklist.expireAtPlaceholder')" />
       </n-form-item>
     </n-form>
-    <template #footer>
-      <n-space justify="end">
-        <n-button @click="showModal = false">{{ t('common.cancel') }}</n-button>
-        <n-button type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.save') }}</n-button>
-      </n-space>
+    <template #action>
+      <n-button @click="showModal = false">{{ t('common.cancel') }}</n-button>
+      <n-button type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.save') }}</n-button>
     </template>
   </n-modal>
 </template>
 
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NCard, NDataTable, NDatePicker, NForm, NFormItem, NInput, NModal, NSpace, NTag, useDialog, useMessage, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
+import { NButton, NCard, NDataTable, NDatePicker, NForm, NFormItem, NInput, NModal, NTag, useDialog, useMessage, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import SearchCard from '../../components/SearchCard.vue'
 import { renderActions } from '../../utils/tableActions'
@@ -165,12 +162,12 @@ onMounted(load)
 </script>
 
 <style scoped>
-.page-header {
+.page-actions {
   width: 100%;
   display: flex;
+  justify-content: flex-end;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 </style>
 
