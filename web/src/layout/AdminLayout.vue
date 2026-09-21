@@ -17,12 +17,17 @@
     <n-layout class="main">
       <n-layout-header class="header">
         <div class="header-left">
-          <n-button class="sider-trigger" quaternary circle :focusable="false" :aria-label="t('layout.toggleSider')"
-            @click="toggleCollapsed">
-            <template #icon>
-              <SiderToggleIcon :collapsed="collapsed" />
+          <n-tooltip placement="bottom" :show-arrow="false" :delay="400">
+            <template #trigger>
+              <n-button class="sider-trigger" quaternary circle :focusable="false" :aria-label="t('layout.toggleSider')"
+                @click="toggleCollapsed">
+                <template #icon>
+                  <SiderToggleIcon :collapsed="collapsed" />
+                </template>
+              </n-button>
             </template>
-          </n-button>
+            {{ t('layout.toggleSider') }}
+          </n-tooltip>
           <div class="crumb">
             <template v-for="(c, i) in crumbs" :key="i">
               <span v-if="i > 0" class="crumb-sep">/</span>
@@ -31,97 +36,127 @@
           </div>
         </div>
         <div class="header-right">
-          <n-button
-            class="settings-trigger" quaternary circle :focusable="false"
-            :aria-label="t('layout.settings.title')" @click="showSettings = true"
-          >
-            <template #icon>
-              <n-icon :component="SettingsOutline" />
-            </template>
-          </n-button>
-          <n-button
-            class="theme-trigger" quaternary circle :focusable="false"
-            :aria-label="isDarkRef ? t('layout.toLight') : t('layout.toDark')" @click="toggleTheme"
-          >
-            <template #icon>
-              <n-icon :component="isDarkRef ? SunnyOutline : MoonOutline" />
-            </template>
-          </n-button>
-          <n-dropdown :options="localeOptions" @select="onLocaleChange">
-            <n-button
-              class="locale-trigger"
-              quaternary
-              circle
-              :focusable="false"
-              :aria-label="t('layout.language')"
-            >
-              <template #icon>
-                <n-icon :component="LanguageOutline" />
-              </template>
-            </n-button>
-          </n-dropdown>
-          <n-button
-            class="search-trigger"
-            quaternary
-            circle
-            :focusable="false"
-            :aria-label="`${t('layout.searchMenu')} ${searchKbd}`"
-            @click="openSearch"
-          >
-            <template #icon>
-              <n-icon :component="SearchOutline" />
-            </template>
-          </n-button>
-          <n-popover v-model:show="showNotices" trigger="click" :width="380" @update:show="onNoticesToggle">
+          <n-tooltip placement="bottom" :show-arrow="false" :delay="400">
             <template #trigger>
-              <n-badge :value="noticeUnread" :max="99" :show="noticeUnread > 0">
-                <n-button class="notice-trigger" quaternary circle :focusable="false" :aria-label="t('layout.notice.title')">
-                  <template #icon>
-                    <n-icon :component="NotificationsOutline" />
-                  </template>
-                </n-button>
-              </n-badge>
-            </template>
-            <div class="notice-panel">
-              <div v-if="!noticeRows.length" class="export-empty">{{ t('layout.notice.empty') }}</div>
-              <div v-for="n in noticeRows" :key="n.id" class="notice-item" :class="{ unread: !n.has_read }" @click="readNotice(n)">
-                <div class="notice-item-head">
-                  <span class="notice-dot" :class="n.level"></span>
-                  <span class="notice-item-title">{{ n.title }}</span>
-                  <span v-if="!n.has_read" class="notice-item-flag">{{ t('layout.notice.new') }}</span>
-                </div>
-                <div v-if="expandedNotice === n.id" class="notice-item-body" v-html="renderNoticeBody(n.content)"></div>
-                <div class="notice-item-time mono">{{ n.publish_at?.slice(0, 16).replace('T', ' ') }}</div>
-              </div>
-            </div>
-          </n-popover>
-          <n-popover v-model:show="showExports" trigger="click" :width="360" @update:show="onExportsToggle">
-            <template #trigger>
-              <n-button class="export-trigger" quaternary circle :focusable="false" :aria-label="t('menu.exportRecords')">
+              <n-button
+                class="settings-trigger" quaternary circle :focusable="false"
+                :aria-label="t('layout.settings.title')" @click="showSettings = true"
+              >
                 <template #icon>
-                  <n-icon :component="DownloadOutline" />
+                  <n-icon :component="SettingsOutline" />
                 </template>
               </n-button>
             </template>
-            <div class="export-panel">
-              <div class="export-list">
-                <div v-if="!exportRows.length" class="export-empty">{{ t('layout.exportPanel.empty') }}</div>
-                <div v-for="rec in exportRows" :key="rec.id" class="export-item">
-                  <span class="export-item-name" :title="rec.name">{{ rec.name }}</span>
-                  <n-tag :type="exportStatusType(rec.status)" size="small" :bordered="false"
-                    :title="rec.status === 'failed' ? rec.error : undefined">
-                    {{ exportStatusText(rec.status) }}
-                  </n-tag>
-                  <span class="export-item-time mono">{{ rec.created_at }}</span>
-                  <n-button v-if="rec.status === 'done'" text type="primary" size="tiny" class="export-item-dl"
-                    :loading="downloadingId === rec.id" @click="downloadExport(rec)">{{ t('common.download') }}</n-button>
+            {{ t('layout.settings.title') }}
+          </n-tooltip>
+          <n-tooltip placement="bottom" :show-arrow="false" :delay="400">
+            <template #trigger>
+              <n-button
+                class="theme-trigger" quaternary circle :focusable="false"
+                :aria-label="isDarkRef ? t('layout.toLight') : t('layout.toDark')" @click="toggleTheme"
+              >
+                <template #icon>
+                  <n-icon :component="isDarkRef ? SunnyOutline : MoonOutline" />
+                </template>
+              </n-button>
+            </template>
+            {{ isDarkRef ? t('layout.toLight') : t('layout.toDark') }}
+          </n-tooltip>
+          <n-tooltip placement="bottom" :show-arrow="false" :delay="400">
+            <template #trigger>
+              <n-dropdown :options="localeOptions" @select="onLocaleChange">
+                <n-button
+                  class="locale-trigger"
+                  quaternary
+                  circle
+                  :focusable="false"
+                  :aria-label="t('layout.language')"
+                >
+                  <template #icon>
+                    <n-icon :component="LanguageOutline" />
+                  </template>
+                </n-button>
+              </n-dropdown>
+            </template>
+            {{ t('layout.language') }}
+          </n-tooltip>
+          <n-tooltip placement="bottom" :show-arrow="false" :delay="400">
+            <template #trigger>
+              <n-button
+                class="search-trigger"
+                quaternary
+                circle
+                :focusable="false"
+                :aria-label="`${t('layout.searchMenu')} ${searchKbd}`"
+                @click="openSearch"
+              >
+                <template #icon>
+                  <n-icon :component="SearchOutline" />
+                </template>
+              </n-button>
+            </template>
+            {{ t('layout.searchMenu') }}
+          </n-tooltip>
+          <n-tooltip placement="bottom" :show-arrow="false" :delay="400">
+            <template #trigger>
+              <n-popover v-model:show="showNotices" trigger="click" :width="380" @update:show="onNoticesToggle">
+                <template #trigger>
+                  <n-badge :value="noticeUnread" :max="99" :show="noticeUnread > 0">
+                    <n-button class="notice-trigger" quaternary circle :focusable="false" :aria-label="t('layout.notice.title')">
+                      <template #icon>
+                        <n-icon :component="NotificationsOutline" />
+                      </template>
+                    </n-button>
+                  </n-badge>
+                </template>
+                <div class="notice-panel">
+                  <div v-if="!noticeRows.length" class="export-empty">{{ t('layout.notice.empty') }}</div>
+                  <div v-for="n in noticeRows" :key="n.id" class="notice-item" :class="{ unread: !n.has_read }" @click="readNotice(n)">
+                    <div class="notice-item-head">
+                      <span class="notice-dot" :class="n.level"></span>
+                      <span class="notice-item-title">{{ n.title }}</span>
+                      <span v-if="!n.has_read" class="notice-item-flag">{{ t('layout.notice.new') }}</span>
+                    </div>
+                    <div v-if="expandedNotice === n.id" class="notice-item-body" v-html="renderNoticeBody(n.content)"></div>
+                    <div class="notice-item-time mono">{{ n.publish_at?.slice(0, 16).replace('T', ' ') }}</div>
+                  </div>
                 </div>
-              </div>
-              <div class="export-foot">
-                <n-button text size="small" class="export-more" @click="gotoExports">{{ t('layout.exportPanel.viewAll') }}</n-button>
-              </div>
-            </div>
-          </n-popover>
+              </n-popover>
+            </template>
+            {{ t('layout.notice.title') }}
+          </n-tooltip>
+          <n-tooltip placement="bottom" :show-arrow="false" :delay="400">
+            <template #trigger>
+              <n-popover v-model:show="showExports" trigger="click" :width="360" @update:show="onExportsToggle">
+                <template #trigger>
+                  <n-button class="export-trigger" quaternary circle :focusable="false" :aria-label="t('menu.exportRecords')">
+                    <template #icon>
+                      <n-icon :component="DownloadOutline" />
+                    </template>
+                  </n-button>
+                </template>
+                <div class="export-panel">
+                  <div class="export-list">
+                    <div v-if="!exportRows.length" class="export-empty">{{ t('layout.exportPanel.empty') }}</div>
+                    <div v-for="rec in exportRows" :key="rec.id" class="export-item">
+                      <span class="export-item-name" :title="rec.name">{{ rec.name }}</span>
+                      <n-tag :type="exportStatusType(rec.status)" size="small" :bordered="false"
+                        :title="rec.status === 'failed' ? rec.error : undefined">
+                        {{ exportStatusText(rec.status) }}
+                      </n-tag>
+                      <span class="export-item-time mono">{{ rec.created_at }}</span>
+                      <n-button v-if="rec.status === 'done'" text type="primary" size="tiny" class="export-item-dl"
+                        :loading="downloadingId === rec.id" @click="downloadExport(rec)">{{ t('common.download') }}</n-button>
+                    </div>
+                  </div>
+                  <div class="export-foot">
+                    <n-button text size="small" class="export-more" @click="gotoExports">{{ t('layout.exportPanel.viewAll') }}</n-button>
+                  </div>
+                </div>
+              </n-popover>
+            </template>
+            {{ t('menu.exportRecords') }}
+          </n-tooltip>
           <n-dropdown :options="userOptions" @select="onUserAction">
             <div class="user-chip">
               <div class="avatar">{{ avatarChar }}</div>
@@ -282,7 +317,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NLayout, NLayoutSider, NLayoutHeader, NLayoutContent, NMenu, NDropdown, NButton, NIcon,
-  NModal, NForm, NFormItem, NInput, NPopover, NTag, useMessage,
+  NModal, NForm, NFormItem, NInput, NPopover, NTag, NTooltip, useMessage,
   NDrawer, NDrawerContent, NSwitch, NRadioGroup, NRadioButton,
   type DropdownOption, type FormInst, type FormRules, type TagProps,
   NBadge,
