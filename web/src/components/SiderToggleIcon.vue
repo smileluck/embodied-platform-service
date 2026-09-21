@@ -6,8 +6,8 @@
     <path class="ln" d="M4 6H20" />
     <path class="ln" d="M4 18H20" />
     <g class="mid">
-      <path class="ln" d="M9 12H20" />
-      <path class="ln" d="M9 8L5 12L9 16" />
+      <path class="ln" d="M10.5 12H20" />
+      <path class="tri" d="M9.5 7.8L4.8 12L9.5 16.2Z" />
     </g>
   </svg>
 </template>
@@ -22,6 +22,9 @@ defineProps<{ collapsed?: boolean }>()
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+.tri {
+  fill: currentColor;
 }
 .mid {
   /* 镜像中心取画布中心：scaleX(-1) 后箭头平移到右端且指向右，中横线段对称换边 */
