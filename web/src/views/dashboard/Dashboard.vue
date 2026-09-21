@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
@@ -38,6 +38,7 @@ import type { DataTableColumns } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { getDashboardStats } from '../../api'
 import type { DashboardStats } from '../../api/types'
+import { isDarkRef } from '../../stores/theme'
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -83,12 +84,25 @@ function renderChart() {
   }
   const login = stats.value?.login_trend ?? []
   const op = stats.value?.op_trend ?? []
+  // 轴/图例文字用中性灰（亮暗两套底色都可读）；echarts 默认 #333 在暗色下几乎不可见
+  const MUTED = '#6B7787'
+  const LINE = 'rgba(107, 119, 135, 0.35)'
   chart.setOption({
     tooltip: { trigger: 'axis' },
-    legend: { data: [t('dashboard.loginTotal'), t('dashboard.loginSuccess'), t('dashboard.opCount')] },
+    legend: { top: 0, itemWidth: 14, textStyle: { fontSize: 11, color: MUTED }, data: [t('dashboard.loginTotal'), t('dashboard.loginSuccess'), t('dashboard.opCount')] },
     grid: { left: 48, right: 16, top: 36, bottom: 28 },
-    xAxis: { type: 'category', data: login.map((p) => p.date.slice(5)) },
-    yAxis: { type: 'value', minInterval: 1 },
+    xAxis: {
+      type: 'category',
+      data: login.map((p) => p.date.slice(5)),
+      axisLabel: { fontSize: 10, color: MUTED, hideOverlap: true },
+      axisLine: { lineStyle: { color: LINE } },
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLabel: { fontSize: 10, color: MUTED },
+      splitLine: { lineStyle: { color: LINE } },
+    },
     series: [
       { name: t('dashboard.loginTotal'), type: 'line', smooth: true, symbolSize: 5, itemStyle: { color: '#3F75AB' }, data: login.map((p) => p.total) },
       { name: t('dashboard.loginSuccess'), type: 'line', smooth: true, symbolSize: 5, itemStyle: { color: '#7FB069' }, data: login.map((p) => p.success) },
@@ -98,6 +112,8 @@ function renderChart() {
 }
 
 onMounted(load)
+// 主题切换后重绘：echarts 文字/线色不会随 CSS 变量自动跟随
+watch(isDarkRef, () => renderChart())
 onBeforeUnmount(() => {
   resizeOb?.disconnect()
   chart?.dispose()
