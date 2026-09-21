@@ -30,7 +30,13 @@ function readVar(name: string, fallback: string): string {
 
 const naiveTheme = computed(() => (isDarkRef.value ? darkTheme : null))
 
-const themeOverrides = computed<GlobalThemeOverrides>(() => ({
+const themeOverrides = computed<GlobalThemeOverrides>(() => {
+  // 必须显式依赖 isDarkRef：readVar 读的是 DOM CSS 变量（非响应式），
+  // 无响应式依赖的 computed 会被永久缓存——暗色下仍套用首次求值的亮色，
+  // 表现为卡片等 naive 组件不随主题切换。applyTheme 在 toggle 中同步切
+  // html.dark，重算此刻读到的已是新模式色值
+  void isDarkRef.value
+  return {
   common: {
     primaryColor: readVar('--sx-accent', '#3F75AB'),
     primaryColorHover: readVar('--sx-accent-hover', '#518CC8'),
@@ -44,7 +50,8 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => ({
     borderColor: readVar('--sx-line', '#E3E8EF'),
     fontFamily: readVar('--sx-font-body', 'sans-serif'),
   },
-}))
+  }
+})
 </script>
 
 <style>
