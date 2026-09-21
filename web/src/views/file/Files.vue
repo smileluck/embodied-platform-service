@@ -167,7 +167,7 @@ const columns = computed<DataTableColumns<FileInfo>>(() => [
   { title: t('file.uploader'), key: 'uploader_name', width: 110, render: (row) => row.uploader_name || '—' },
   { title: t('file.uploadTime'), key: 'created_at', width: 170 },
   {
-    title: t('common.operation'), key: 'actions', width: 150,
+    title: t('common.operation'), key: 'actions', width: 200,
     render(row) {
       const actions: Array<TableAction | VNode> = []
       if (userStore.has('file:view')) {

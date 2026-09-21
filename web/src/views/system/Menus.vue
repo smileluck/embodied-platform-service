@@ -345,7 +345,7 @@ const columns = computed<DataTableColumns<any>>(() => [
   },
   { title: t('permMenu.sort'), key: 'sort', width: 70 },
   {
-    title: t('common.operation'), key: 'actions', width: 210,
+    title: t('common.operation'), key: 'actions', width: 200,
     render(row) {
       const actions: Array<TableAction | VNode> = []
       if (userStore.has('menu:update')) {

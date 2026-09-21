@@ -105,7 +105,7 @@ const columns = computed<DataTableColumns<NoticeInfo>>(() => [
   },
   { title: t('notice.creator'), key: 'creator_name', width: 100 },
   {
-    title: t('common.actions'), key: 'actions', width: 110,
+    title: t('common.actions'), key: 'actions', width: 200,
     render: (row) => {
       const actions = []
       if (userStore.has('notice:update')) actions.push({ label: t('common.edit'), onClick: () => openEdit(row) })

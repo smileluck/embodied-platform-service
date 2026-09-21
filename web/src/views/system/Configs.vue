@@ -96,7 +96,7 @@ const columns = computed<DataTableColumns<SysConfig>>(() => [
   },
   { title: t('sysconfig.description'), key: 'description', ellipsis: { tooltip: true } },
   {
-    title: t('common.actions'), key: 'actions', width: 170,
+    title: t('common.actions'), key: 'actions', width: 200,
     render: (row) => {
       const btns = []
       if (editingKey.value === row.key) {

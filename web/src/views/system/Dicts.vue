@@ -244,7 +244,7 @@ const itemColumns = computed<DataTableColumns<DictItem>>(() => {
     { title: t('common.remark'), key: 'remark', ellipsis: { tooltip: true }, render: (row) => row.remark || '—' },
   ]
   cols.push({
-    title: t('common.actions'), key: 'actions', width: 110,
+    title: t('common.actions'), key: 'actions', width: 200,
     render: (row) => {
       const actions: TableAction[] = []
       if (userStore.has('dict:item:update')) actions.push({ label: t('common.edit'), onClick: () => openItemEdit(row) })

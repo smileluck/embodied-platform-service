@@ -91,7 +91,7 @@ const columns = computed<DataTableColumns<JobInfo>>(() => [
   },
   { title: t('common.remark'), key: 'remark', ellipsis: { tooltip: true } },
   {
-    title: t('common.actions'), key: 'actions', width: 230,
+    title: t('common.actions'), key: 'actions', width: 200,
     render: (row) => {
       const actions = []
       if (userStore.has('job:run')) actions.push({ label: t('job.runNow'), onClick: () => runNow(row) })

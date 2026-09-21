@@ -156,7 +156,7 @@ const columns = computed<DataTableColumns<BlacklistItem>>(() => [
   },
   { title: t('blacklist.creator'), key: 'creator_name', width: 120, render: (row) => row.creator_name || '—' },
   {
-    title: t('common.operation'), key: 'actions', fixed: 'right', width: 100,
+    title: t('common.operation'), key: 'actions', fixed: 'right', width: 200,
     render: (row) => renderActions([{ label: t('blacklist.unblock'), danger: true, onClick: () => confirmDelete(row) }]),
   },
 ])

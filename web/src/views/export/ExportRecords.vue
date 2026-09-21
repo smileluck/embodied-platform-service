@@ -131,7 +131,7 @@ const columns = computed<DataTableColumns<ExportRecord>>(() => [
   { title: t('common.createTime'), key: 'created_at', width: 170 },
   { title: t('exportRecords.finishTime'), key: 'finished_at', width: 170, render: (row) => row.finished_at || '—' },
   {
-    title: t('common.operation'), key: 'actions', width: 110,
+    title: t('common.operation'), key: 'actions', width: 200,
     render(row) {
       const actions: Array<TableAction | VNode> = []
       if (row.status === 'done') {

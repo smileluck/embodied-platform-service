@@ -184,7 +184,7 @@ const columns = computed<DataTableColumns<OperationLogInfo>>(() => [
   { title: t('opLog.latency'), key: 'latency_ms', width: 80, render: (row) => `${row.latency_ms}ms` },
   { title: t('opLog.time'), key: 'created_at', width: 170 },
   {
-    title: t('common.operation'), key: 'actions', width: 70,
+    title: t('common.operation'), key: 'actions', width: 200,
     render(row) {
       const actions: Array<TableAction> = [{ label: t('common.detail'), accent: true, onClick: () => openDetail(row) }]
       return renderActions(actions)

@@ -401,7 +401,7 @@ const modelColumns = computed<DataTableColumns<AgentModel>>(() => [
       { default: () => (row.status === 1 ? t('common.enabled') : t('common.disabled')) }),
   },
   {
-    title: t('common.operation'), key: 'actions', width: 150,
+    title: t('common.operation'), key: 'actions', width: 200,
     render(row) {
       const actions: TableAction[] = []
       if (userStore.has('agent:model:test')) {

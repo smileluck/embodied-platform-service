@@ -286,7 +286,7 @@ const columns = computed<DataTableColumns<AppUser>>(() => [
   },
   { title: t('common.createTime'), key: 'created_at', width: 170 },
   {
-    title: t('common.operation'), key: 'actions', width: 260,
+    title: t('common.operation'), key: 'actions', width: 200,
     render(row) {
       const actions: TableAction[] = []
       if (userStore.has('appUser:update')) {
