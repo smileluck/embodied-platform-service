@@ -125,6 +125,27 @@ body {
   }
 }
 
+/* ---- 主题切换动效：整屏同节奏渐变，消除硬切割裂感 ---- */
+/* View Transitions 路径：旧新两帧全屏交叉渐变（theme.ts 优先走这条） */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.3s;
+  animation-timing-function: ease;
+}
+/* 回退路径：仅切换期间给全元素统一过渡，完成后移除（避免常驻 transition 开销
+   与滚动/悬停时的意外动画）；颜色之外不参与，防止布局属性被波及 */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    fill 0.3s ease,
+    stroke 0.3s ease,
+    box-shadow 0.3s ease !important;
+}
+
 /* ---- 暗色局部适配（组件内固定亮色的部分在此覆盖） ---- */
 html.dark .chat-text.md .md-code {
   background: #0F1621;
