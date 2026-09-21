@@ -45,4 +45,18 @@ export default {
     done: '已完成',
     failed: '失败',
   },
+  settings: {
+    title: '页面设置',
+    appearance: '外观',
+    themeMode: '主题模式',
+    modeSystem: '跟随系统',
+    modeLight: '亮色',
+    modeDark: '暗色',
+    tabs: '标签栏',
+    showTabs: '显示标签栏',
+    showTabsHint: '隐藏后页面缓存与路由同步不受影响',
+    layout: '布局',
+    darkSider: '深色侧边栏',
+    narrowContent: '内容区定宽居中',
+  },
 }

@@ -1,6 +1,6 @@
 <template>
   <n-layout has-sider style="height: 100vh">
-    <n-layout-sider class="sider" collapse-mode="width" :collapsed-width="64" :width="200" :collapsed="collapsed">
+    <n-layout-sider class="sider" :class="{ 'sider-dark': darkSider }" collapse-mode="width" :collapsed-width="64" :width="200" :collapsed="collapsed">
       <div class="logo" :class="{ 'logo-collapsed': collapsed }">
         <div class="seal">S</div>
         <div class="logo-text">
@@ -8,8 +8,7 @@
           <span class="logo-sub mono">admin console</span>
         </div>
       </div>
-      <n-menu class="sider-menu" :collapsed="collapsed" :collapsed-width="64" :root-indent="16" :indent="20"
-        :theme-overrides="menuOverrides"
+      <n-menu class="sider-menu" :inverted="darkSider" :theme-overrides="menuOverrides" :collapsed="collapsed" :collapsed-width="64" :root-indent="16" :indent="20"
         :options="menuOptions" :value="activeKey" :expanded-keys="expandedKeys"
         @update:expanded-keys="expandedKeys = $event" @update:value="onMenuSelect" />
       <div class="sider-foot mono" :class="{ 'foot-collapsed': collapsed }">v1.0<span class="foot-ext"> · internal</span></div>
@@ -32,6 +31,14 @@
           </div>
         </div>
         <div class="header-right">
+          <n-button
+            class="settings-trigger" quaternary circle :focusable="false"
+            :aria-label="t('layout.settings.title')" @click="showSettings = true"
+          >
+            <template #icon>
+              <n-icon :component="SettingsOutline" />
+            </template>
+          </n-button>
           <n-button
             class="theme-trigger" quaternary circle :focusable="false"
             :aria-label="isDarkRef ? t('layout.toLight') : t('layout.toDark')" @click="toggleTheme"
@@ -124,8 +131,8 @@
         </div>
       </n-layout-header>
 
-      <!-- 多标签页：路由访问即入列（上限 12，首个常驻），点击切换/关闭 -->
-      <div class="tabs-bar">
+      <!-- 多标签页：路由访问即入列（上限 12，首个常驻），点击切换/关闭；可在页面设置中隐藏 -->
+      <div v-show="showTabs" class="tabs-bar">
         <div
           v-for="tb in tabs" :key="tb.path"
           class="tab-item" :class="{ active: tb.path === activeTabPath }"
@@ -137,11 +144,13 @@
       </div>
 
       <n-layout-content class="content" content-style="padding: 8px;" :native-scrollbar="false">
-        <router-view v-slot="{ Component }">
-          <keep-alive :max="14">
-            <component :is="Component" />
-          </keep-alive>
-        </router-view>
+        <div class="content-inner" :class="{ narrow: narrowContent }">
+          <router-view v-slot="{ Component }">
+            <keep-alive :max="14">
+              <component :is="Component" />
+            </keep-alive>
+          </router-view>
+        </div>
       </n-layout-content>
     </n-layout>
 
@@ -224,6 +233,46 @@
         </div>
       </div>
     </n-modal>
+
+    <!-- 页面设置：主题模式 / 标签栏 / 布局偏好（右侧抽屉） -->
+    <n-drawer v-model:show="showSettings" :width="320" :auto-focus="false" placement="right">
+      <n-drawer-content :title="t('layout.settings.title')" closable>
+        <div class="settings-group">
+          <div class="settings-caption">{{ t('layout.settings.appearance') }}</div>
+          <div class="settings-row">
+            <span class="settings-label">{{ t('layout.settings.themeMode') }}</span>
+            <n-radio-group :value="themeMode" size="small" @update:value="setMode">
+              <n-radio-button value="system">{{ t('layout.settings.modeSystem') }}</n-radio-button>
+              <n-radio-button value="light">{{ t('layout.settings.modeLight') }}</n-radio-button>
+              <n-radio-button value="dark">{{ t('layout.settings.modeDark') }}</n-radio-button>
+            </n-radio-group>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-caption">{{ t('layout.settings.tabs') }}</div>
+          <div class="settings-row">
+            <div class="settings-stack">
+              <span class="settings-label">{{ t('layout.settings.showTabs') }}</span>
+              <span class="settings-hint">{{ t('layout.settings.showTabsHint') }}</span>
+            </div>
+            <n-switch :value="showTabs" size="small" @update:value="setShowTabs" />
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-caption">{{ t('layout.settings.layout') }}</div>
+          <div class="settings-row">
+            <span class="settings-label">{{ t('layout.settings.darkSider') }}</span>
+            <n-switch :value="darkSider" size="small" @update:value="setDarkSider" />
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">{{ t('layout.settings.narrowContent') }}</span>
+            <n-switch :value="narrowContent" size="small" @update:value="setNarrowContent" />
+          </div>
+        </div>
+      </n-drawer-content>
+    </n-drawer>
   </n-layout>
 </template>
 
@@ -234,12 +283,14 @@ import { useI18n } from 'vue-i18n'
 import {
   NLayout, NLayoutSider, NLayoutHeader, NLayoutContent, NMenu, NDropdown, NButton, NIcon,
   NModal, NForm, NFormItem, NInput, NPopover, NTag, useMessage,
+  NDrawer, NDrawerContent, NSwitch, NRadioGroup, NRadioButton,
   type DropdownOption, type FormInst, type FormRules, type TagProps,
   NBadge,
 } from 'naive-ui'
-import { MenuOutline, SearchOutline, DownloadOutline, LanguageOutline, NotificationsOutline, MoonOutline, SunnyOutline } from '@vicons/ionicons5'
+import { MenuOutline, SearchOutline, DownloadOutline, LanguageOutline, NotificationsOutline, MoonOutline, SunnyOutline, SettingsOutline } from '@vicons/ionicons5'
 import { useUserStore } from '../stores/user'
-import { isDarkRef, toggleTheme } from '../stores/theme'
+import { isDarkRef, mode as themeMode, setMode, toggleTheme } from '../stores/theme'
+import { showTabs, darkSider, narrowContent, setShowTabs, setDarkSider, setNarrowContent } from '../stores/settings'
 import { renderMenuIcon } from '../utils/menuIcon'
 import { changePassword, searchMenus, listRecentExports, getExportBlob, listActiveNotices, getUnreadNoticeCount, markNoticeRead } from '../api'
 import { saveBlob, parseDispositionFilename } from '../utils/download'
@@ -641,6 +692,7 @@ function closeTab(tb: PageTab) {
 watch(() => route.fullPath, () => syncTab(route), { immediate: true })
 
 // ---- 顶栏通知公告：未读角标 + 弹层（打开时拉取，点击展开正文并上报已读） ----
+const showSettings = ref(false)
 const showNotices = ref(false)
 const noticeRows = ref<NoticeInfo[]>([])
 const noticeUnread = ref(0)
@@ -757,6 +809,23 @@ onUnmounted(() => {
 /* 侧边栏：石墨深色仪表外壳（菜单配色见上方 menuOverrides） */
 .sider {
   background: var(--sx-ink) !important;
+}
+/* 深色侧边栏（页面设置开启）：品牌藏蓝面板底 + 反色菜单（n-menu inverted） */
+.sider.sider-dark {
+  background: var(--sx-panel) !important;
+}
+.sider.sider-dark .logo {
+  border-bottom-color: var(--sx-panel-soft);
+}
+.sider.sider-dark .logo-name {
+  color: #E6EBF2;
+}
+.sider.sider-dark .logo-sub {
+  color: rgba(230, 235, 242, 0.45);
+}
+.sider.sider-dark .sider-foot {
+  border-top-color: var(--sx-panel-soft);
+  color: rgba(230, 235, 242, 0.4);
 }
 /* flex 作用到 naive 原生滚动容器，保证 logo/菜单/脚注三段式撑满整列 */
 .sider :deep(.n-layout-sider-scroll-container) {
@@ -1161,6 +1230,44 @@ onUnmounted(() => {
 /* 内容区 */
 .content {
   background: transparent !important;
+}
+/* 页面设置-内容区定宽居中：宽屏下限宽阅读（默认不限，页面高度均为 100vh 范式不受影响） */
+.content-inner.narrow {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* 页面设置抽屉：分组小标题 + 标签/控件行 */
+.settings-group {
+  margin-bottom: 22px;
+}
+.settings-caption {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sx-muted);
+  margin-bottom: 10px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+}
+.settings-label {
+  font-size: 13px;
+  color: var(--sx-ink);
+}
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.settings-hint {
+  font-size: 11px;
+  color: var(--sx-muted);
 }
 
 /* 搜索命令面板：输入行 / 结果列表 / 快捷键提示栏 */

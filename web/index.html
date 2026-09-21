@@ -102,10 +102,11 @@
   </head>
   <body>
     <script>
-      // 主题防闪：渲染前根据存储/系统偏好设置暗色 class
+      // 主题防闪：渲染前按存储的模式（dark/light/system，未存储视为 system）解析暗色 class
       try {
         var t = localStorage.getItem('sx-theme')
-        var dark = t ? t === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        var dark = t === 'dark' || (t !== 'light' && sysDark)
         if (dark) document.documentElement.classList.add('dark')
       } catch (e) {}
     </script>

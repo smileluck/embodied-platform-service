@@ -45,4 +45,18 @@ export default {
     done: 'Done',
     failed: 'Failed',
   },
+  settings: {
+    title: 'Page Settings',
+    appearance: 'Appearance',
+    themeMode: 'Theme Mode',
+    modeSystem: 'System',
+    modeLight: 'Light',
+    modeDark: 'Dark',
+    tabs: 'Tab Bar',
+    showTabs: 'Show tab bar',
+    showTabsHint: 'Hiding it does not affect page cache or route sync',
+    layout: 'Layout',
+    darkSider: 'Dark sidebar',
+    narrowContent: 'Fixed-width content',
+  },
 }
