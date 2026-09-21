@@ -266,6 +266,7 @@ func (w *Worker) run(ctx context.Context, rec *bizexport.ExportRecord) error {
 				truncated = true
 				break
 			}
+			bizexport.MarkTextCells(cols, row)
 			if err := wtr.Write(row); err != nil {
 				return err
 			}

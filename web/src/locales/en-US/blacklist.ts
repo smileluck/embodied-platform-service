@@ -9,6 +9,8 @@ export default {
   expireAt: 'Expires At',
   expireAtPlaceholder: 'Leave blank for permanent ban',
   permanent: 'Permanent',
+  bannedAt: 'Banned At',
+  until: 'Until',
   source: 'Source',
   sourceManual: 'Manual',
   sourceAuto: 'Auto',

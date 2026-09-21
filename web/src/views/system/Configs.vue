@@ -17,7 +17,7 @@
   <n-modal v-model:show="showModal" preset="dialog" :title="t('sysconfig.new')" style="width: 480px">
     <n-form :model="form" :rules="rules" label-placement="left" label-width="80">
       <n-form-item :label="t('sysconfig.key')" path="key">
-        <n-input v-model:value="form.key" :maxlength="64" show-count placeholder="password.minLength" />
+        <n-input v-model:value="form.key" :maxlength="64" show-count :placeholder="t('sysconfig.keyPlaceholder')" />
       </n-form-item>
       <n-form-item :label="t('sysconfig.type')" path="type">
         <n-radio-group v-model:value="form.type" size="small">

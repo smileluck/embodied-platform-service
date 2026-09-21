@@ -66,7 +66,7 @@ func (r *repo) Find(ctx context.Context, id uint) (*job.Job, error) {
 func (r *repo) List(ctx context.Context, q job.Query, page, pageSize int) ([]*job.Job, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.JobPO{})
 	if q.Name != "" {
-		tx = tx.Where("name LIKE ? ESCAPE '/'", security.EscapeLike(q.Name)+"%")
+		tx = tx.Where("name LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Name)+"%")
 	}
 	var total int64
 	if err := tx.Count(&total).Error; err != nil {

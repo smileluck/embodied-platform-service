@@ -103,7 +103,7 @@ func (r *repo) List(ctx context.Context, q role.Query, page, pageSize int) ([]*r
 	tx := r.data.DB.WithContext(ctx).Model(&model.RolePO{})
 	if q.Name != "" {
 		// 转义用户输入中的 LIKE 通配符，防止 %/_ 改变匹配语义（通配符注入）
-		tx = tx.Where("name LIKE ? ESCAPE '/'", security.EscapeLike(q.Name)+"%")
+		tx = tx.Where("name LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Name)+"%")
 	}
 	var total int64
 	if err := tx.Count(&total).Error; err != nil {

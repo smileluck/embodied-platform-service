@@ -9,6 +9,8 @@ export default {
   expireAt: '解封时间',
   expireAtPlaceholder: '不选则为永久封禁',
   permanent: '永久封禁',
+  bannedAt: '封禁时间',
+  until: '限期至',
   source: '来源',
   sourceManual: '手动',
   sourceAuto: '自动',

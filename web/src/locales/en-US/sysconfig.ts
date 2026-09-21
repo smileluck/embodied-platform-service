@@ -4,6 +4,7 @@ export default {
   keyword: 'Key / description',
   new: 'New Config',
   key: 'Key',
+  keyPlaceholder: 'Config key: lowercase letters/digits/dots (e.g. group.item)',
   value: 'Value',
   type: 'Type',
   description: 'Description',

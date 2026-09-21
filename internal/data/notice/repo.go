@@ -66,7 +66,7 @@ func (r *repo) Find(ctx context.Context, id uint) (*notice.Notice, error) {
 func (r *repo) List(ctx context.Context, q notice.Query, page, pageSize int) ([]*notice.Notice, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.NoticePO{})
 	if q.Title != "" {
-		tx = tx.Where("title LIKE ? ESCAPE '/'", security.EscapeLike(q.Title)+"%")
+		tx = tx.Where("title LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Title)+"%")
 	}
 	if q.Level != "" {
 		tx = tx.Where("level = ?", q.Level)

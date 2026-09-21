@@ -310,4 +310,9 @@ onMounted(async () => {
   font-size: 13px;
   color: var(--n-text-color-3, #999);
 }
+.masked-hint {
+  width: 100%;
+  font-size: 11px;
+  color: var(--sx-muted);
+}
 </style>

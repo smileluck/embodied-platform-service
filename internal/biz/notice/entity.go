@@ -12,6 +12,7 @@ import (
 var (
 	ErrNotFound     = errors.New("公告不存在")
 	ErrInvalidTitle = errors.New("公告不存在或未生效")
+	ErrTimeRange    = errors.New("过期时间必须晚于发布时间")
 )
 
 // Level 公告级别（前端着色）

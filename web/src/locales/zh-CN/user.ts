@@ -37,6 +37,7 @@ export default {
   exportQueued: '已加入导出队列，可在右上角导出图标查看进度',
   exportTooMany: '导出任务过多，请稍后再试',
   exportFailed: '导出失败',
+maskedNoEcho: '脱敏状态下不回显原值，留空保存则不修改',
   saveFailed: '保存失败',
   deleteFailed: '移除失败',
   removeConfirmTitle: '移除成员确认',

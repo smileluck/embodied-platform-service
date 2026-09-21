@@ -81,7 +81,7 @@ func (r *Repo) Delete(ctx context.Context, id uint) error {
 			return nil
 		}
 		// 软删（解封留痕）行仍占用 ip 唯一索引，归档释放以便同 IP 再次封禁
-		return data.ArchiveUniqueColumns(tx, "ip_blacklist", id, "ip")
+		return data.ArchiveUniqueColumns(tx, "ip_blacklist", id, map[string]int{"ip": 64})
 	})
 }
 
@@ -116,7 +116,7 @@ func (r *Repo) List(ctx context.Context, q bizblacklist.Query, page, pageSize in
 	r.purgeExpired(ctx)
 	tx := r.data.DB.WithContext(ctx).Model(&model.IPBlacklistPO{})
 	if q.IP != "" {
-		tx = tx.Where("ip LIKE ? ESCAPE '/'", security.EscapeLike(q.IP)+"%")
+		tx = tx.Where("ip LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.IP)+"%")
 	}
 	var total int64
 	if err := tx.Count(&total).Error; err != nil {

@@ -4,6 +4,7 @@ package dict
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/smilex/smilex-admin-gin/internal/biz/dict"
 	"github.com/smilex/smilex-admin-gin/internal/data"
@@ -19,33 +20,58 @@ type repo struct {
 func NewRepo(d *data.Data) dict.Repo { return &repo{data: d} }
 
 func mapTypeErr(err error) error {
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
 		return dict.ErrTypeNotFound
+	case isUniqueViolation(err):
+		return dict.ErrTypeCodeExists
 	}
 	return err
 }
 
 func mapItemErr(err error) error {
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
 		return dict.ErrItemNotFound
+	case isUniqueViolation(err):
+		return dict.ErrItemExists
 	}
 	return err
+}
+
+// isUniqueViolation 各数据库唯一约束冲突文案判断：
+// MySQL Error 1062、Postgres 23505（duplicate key value）、SQLite UNIQUE constraint failed
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "Error 1062") ||
+		strings.Contains(msg, "duplicate key value") ||
+		strings.Contains(msg, "UNIQUE constraint failed")
 }
 
 func (r *repo) CreateType(ctx context.Context, t *dict.DictType) error {
 	po := model.DictTypeToPO(t)
 	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
-		return err
+		return mapTypeErr(err)
 	}
 	t.ID, t.CreatedAt, t.UpdatedAt = po.ID, po.CreatedAt, po.UpdatedAt
 	return nil
 }
 
 func (r *repo) UpdateType(ctx context.Context, t *dict.DictType) error {
-	return r.data.DB.WithContext(ctx).Model(&model.DictTypePO{}).Where("id = ?", t.ID).
+	res := r.data.DB.WithContext(ctx).Model(&model.DictTypePO{}).Where("id = ?", t.ID).
 		Updates(map[string]interface{}{
 			"name": t.Name, "code": t.Code, "remark": t.Remark, "status": int(t.Status),
-		}).Error
+		})
+	if res.Error != nil {
+		return mapTypeErr(res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return dict.ErrTypeNotFound
+	}
+	return nil
 }
 
 func (r *repo) DeleteType(ctx context.Context, id uint) error {
@@ -58,7 +84,7 @@ func (r *repo) DeleteType(ctx context.Context, id uint) error {
 			return dict.ErrTypeNotFound
 		}
 		// 软删行仍占用 code 唯一索引，归档释放以便同编码重建
-		return data.ArchiveUniqueColumns(tx, "dict_types", id, "code")
+		return data.ArchiveUniqueColumns(tx, "dict_types", id, map[string]int{"code": 64})
 	})
 }
 
@@ -81,10 +107,10 @@ func (r *repo) FindTypeByCode(ctx context.Context, code string) (*dict.DictType,
 func (r *repo) ListTypes(ctx context.Context, q dict.Query, page, pageSize int) ([]*dict.DictType, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.DictTypePO{})
 	if q.Name != "" {
-		tx = tx.Where("name LIKE ? ESCAPE '/'", security.EscapeLike(q.Name)+"%")
+		tx = tx.Where("name LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Name)+"%")
 	}
 	if q.Code != "" {
-		tx = tx.Where("code LIKE ? ESCAPE '/'", security.EscapeLike(q.Code)+"%")
+		tx = tx.Where("code LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Code)+"%")
 	}
 	var total int64
 	if err := tx.Count(&total).Error; err != nil {
@@ -112,18 +138,25 @@ func (r *repo) CountItemsByType(ctx context.Context, typeID uint) (int64, error)
 func (r *repo) CreateItem(ctx context.Context, i *dict.DictItem) error {
 	po := model.DictItemToPO(i)
 	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
-		return err
+		return mapItemErr(err)
 	}
 	i.ID, i.CreatedAt, i.UpdatedAt = po.ID, po.CreatedAt, po.UpdatedAt
 	return nil
 }
 
 func (r *repo) UpdateItem(ctx context.Context, i *dict.DictItem) error {
-	return r.data.DB.WithContext(ctx).Model(&model.DictItemPO{}).Where("id = ?", i.ID).
+	res := r.data.DB.WithContext(ctx).Model(&model.DictItemPO{}).Where("id = ?", i.ID).
 		Updates(map[string]interface{}{
 			"type_id": i.TypeID, "label": i.Label, "value": i.Value,
 			"sort": i.Sort, "remark": i.Remark, "status": int(i.Status),
-		}).Error
+		})
+	if res.Error != nil {
+		return mapItemErr(res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return dict.ErrItemNotFound
+	}
+	return nil
 }
 
 func (r *repo) DeleteItem(ctx context.Context, id uint) error {
@@ -136,7 +169,7 @@ func (r *repo) DeleteItem(ctx context.Context, id uint) error {
 			return dict.ErrItemNotFound
 		}
 		// 软删行仍占用 (type_id,label,value) 复合唯一索引，归档释放以便重建
-		return data.ArchiveUniqueColumns(tx, "dict_items", id, "label", "value")
+		return data.ArchiveUniqueColumns(tx, "dict_items", id, map[string]int{"label": 20, "value": 64})
 	})
 }
 

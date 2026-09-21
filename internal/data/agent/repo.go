@@ -75,7 +75,7 @@ func (r *Repo) DeleteProvider(ctx context.Context, id uint) error {
 			return agent.ErrProviderNotFound
 		}
 		// 软删行仍占用 code 唯一索引，归档释放以便同编码重建
-		return data.ArchiveUniqueColumns(tx, "agent_providers", id, "code")
+		return data.ArchiveUniqueColumns(tx, "agent_providers", id, map[string]int{"code": 64})
 	})
 }
 
@@ -98,10 +98,10 @@ func (r *Repo) FindProviderByCode(ctx context.Context, code string) (*agent.Prov
 func (r *Repo) ListProviders(ctx context.Context, q agent.ProviderQuery, page, pageSize int) ([]*agent.Provider, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.AgentProviderPO{})
 	if q.Name != "" {
-		tx = tx.Where("name LIKE ? ESCAPE '/'", security.EscapeLike(q.Name)+"%")
+		tx = tx.Where("name LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Name)+"%")
 	}
 	if q.Code != "" {
-		tx = tx.Where("code LIKE ? ESCAPE '/'", security.EscapeLike(q.Code)+"%")
+		tx = tx.Where("code LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Code)+"%")
 	}
 	if q.Status != nil {
 		tx = tx.Where("status = ?", *q.Status)
@@ -159,7 +159,7 @@ func (r *Repo) DeleteModel(ctx context.Context, id uint) error {
 			return agent.ErrModelNotFound
 		}
 		// 软删行仍占用 (provider_id,name) 复合唯一索引，归档释放以便重建
-		return data.ArchiveUniqueColumns(tx, "agent_models", id, "name")
+		return data.ArchiveUniqueColumns(tx, "agent_models", id, map[string]int{"name": 128})
 	})
 }
 
@@ -199,7 +199,7 @@ func (r *Repo) ListModels(ctx context.Context, q agent.ModelQuery, page, pageSiz
 		tx = tx.Where("provider_id = ?", *q.ProviderID)
 	}
 	if q.Name != "" {
-		tx = tx.Where("name LIKE ? ESCAPE '/'", security.EscapeLike(q.Name)+"%")
+		tx = tx.Where("name LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Name)+"%")
 	}
 	if q.Status != nil {
 		tx = tx.Where("status = ?", *q.Status)
@@ -256,7 +256,7 @@ func (r *Repo) DeleteAgent(ctx context.Context, id uint) error {
 			return agent.ErrAgentNotFound
 		}
 		// 软删行仍占用 code 唯一索引，归档释放以便同编码重建
-		return data.ArchiveUniqueColumns(tx, "agents", id, "code")
+		return data.ArchiveUniqueColumns(tx, "agents", id, map[string]int{"code": 64})
 	})
 }
 
@@ -279,10 +279,10 @@ func (r *Repo) FindAgentByCode(ctx context.Context, code string) (*agent.Agent, 
 func (r *Repo) ListAgents(ctx context.Context, q agent.AgentQuery, page, pageSize int) ([]*agent.Agent, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.AgentPO{})
 	if q.Name != "" {
-		tx = tx.Where("name LIKE ? ESCAPE '/'", security.EscapeLike(q.Name)+"%")
+		tx = tx.Where("name LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Name)+"%")
 	}
 	if q.Code != "" {
-		tx = tx.Where("code LIKE ? ESCAPE '/'", security.EscapeLike(q.Code)+"%")
+		tx = tx.Where("code LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Code)+"%")
 	}
 	if q.Status != nil {
 		tx = tx.Where("status = ?", *q.Status)

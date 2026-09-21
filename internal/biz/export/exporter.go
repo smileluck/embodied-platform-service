@@ -3,6 +3,7 @@ package export
 import (
 	"context"
 	"net/url"
+	"strings"
 
 	"github.com/smilex/smilex-admin-gin/pkg/security"
 )
@@ -11,6 +12,8 @@ import (
 type Column struct {
 	Key   string
 	Title string
+	// Text 纯数字内容按文本写出（="…"），防止 Excel 把手机号等长数字显示为科学计数
+	Text bool
 }
 
 // Exporter 业务导出器：worker 循环调用 Fetch 分批拉数（offset/limit 语义），
@@ -54,3 +57,31 @@ func maskRow(cols []Column, mask map[string]string, row []string) {
 		}
 	}
 }
+
+// digitsOnly 是否全为数字（空串不算）
+func digitsOnly(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// MarkTextCells 就地把 Text 列的纯数字内容改写为 ="…"（Excel/WPS 按文本显示，
+// 防止手机号等长数字被显示为科学计数）；含非数字字符（脱敏掩码等）不动
+func MarkTextCells(cols []Column, row []string) {
+	for i, col := range cols {
+		if col.Text && digitsOnly(row[i]) {
+			row[i] = `="` + strings.ReplaceAll(row[i], `"`, `""`) + `"`
+		}
+	}
+}
+
+// revealParam 导出请求携带 reveal=1 时输出明文。
+// 准入在两层 fail-closed 把关：提交侧 handler 剔除无权限的 reveal，
+// worker 执行前按任务快照二次复核（SensitivePermByBiz）
+func revealParam(params url.Values) bool { return params.Get("reveal") == "1" }

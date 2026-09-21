@@ -136,15 +136,24 @@ function confirmDelete(row: BlacklistItem) {
 const columns = computed<DataTableColumns<BlacklistItem>>(() => [
   { title: 'ID', key: 'id', width: 70 },
   { title: t('blacklist.ip'), key: 'ip', width: 160 },
-  { title: t('blacklist.reason'), key: 'reason', render: (row) => row.reason || '—' },
+  { title: t('blacklist.reason'), key: 'reason', width: 300, ellipsis: { tooltip: true }, render: (row) => row.reason || '—' },
   {
     title: t('blacklist.source'), key: 'source', width: 90,
     render: (row) => h(NTag, { size: 'small', type: row.source === 'auto' ? 'warning' : 'default', bordered: false },
       { default: () => row.source === 'auto' ? t('blacklist.sourceAuto') : t('blacklist.sourceManual') }),
   },
-  { title: t('blacklist.expireAt'), key: 'expire_at', width: 170, render: (row) => row.expire_at || t('blacklist.permanent') },
+  {
+    // 封禁时间 + 标识合并列：永久封禁=「永久」tag；限期封禁=「限期」tag + 到期时间
+    title: t('blacklist.bannedAt'), key: 'created_at', width: 300,
+    render: (row) => h('div', { class: 'banned-cell' }, [
+      h('span', { class: 'mono' }, row.created_at),
+      h(NTag, {
+        size: 'small', bordered: false,
+        type: row.expire_at ? 'warning' : 'default',
+      }, { default: () => (row.expire_at ? `${t('blacklist.until')} ${row.expire_at}` : t('blacklist.permanent')) }),
+    ]),
+  },
   { title: t('blacklist.creator'), key: 'creator_name', width: 120, render: (row) => row.creator_name || '—' },
-  { title: t('common.createTime'), key: 'created_at', width: 170 },
   {
     title: t('common.operation'), key: 'actions', fixed: 'right', width: 100,
     render: (row) => h(NButton, { size: 'small', type: 'error', onClick: () => confirmDelete(row) }, { default: () => t('blacklist.unblock') }),
@@ -161,5 +170,11 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.banned-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
 }
 </style>

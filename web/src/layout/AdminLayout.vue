@@ -703,10 +703,13 @@ function syncTab(r: { path: string; name?: unknown; meta?: { title?: string; hid
 }
 loadTabs()
 
-// 标题实时取路由 meta.title（语言切换后 refreshRouteTitles 就地更新）
+// 标题实时取路由 meta.title（语言切换后 refreshRouteTitles 就地更新）；
+// 非菜单路由（个人中心/导出记录）用 meta.titleKey 走 i18n，否则会回退成英文路由名
 function tabTitle(tb: PageTab): string {
   void tabsLocaleKey.value
   const rec = router.getRoutes().find((r) => r.path === tb.path)
+  const titleKey = rec?.meta?.titleKey as string | undefined
+  if (titleKey) return t(titleKey)
   return (rec?.meta?.title as string) || String(tb.name || tb.path)
 }
 

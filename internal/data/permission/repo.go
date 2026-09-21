@@ -64,7 +64,7 @@ func (r *repo) Delete(ctx context.Context, id uint) error {
 			return bizperm.ErrPermissionNotFound
 		}
 		// 软删行仍占用 code 唯一索引，归档释放以便同编码重建
-		if err := data.ArchiveUniqueColumns(tx, "permissions", id, "code"); err != nil {
+		if err := data.ArchiveUniqueColumns(tx, "permissions", id, map[string]int{"code": 64}); err != nil {
 			return err
 		}
 		return tx.Where("permission_id = ?", id).Delete(&model.RolePermissionPO{}).Error

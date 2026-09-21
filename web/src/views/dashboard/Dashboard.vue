@@ -42,7 +42,7 @@ import { isDarkRef } from '../../stores/theme'
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const stats = ref<DashboardStats | null>(null)
 const loading = ref(false)
 const chartRef = ref<HTMLElement | null>(null)
@@ -114,6 +114,8 @@ function renderChart() {
 onMounted(load)
 // 主题切换后重绘：echarts 文字/线色不会随 CSS 变量自动跟随
 watch(isDarkRef, () => renderChart())
+// 语言切换后重绘：图例/系列名是 setOption 时固化的 t() 文案
+watch(locale, () => renderChart())
 onBeforeUnmount(() => {
   resizeOb?.disconnect()
   chart?.dispose()

@@ -58,7 +58,7 @@ func (r *repo) List(ctx context.Context, keyword string) ([]*sysconfig.Config, e
 	tx := r.data.DB.WithContext(ctx).Model(&model.SysConfigPO{})
 	if keyword != "" {
 		tx = tx.Where("`key` LIKE ? ESCAPE '/' OR description LIKE ? ESCAPE '/'",
-			security.EscapeLike(keyword)+"%", security.EscapeLike(keyword)+"%")
+			"%"+security.EscapeLike(keyword)+"%", "%"+security.EscapeLike(keyword)+"%")
 	}
 	var pos []model.SysConfigPO
 	if err := tx.Order("`key` ASC").Find(&pos).Error; err != nil {

@@ -1,17 +1,19 @@
 <template>
-  <!-- 通知公告管理：发布/编辑/删除，级别与生效窗口 -->
-  <n-card size="small">
+  <!-- 通知公告管理：搜索独立卡片 + 列表卡片头右侧「发布公告」（对齐用户管理页风格） -->
+  <SearchCard storage-key="notices" @search="load" @reset="resetQuery">
+    <n-input v-model:value="query.title" :placeholder="t('notice.titleField')" clearable style="width: 200px" @keyup.enter="load" />
+    <n-select v-model:value="query.level" :options="levelOptions" :placeholder="t('notice.level')" clearable style="width: 130px" />
+    <n-select v-model:value="query.status" :options="statusOptions" :placeholder="t('notice.status')" clearable style="width: 130px" />
+  </SearchCard>
+
+  <n-card>
     <template #header>
-      <span class="card-title">{{ t('notice.title') }}</span>
+      <div class="page-actions">
+        <n-button v-permission="['notice:create']" type="primary" ghost @click="openCreate">
+          {{ t('notice.new') }}
+        </n-button>
+      </div>
     </template>
-    <SearchCard storage-key="notices" @search="load" @reset="resetQuery">
-      <n-input v-model:value="query.title" size="small" :placeholder="t('notice.titleField')" clearable @keyup.enter="load" />
-      <n-select v-model:value="query.level" size="small" :options="levelOptions" :placeholder="t('notice.level')" clearable style="width: 130px" />
-      <n-select v-model:value="query.status" size="small" :options="statusOptions" :placeholder="t('notice.status')" clearable style="width: 130px" />
-      <n-button v-permission="['notice:create']" size="small" type="primary" ghost @click="openCreate">
-        {{ t('notice.new') }}
-      </n-button>
-    </SearchCard>
 
     <n-data-table size="small" :columns="columns" :data="rows" :loading="loading" :pagination="pagination" remote :bordered="false" />
   </n-card>
@@ -208,8 +210,12 @@ onMounted(load)
 </script>
 
 <style scoped>
-.card-title {
-  font-weight: 600;
+.page-actions {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
 }
 .modal-actions {
   display: flex;

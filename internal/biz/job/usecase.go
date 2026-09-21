@@ -15,9 +15,9 @@ import (
 
 // 内置处理器键（种子任务按此引用）
 const (
-	HandlerLogCleanup         = "log_cleanup"
-	HandlerExportCleanup      = "export_cleanup"
-	HandlerUsageCleanup       = "agent_usage_cleanup"
+	HandlerLogCleanup    = "log_cleanup"
+	HandlerExportCleanup = "export_cleanup"
+	HandlerUsageCleanup  = "agent_usage_cleanup"
 )
 
 // 清理器接口（各仓储实现；保留期取各自配置）

@@ -4,6 +4,7 @@ export default {
   keyword: '键 / 描述',
   new: '新增参数',
   key: '键',
+  keyPlaceholder: '参数键：小写字母/数字/点（如 group.item）',
   value: '值',
   type: '类型',
   description: '描述',

@@ -1,6 +1,76 @@
 {
-  "generatedAt": "2026-09-23T03:50:54.106Z",
+  "generatedAt": "2026-09-23T03:52:51.818Z",
   "commits": [
+    {
+      "hash": "43e7a43c",
+      "date": "2026-09-21",
+      "type": "feat",
+      "scope": "web",
+      "message": "顶栏图标按钮增加悬停/触摸说明 tooltip"
+    },
+    {
+      "hash": "8e7111f0",
+      "date": "2026-09-21",
+      "type": "style",
+      "scope": "web",
+      "message": "折叠图标箭头改为实心等腰三角形"
+    },
+    {
+      "hash": "c9ad510d",
+      "date": "2026-09-21",
+      "type": "feat",
+      "scope": "web",
+      "message": "侧边栏折叠图标改自绘 SVG，箭头随折叠滑动翻转"
+    },
+    {
+      "hash": "89adb97f",
+      "date": "2026-09-21",
+      "type": "fix",
+      "scope": "web",
+      "message": "面包屑改水平展开"
+    },
+    {
+      "hash": "e9f38477",
+      "date": "2026-09-21",
+      "type": "feat",
+      "scope": "web",
+      "message": "顶栏页面设置抽屉——主题跟随系统/标签栏显隐/深色侧边栏/定宽内容"
+    },
+    {
+      "hash": "703ce0aa",
+      "date": "2026-09-21",
+      "type": "feat",
+      "scope": "web",
+      "message": "主题切换整屏渐变过渡，消除硬切割裂感"
+    },
+    {
+      "hash": "1b78a62c",
+      "date": "2026-09-21",
+      "type": "feat",
+      "scope": "web",
+      "message": "发布/编辑公告改为标准卡片弹窗并对齐主题配色"
+    },
+    {
+      "hash": "1e6e3ffe",
+      "date": "2026-09-21",
+      "type": "fix",
+      "scope": "dashboard",
+      "message": "近7日趋势数据全零与图表标签暗色不可读"
+    },
+    {
+      "hash": "48af487c",
+      "date": "2026-09-21",
+      "type": "fix",
+      "scope": "web",
+      "message": "主题切换时 naive 卡片等组件配色不跟随"
+    },
+    {
+      "hash": "40e3f62e",
+      "date": "2026-09-20",
+      "type": "chore",
+      "scope": "web",
+      "message": "登录页装饰改真实文案，引入 ESLint 并接入 CI"
+    },
     {
       "hash": "3118e298",
       "date": "2026-09-20",

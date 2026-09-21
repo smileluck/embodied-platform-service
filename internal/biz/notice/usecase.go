@@ -32,6 +32,10 @@ func (uc *Usecase) Create(ctx context.Context, in NoticeInput, creatorID uint, c
 		t := time.Now()
 		in.PublishAt = &t
 	}
+	// 过期时间必须晚于发布时间，否则同一公告会同时处于「待发布」与「已过期」
+	if in.ExpireAt != nil && !in.ExpireAt.After(*in.PublishAt) {
+		return nil, ErrTimeRange
+	}
 	n := &Notice{
 		Title: in.Title, Content: in.Content, Level: Level(in.Level),
 		PublishAt: *in.PublishAt, ExpireAt: in.ExpireAt,
@@ -62,6 +66,10 @@ func (uc *Usecase) Update(ctx context.Context, id uint, in NoticeInput) error {
 	}
 	if in.ExpireAt != nil {
 		n.ExpireAt = in.ExpireAt
+	}
+	// 校验合并后的完整时间窗（更新可能只改其一）
+	if n.ExpireAt != nil && !n.ExpireAt.After(n.PublishAt) {
+		return ErrTimeRange
 	}
 	return uc.repo.Update(ctx, n)
 }
