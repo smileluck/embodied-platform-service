@@ -40,6 +40,7 @@ import { computed, h, onMounted, reactive, ref } from 'vue'
 import { NButton, NCard, NDataTable, NDatePicker, NForm, NFormItem, NInput, NModal, NSpace, NTag, useDialog, useMessage, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import SearchCard from '../../components/SearchCard.vue'
+import { renderActions } from '../../utils/tableActions'
 import { createBlacklist, deleteBlacklist, listBlacklist } from '../../api'
 import { usePagination } from '../../utils/pagination'
 import type { BlacklistItem } from '../../api/types'
@@ -156,7 +157,7 @@ const columns = computed<DataTableColumns<BlacklistItem>>(() => [
   { title: t('blacklist.creator'), key: 'creator_name', width: 120, render: (row) => row.creator_name || '—' },
   {
     title: t('common.operation'), key: 'actions', fixed: 'right', width: 100,
-    render: (row) => h(NButton, { size: 'small', type: 'error', onClick: () => confirmDelete(row) }, { default: () => t('blacklist.unblock') }),
+    render: (row) => renderActions([{ label: t('blacklist.unblock'), danger: true, onClick: () => confirmDelete(row) }]),
   },
 ])
 

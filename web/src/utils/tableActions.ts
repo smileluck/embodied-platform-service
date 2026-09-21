@@ -17,6 +17,7 @@ const DIVIDER_STYLE = 'display:inline-block;width:1px;height:12px;background:var
 /**
  * 表格「操作」列统一渲染：小号文字按钮 + 竖向发丝分隔线，替代彩色实心按钮堆叠。
  * items 可混入 VNode（如 NTag），与文字按钮同排。
+ * 容器 flex-wrap：动作按钮过多时在固定列宽内换行，不会溢出页面。
  * 空数组渲染占位「—」。
  */
 export function renderActions(items: Array<TableAction | VNode>): VNode {
@@ -55,7 +56,7 @@ export function renderActions(items: Array<TableAction | VNode>): VNode {
   })
   return h(
     'span',
-    { style: 'display:inline-flex;align-items:center;gap:10px;white-space:nowrap' },
+    { style: 'display:inline-flex;align-items:center;gap:6px 10px;row-gap:4px;flex-wrap:wrap' },
     children,
   )
 }
