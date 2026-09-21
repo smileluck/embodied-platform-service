@@ -989,27 +989,29 @@ onUnmounted(() => {
 }
 .crumb {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
   line-height: 1.3;
-}
-.crumb-eyebrow {
-  font-size: 10px;
-  color: var(--sx-shell-muted);
+  min-width: 0;
 }
 .crumb-sep {
   color: var(--sx-muted);
   opacity: 0.5;
   font-size: 12px;
+  flex-shrink: 0;
 }
 .crumb-parent {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--sx-muted);
+  white-space: nowrap;
 }
 
 .crumb-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--sx-shell-text);
+  color: var(--sx-ink);
+  white-space: nowrap;
 }
 
 /* 顶栏右侧：语言切换 + 搜索图标 + 用户区 */
