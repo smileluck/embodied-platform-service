@@ -36,6 +36,7 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => {
   // 表现为卡片等 naive 组件不随主题切换。applyTheme 在 toggle 中同步切
   // html.dark，重算此刻读到的已是新模式色值
   void isDarkRef.value
+  const surface = readVar('--sx-surface', '#FFFFFF')
   return {
   common: {
     primaryColor: readVar('--sx-accent', '#3F75AB'),
@@ -45,11 +46,14 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => {
     borderRadius: readVar('--sx-radius', '8px'),
     borderRadiusSmall: '5px',
     bodyColor: readVar('--sx-bg', '#F5F7FA'),
-    cardColor: readVar('--sx-surface', '#FFFFFF'),
+    cardColor: surface,
     textColorBase: readVar('--sx-ink', '#151E2B'),
     borderColor: readVar('--sx-line', '#E3E8EF'),
     fontFamily: readVar('--sx-font-body', 'sans-serif'),
   },
+  // 弹窗内的卡片/对话框走 colorModal（naive 默认中性灰，与清水蓝主题脱节），统一对齐面板色
+  Card: { colorModal: surface },
+  Dialog: { colorModal: surface },
   }
 })
 </script>

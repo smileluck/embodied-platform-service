@@ -8,7 +8,7 @@ export default {
   levelInfo: '普通',
   levelWarning: '提醒',
   levelImportant: '重要',
-  content: '正文（Markdown）',
+  content: '正文 (Markdown)',
   publishAt: '发布时间',
   expireAt: '过期时间',
   status: '状态',

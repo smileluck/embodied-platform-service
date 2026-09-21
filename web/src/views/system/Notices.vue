@@ -16,8 +16,9 @@
     <n-data-table size="small" :columns="columns" :data="rows" :loading="loading" :pagination="pagination" remote :bordered="false" />
   </n-card>
 
-  <n-modal v-model:show="showModal" preset="dialog" :title="editing ? t('notice.edit') : t('notice.new')" style="width: 620px">
-    <n-form :model="form" :rules="rules" label-placement="left" label-width="90">
+  <!-- 发布/编辑公告：卡片式弹窗（背景随亮暗主题走 cardColor，与整站面板一致） -->
+  <n-modal v-model:show="showModal" preset="card" :title="editing ? t('notice.edit') : t('notice.new')" style="width: 680px" :bordered="false" size="small">
+    <n-form :model="form" :rules="rules" label-placement="left" label-width="150">
       <n-form-item :label="t('notice.titleField')" path="title">
         <n-input v-model:value="form.title" :maxlength="100" show-count />
       </n-form-item>
@@ -39,8 +40,10 @@
       </n-form-item>
     </n-form>
     <template #action>
-      <n-button @click="showModal = false">{{ t('common.cancel') }}</n-button>
-      <n-button type="primary" :loading="saving" @click="save">{{ t('common.confirm') }}</n-button>
+      <div class="modal-actions">
+        <n-button @click="showModal = false">{{ t('common.cancel') }}</n-button>
+        <n-button type="primary" :loading="saving" @click="save">{{ t('common.confirm') }}</n-button>
+      </div>
     </template>
   </n-modal>
 </template>
@@ -207,5 +210,10 @@ onMounted(load)
 <style scoped>
 .card-title {
   font-weight: 600;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 </style>
