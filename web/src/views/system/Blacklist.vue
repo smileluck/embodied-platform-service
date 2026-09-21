@@ -10,7 +10,8 @@
       </div>
     </template>
 
-    <n-data-table :columns="columns" :data="rows" :loading="loading" :pagination="pagination" paginate-single-page remote />
+    <!-- scroll-x 与列宽合计一致：窄屏下操作列固定右侧，左侧内容可横向滚动查看 -->
+    <n-data-table :columns="columns" :data="rows" :loading="loading" :pagination="pagination" paginate-single-page remote :scroll-x="1240" />
   </n-card>
 
   <n-modal v-model:show="showModal" :title="t('blacklist.addTitle')" preset="dialog" style="width: 420px" @after-leave="resetForm">
