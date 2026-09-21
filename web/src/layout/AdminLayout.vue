@@ -385,7 +385,6 @@ const localeOptions: DropdownOption[] = [
 ]
 
 async function onLocaleChange(key: string | number) {
-  tabsLocaleKey.value++
   const next = String(key) as AppLocale
   if (next === getLocale()) return
   setLocale(next)
@@ -396,6 +395,9 @@ async function onLocaleChange(key: string | number) {
     // 菜单刷新失败不阻塞语言切换（菜单名待下次进入系统时更新）
   }
   syncDocumentTitle()
+  // 必须在 refreshRouteTitles 更新 meta.title 之后再触发页签重取：
+  // meta 非响应式，若先 ++ 会在旧标题渲染时"用掉"这次失效，页签滞后一拍（看似语言相反）
+  tabsLocaleKey.value++
 }
 
 // 浏览器标题随语言即时刷新（afterEach 只在导航时触发）

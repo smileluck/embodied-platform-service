@@ -171,10 +171,15 @@ onMounted(load)
   justify-content: space-between;
   gap: 12px;
 }
+</style>
+
+<style>
+/* .banned-cell 由表格列渲染函数 h() 创建，拿不到本组件 scoped 的 data-v 属性，需全局规则 */
 .banned-cell {
   display: flex;
+  flex-wrap: wrap; /* 列宽不足时限期 tag 换到时间下一行显示 */
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
   font-size: 12px;
 }
 </style>
