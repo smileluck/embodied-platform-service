@@ -20,7 +20,7 @@
           <n-button class="sider-trigger" quaternary circle :focusable="false" :aria-label="t('layout.toggleSider')"
             @click="toggleCollapsed">
             <template #icon>
-              <n-icon :component="MenuOutline" />
+              <SiderToggleIcon :collapsed="collapsed" />
             </template>
           </n-button>
           <div class="crumb">
@@ -287,7 +287,8 @@ import {
   type DropdownOption, type FormInst, type FormRules, type TagProps,
   NBadge,
 } from 'naive-ui'
-import { MenuOutline, SearchOutline, DownloadOutline, LanguageOutline, NotificationsOutline, MoonOutline, SunnyOutline, SettingsOutline } from '@vicons/ionicons5'
+import { SearchOutline, DownloadOutline, LanguageOutline, NotificationsOutline, MoonOutline, SunnyOutline, SettingsOutline } from '@vicons/ionicons5'
+import SiderToggleIcon from '../components/SiderToggleIcon.vue'
 import { useUserStore } from '../stores/user'
 import { isDarkRef, mode as themeMode, setMode, toggleTheme } from '../stores/theme'
 import { showTabs, darkSider, narrowContent, setShowTabs, setDarkSider, setNarrowContent } from '../stores/settings'
