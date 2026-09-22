@@ -7,6 +7,14 @@ import { deepTrim } from '../utils/trim'
 import { createDiscreteApi } from 'naive-ui'
 import { i18n } from '../locales'
 
+// 自定义请求配置字段：silent 抑制全局错误 toast；_retried 标记 401 刷新后已重放
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    silent?: boolean
+    _retried?: boolean
+  }
+}
+
 // 组件树外的全局 toast（网络层/5xx 兜底提示用；页面自行 catch 的 4xx 业务错误不重复提示）
 const { message: globalMessage } = createDiscreteApi(['message'])
 

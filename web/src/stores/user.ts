@@ -54,11 +54,13 @@ export const useUserStore = defineStore('user', {
       this.routesLoaded = true
     },
     // 轻量清态：只清内存与 localStorage，不发网络请求。
-    // 供 401 拦截器与路由守卫使用——过期场景下再发 logout 请求只会引发二次 401 竞态
+    // 供 401 拦截器与路由守卫使用——过期场景下再发 logout 请求只会引发二次 401 竞态。
+    // 注意先清 localStorage 再 $reset：$reset 会重跑 state() 工厂读取 localStorage，
+    // 顺序颠倒会把旧 token 读回内存
     clearAuth() {
-      this.$reset()
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
+      this.$reset()
     },
     async logout() {
       // 登出吊销平台会话（token 立即失效）；失败不阻断本地清态

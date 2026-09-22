@@ -329,6 +329,7 @@ import { isDarkRef, mode as themeMode, setMode, toggleTheme } from '../stores/th
 import { showTabs, darkSider, narrowContent, setShowTabs, setDarkSider, setNarrowContent } from '../stores/settings'
 import { renderMenuIcon } from '../utils/menuIcon'
 import { changePassword, searchMenus, listRecentExports, getExportBlob, listActiveNotices, getUnreadNoticeCount, markNoticeRead } from '../api'
+import request from '../api/request'
 import { saveBlob, parseDispositionFilename } from '../utils/download'
 import { getLocale, setLocale, type AppLocale } from '../locales'
 import { refreshRouteTitles } from '../router/dynamic'
@@ -834,12 +835,29 @@ function gotoExports() {
   router.push('/exports')
 }
 
+// 会话探活：被顶号/异地登录/后台踢下线时，静止页面没有网络交互便感知不到会话
+// 已失效。周期性轻量探活（60s，仅页签可见时），复用 401→刷新→失败回登录 的既有
+// 链路自动跳转；页签从隐藏切回可见时立即探活一次
+let sessionProbeTimer: number | undefined
+async function probeSession() {
+  if (document.visibilityState !== 'visible' || !userStore.accessToken) return
+  try {
+    await request.get('/auth/profile', { silent: true })
+  } catch { /* 401 已由响应拦截器处理（刷新→失败→回登录） */ }
+}
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') void probeSession()
+}
 onMounted(() => {
   refreshUnread()
   window.addEventListener('keydown', onGlobalKeydown)
+  sessionProbeTimer = window.setInterval(() => void probeSession(), 60_000)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKeydown)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  window.clearInterval(sessionProbeTimer)
   document.removeEventListener('click', onSearchOverlayClick, true)
   window.clearTimeout(searchTimer)
   window.clearInterval(exportTimer)
