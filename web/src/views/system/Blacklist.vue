@@ -1,6 +1,6 @@
 <template>
-  <SearchCard storage-key="ipBlacklist" @search="load" @reset="resetQuery">
-    <n-input v-model:value="query.ip" :placeholder="t('blacklist.ipPlaceholder')" clearable style="width: 180px" @keyup.enter="load" />
+  <SearchCard storage-key="ipBlacklist" @search="search" @reset="resetQuery">
+    <n-input v-model:value="query.ip" :placeholder="t('blacklist.ipPlaceholder')" clearable style="width: 180px" @keyup.enter="search" />
   </SearchCard>
 
   <n-card>
@@ -51,7 +51,7 @@ const loading = ref(false)
 const rows = ref<BlacklistItem[]>([])
 const query = reactive({ ip: '', page: 1, page_size: 10 })
 
-const { pagination, setTotal } = usePagination(query, load)
+const { pagination, setTotal, runSearch: search } = usePagination(query, load)
 
 async function load() {
   loading.value = true

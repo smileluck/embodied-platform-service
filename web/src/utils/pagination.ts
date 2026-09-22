@@ -25,5 +25,11 @@ export function usePagination(query: { page: number; page_size: number }, load: 
   const setTotal = (total: number) => {
     pagination.itemCount = total
   }
-  return { pagination, setTotal }
+  // runSearch 搜索按钮入口：条件变化后从第一页查起，
+  // 避免停留在旧页码（超出过滤后结果集）拿到空列表、表现为"搜不到/刷新慢"
+  const runSearch = () => {
+    query.page = 1
+    load()
+  }
+  return { pagination, setTotal, runSearch }
 }

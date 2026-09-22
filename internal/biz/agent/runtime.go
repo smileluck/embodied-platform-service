@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"sort"
 	"strings"
@@ -76,6 +77,21 @@ type LLMClient interface {
 // llmHTTPTimeout 单次调用整体超时（含流式读 Body）；更长的生成由调用方 ctx 取消（前端停止按钮）
 const llmHTTPTimeout = 120 * time.Second
 
+// llmDialTimeout 建连阶段快速失败上限（TCP 连接 / TLS 握手）：
+// base_url 填错、主机不可达、网络不通时 10s 内报 ErrLLMConnect，
+// 不至于把配置错误拖成 120s 整体超时（"一直报超时"的根源）。
+const llmDialTimeout = 10 * time.Second
+
+// llmTransport 共享传输层：代理跟随环境变量（HTTP(S)_PROXY），建连快速失败
+var llmTransport = &http.Transport{
+	Proxy:                 http.ProxyFromEnvironment,
+	DialContext:           (&net.Dialer{Timeout: llmDialTimeout, KeepAlive: 30 * time.Second}).DialContext,
+	MaxIdleConns:          100,
+	IdleConnTimeout:       90 * time.Second,
+	TLSHandshakeTimeout:   llmDialTimeout,
+	ExpectContinueTimeout: time.Second,
+}
+
 // openaiClient OpenAI 兼容实现
 type openaiClient struct {
 	baseURL string
@@ -88,7 +104,7 @@ func NewLLMClient(p *Provider, apiKey string) LLMClient {
 	return &openaiClient{
 		baseURL: strings.TrimRight(p.BaseURL, "/"),
 		apiKey:  apiKey,
-		http:    &http.Client{Timeout: llmHTTPTimeout},
+		http:    &http.Client{Timeout: llmHTTPTimeout, Transport: llmTransport},
 	}
 }
 
@@ -176,14 +192,17 @@ func (c *openaiClient) newRequest(ctx context.Context, method, path string, payl
 	return req, nil
 }
 
-// mapTransportErr 传输层错误映射：超时类归并为 ErrLLMTimeout，其余保留原始信息
+// mapTransportErr 传输层错误映射：
+//   - 整体超时（含流式读超时）→ ErrLLMTimeout，提示稍后重试；
+//   - 建连阶段超时（拨号/TLS 握手）→ ErrLLMConnect，提示检查 base_url 与网络；
+//   - 其余（连接拒绝、DNS 解析失败等）→ ErrLLMUpstream 携带原始信息。
 func mapTransportErr(err error) error {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return fmt.Errorf("%w", ErrLLMTimeout)
 	}
 	var ne netError
 	if errors.As(err, &ne) && ne.Timeout() {
-		return fmt.Errorf("%w", ErrLLMTimeout)
+		return fmt.Errorf("%w", ErrLLMConnect)
 	}
 	return fmt.Errorf("%w: %v", ErrLLMUpstream, err)
 }

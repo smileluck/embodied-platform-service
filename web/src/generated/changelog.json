@@ -1,6 +1,41 @@
 {
-  "generatedAt": "2026-09-23T03:53:51.464Z",
+  "generatedAt": "2026-09-23T03:55:11.485Z",
   "commits": [
+    {
+      "hash": "b86e85d9",
+      "date": "2026-09-22",
+      "type": "fix",
+      "scope": "web",
+      "message": "被顶号/踢下线时静止页面自动跳回登录页"
+    },
+    {
+      "hash": "5af7a05d",
+      "date": "2026-09-21",
+      "type": "fix",
+      "scope": "web",
+      "message": "IP 黑名单窄屏下操作列固定但左侧内容无法横向滚动"
+    },
+    {
+      "hash": "4c8f1bff",
+      "date": "2026-09-21",
+      "type": "style",
+      "scope": "web",
+      "message": "IP 黑名单页布局对齐用户管理"
+    },
+    {
+      "hash": "4ba4fe05",
+      "date": "2026-09-21",
+      "type": "style",
+      "scope": "web",
+      "message": "全部表格操作列宽度统一 200px"
+    },
+    {
+      "hash": "a4799e9d",
+      "date": "2026-09-21",
+      "type": "chore",
+      "scope": "web",
+      "message": "更新自动生成的 changelog"
+    },
     {
       "hash": "72f8130e",
       "date": "2026-09-21",

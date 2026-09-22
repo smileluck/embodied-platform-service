@@ -1,8 +1,8 @@
 <template>
   <!-- 搜索栏独立卡片：可折叠，重置/搜索按钮在卡片右下角 -->
-  <SearchCard storage-key="app-users" @search="load" @reset="resetQuery">
-    <n-input v-model:value="query.kw" :placeholder="t('appUser.keywordPlaceholder')" clearable style="width: 180px" @keyup.enter="load" />
-    <n-input v-model:value="query.phone" :placeholder="t('appUser.phonePlaceholder')" clearable style="width: 160px" @keyup.enter="load" />
+  <SearchCard storage-key="app-users" @search="search" @reset="resetQuery">
+    <n-input v-model:value="query.kw" :placeholder="t('appUser.keywordPlaceholder')" clearable style="width: 180px" @keyup.enter="search" />
+    <n-input v-model:value="query.phone" :placeholder="t('appUser.phonePlaceholder')" clearable style="width: 160px" @keyup.enter="search" />
     <n-select v-model:value="query.status" :options="statusOptions" clearable :placeholder="t('appUser.statusPlaceholder')" style="width: 120px" />
     <n-select v-model:value="query.tenant_id" :options="tenantOptions" clearable filterable :placeholder="t('appUser.tenantPlaceholder')" style="width: 180px" />
   </SearchCard>
@@ -126,7 +126,7 @@ const resetRules = computed<FormRules>(() => ({
   ],
 }))
 
-const { pagination, setTotal } = usePagination(query, load)
+const { pagination, setTotal, runSearch: search } = usePagination(query, load)
 
 async function load() {
   loading.value = true

@@ -3,6 +3,8 @@ export default {
   provider: {
     title: 'LLM Providers',
     searchPlaceholder: 'Name / code',
+    preset: 'Vendor preset',
+    presetPlaceholder: 'Auto-fills name / code / base URL (editable afterwards)',
     newList: 'Providers',
     newProvider: 'New Provider',
     editProvider: 'Edit Provider',

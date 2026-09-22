@@ -33,19 +33,29 @@ func (uc *Usecase) Create(ctx context.Context, username, password, nickname, pho
 	return u, nil
 }
 
-// Update 更新应用用户基础资料与租户关联（username 创建后不可改，不触碰密码）
-func (uc *Usecase) Update(ctx context.Context, id uint, nickname, phone, email string, status *Status, tenantIDs []uint) error {
+// Update 更新应用用户基础资料与租户关联（username 创建后不可改，不触碰密码）。
+// 资料字段均为可选：nil 表示不修改——状态切换只传 status，
+// 避免只带 {status} 的请求把昵称/手机号/邮箱清空、租户关联解除。
+func (uc *Usecase) Update(ctx context.Context, id uint, nickname, phone, email *string, status *Status, tenantIDs *[]uint) error {
 	u, err := uc.repo.Get(ctx, id)
 	if err != nil {
 		return err
 	}
-	u.Nickname = nickname
-	u.Phone = phone
-	u.Email = email
+	if nickname != nil {
+		u.Nickname = *nickname
+	}
+	if phone != nil {
+		u.Phone = *phone
+	}
+	if email != nil {
+		u.Email = *email
+	}
 	if status != nil {
 		u.Status = *status
 	}
-	u.TenantIDs = tenantIDs
+	if tenantIDs != nil {
+		u.TenantIDs = *tenantIDs
+	}
 	return uc.repo.Update(ctx, u)
 }
 

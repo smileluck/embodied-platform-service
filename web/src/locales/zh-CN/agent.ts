@@ -3,6 +3,8 @@ export default {
   provider: {
     title: '模型供应商',
     searchPlaceholder: '名称 / 编码',
+    preset: '常用厂商',
+    presetPlaceholder: '选择后自动填充名称 / 编码 / 接口地址（可再修改）',
     newList: '供应商列表',
     newProvider: '新增供应商',
     editProvider: '编辑供应商',

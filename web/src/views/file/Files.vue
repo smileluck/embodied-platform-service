@@ -1,7 +1,7 @@
 <template>
   <!-- 搜索栏独立卡片：可折叠，重置/搜索按钮在卡片右下角 -->
-  <SearchCard storage-key="files" @search="load" @reset="resetQuery">
-    <n-input v-model:value="query.name" :placeholder="t('file.name')" clearable style="width: 200px" @keyup.enter="load" />
+  <SearchCard storage-key="files" @search="search" @reset="resetQuery">
+    <n-input v-model:value="query.name" :placeholder="t('file.name')" clearable style="width: 200px" @keyup.enter="search" />
   </SearchCard>
 
   <n-card>
@@ -35,6 +35,7 @@ import { useI18n } from 'vue-i18n'
 import { listFiles, uploadFile, deleteFile, getFileBlob } from '../../api'
 import { usePagination } from '../../utils/pagination'
 import { saveBlob } from '../../utils/download'
+import { formatDateTime } from '../../utils/datetime'
 import { useUserStore } from '../../stores/user'
 import type { FileInfo } from '../../api/types'
 
@@ -54,7 +55,7 @@ const previewLoading = ref(false)
 const previewUrl = ref('')
 const previewName = ref('')
 
-const { pagination, setTotal } = usePagination(query, load)
+const { pagination, setTotal, runSearch: search } = usePagination(query, load)
 
 async function load() {
   loading.value = true
@@ -165,7 +166,7 @@ const columns = computed<DataTableColumns<FileInfo>>(() => [
     render: (row) => h(NTag, { size: 'small', bordered: false }, { default: () => driverNames.value[row.driver] || row.driver }),
   },
   { title: t('file.uploader'), key: 'uploader_name', width: 110, render: (row) => row.uploader_name || '—' },
-  { title: t('file.uploadTime'), key: 'created_at', width: 170 },
+  { title: t('file.uploadTime'), key: 'created_at', width: 170, render: (row) => formatDateTime(row.created_at) },
   {
     title: t('common.operation'), key: 'actions', width: 200,
     render(row) {

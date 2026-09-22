@@ -1,7 +1,7 @@
 <template>
   <!-- 定时任务：列表 + 启停/立即执行 + 执行记录抽屉 -->
-  <SearchCard storage-key="jobs" @search="load" @reset="query.name = ''">
-    <n-input v-model:value="query.name" :placeholder="t('job.name')" clearable style="width: 220px" @keyup.enter="load" />
+  <SearchCard storage-key="jobs" @search="search" @reset="query.name = ''">
+    <n-input v-model:value="query.name" :placeholder="t('job.name')" clearable style="width: 220px" @keyup.enter="search" />
   </SearchCard>
 
   <n-card>
@@ -72,7 +72,7 @@ const userStore = useUserStore()
 const query = reactive({ name: '', page: 1, page_size: 10 })
 const rows = ref<JobInfo[]>([])
 const loading = ref(false)
-const { pagination, setTotal } = usePagination(query, load)
+const { pagination, setTotal, runSearch: search } = usePagination(query, load)
 
 const handlerOptions = ref<{ label: string; value: string }[]>([])
 

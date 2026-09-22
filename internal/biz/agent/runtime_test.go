@@ -152,3 +152,29 @@ func TestChatCompletionTimeout(t *testing.T) {
 		t.Fatalf("expected ErrLLMTimeout, got %v", err)
 	}
 }
+
+// mapTransportErr 分类：建连阶段超时应归为 ErrLLMConnect（提示检查配置），
+// 不能与整体生成超时 ErrLLMTimeout 混淆。
+func TestMapTransportErrDialTimeout(t *testing.T) {
+	// 模拟拨号超时：net.Error 且 Timeout()=true，但不是 ctx 截止
+	dialErr := &fakeNetTimeoutError{}
+	err := mapTransportErr(dialErr)
+	if !errors.Is(err, ErrLLMConnect) {
+		t.Fatalf("expected ErrLLMConnect, got %v", err)
+	}
+	// ctx 截止（整体超时）仍归 ErrLLMTimeout
+	if got := mapTransportErr(fmt.Errorf("wrapped: %w", context.DeadlineExceeded)); !errors.Is(got, ErrLLMTimeout) {
+		t.Fatalf("expected ErrLLMTimeout, got %v", got)
+	}
+	// 普通传输错误归 ErrLLMUpstream 并携带原始信息
+	got := mapTransportErr(errors.New("connection refused"))
+	if !errors.Is(got, ErrLLMUpstream) || !strings.Contains(got.Error(), "connection refused") {
+		t.Fatalf("expected ErrLLMUpstream with detail, got %v", got)
+	}
+}
+
+// fakeNetTimeoutError 仅实现 Timeout()=true 的 net.Error 形态
+type fakeNetTimeoutError struct{}
+
+func (e *fakeNetTimeoutError) Error() string { return "dial tcp: i/o timeout" }
+func (e *fakeNetTimeoutError) Timeout() bool { return true }

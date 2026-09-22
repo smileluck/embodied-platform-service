@@ -39,8 +39,11 @@ var (
 
 	// ErrLLMUpstream LLM 上游调用失败（携带上游返回的具体原因）
 	ErrLLMUpstream = errors.New("LLM 上游调用失败")
-	// ErrLLMTimeout LLM 上游调用超时
+	// ErrLLMTimeout LLM 上游调用超时（整体生成超时）
 	ErrLLMTimeout = errors.New("LLM 上游调用超时，请稍后重试")
+	// ErrLLMConnect 无法建立与上游的连接（base_url 填错 / 主机不可达 / 网络不通）。
+	// 与整体超时区分：建连阶段 10s 快速失败，提示检查配置而不是干等两分钟
+	ErrLLMConnect = errors.New("无法连接上游服务，请检查 Base URL、密钥与网络（代理）设置")
 
 	// ErrConversationNotFound 会话不存在或不属于当前用户（不泄露他人会话存在性）
 	ErrConversationNotFound = errors.New("会话不存在")

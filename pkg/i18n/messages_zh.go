@@ -84,6 +84,7 @@ var messagesZh = map[string]string{
 	"agent.decrypt_failed":              "API Key 解密失败（加密密钥可能已变更），请重新保存密钥",
 	"agent.upstream_error":              "LLM 上游调用失败：%s",
 	"agent.timeout":                     "LLM 上游调用超时，请稍后重试",
+	"agent.connect_failed":              "无法连接上游服务，请检查 Base URL、密钥与网络（代理）设置",
 	"agent.conversation.not_found":      "会话不存在",
 	"agent.conversation.agent_mismatch": "会话不属于该 Agent",
 	"agent.tool.unknown":                "工具不存在，请重新选择",

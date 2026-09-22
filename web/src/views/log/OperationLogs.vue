@@ -1,9 +1,9 @@
 <template>
   <!-- 搜索栏独立卡片：可折叠，重置/搜索按钮在卡片右下角 -->
-  <SearchCard storage-key="operationLogs" @search="load" @reset="resetQuery">
-    <n-input v-model:value="query.username" :placeholder="t('opLog.username')" clearable style="width: 150px" @keyup.enter="load" />
+  <SearchCard storage-key="operationLogs" @search="search" @reset="resetQuery">
+    <n-input v-model:value="query.username" :placeholder="t('opLog.username')" clearable style="width: 150px" @keyup.enter="search" />
     <n-select v-model:value="query.method" :options="methodOptions" clearable :placeholder="t('opLog.methodPlaceholder')" style="width: 130px" />
-    <n-input v-model:value="query.kw" :placeholder="t('opLog.kwPlaceholder')" clearable style="width: 190px" @keyup.enter="load" />
+    <n-input v-model:value="query.kw" :placeholder="t('opLog.kwPlaceholder')" clearable style="width: 190px" @keyup.enter="search" />
     <n-date-picker v-model:value="range" type="datetimerange" clearable style="width: 340px; max-width: 100%" />
   </SearchCard>
 
@@ -78,7 +78,7 @@ const methodOptions = [
 const methodTagType = (m: string): 'success' | 'warning' | 'error' | 'info' =>
   m === 'POST' ? 'success' : m === 'PUT' ? 'warning' : m === 'DELETE' ? 'error' : 'info'
 
-const { pagination, setTotal } = usePagination(query, load)
+const { pagination, setTotal, runSearch: search } = usePagination(query, load)
 
 async function load() {
   loading.value = true

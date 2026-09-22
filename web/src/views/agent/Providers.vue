@@ -91,6 +91,13 @@
     <!-- 供应商 新增/编辑 -->
     <n-modal v-model:show="showModal" preset="dialog" :title="editing ? t('agent.provider.editProvider') : t('agent.provider.newProvider')" style="width: 480px">
       <n-form ref="formRef" :model="form" :rules="rules" label-placement="left" label-width="90">
+        <n-form-item :label="t('agent.provider.preset')">
+          <!-- 厂商预设：一键填充名称/编码/接口地址，避免手填错 base_url 导致连接超时 -->
+          <n-select
+            :value="presetPick" :options="presetOptions" clearable
+            :placeholder="t('agent.provider.presetPlaceholder')" @update:value="applyPreset"
+          />
+        </n-form-item>
         <n-form-item :label="t('agent.provider.name')" path="name">
           <n-input v-model:value="form.name" :maxlength="20" show-word-limit :placeholder="t('agent.model.form.nameRequired')" />
         </n-form-item>
@@ -241,6 +248,38 @@ const editId = ref(0)
 const saving = ref(false)
 const form = reactive({ name: '', code: '', base_url: '', api_key: '', remark: '', status: 1 })
 const formRef = ref<FormInst | null>(null)
+
+// ---- 厂商预设（主要厂商；base_url 为对应 OpenAI 兼容入口，模型列表接口同源可用） ----
+// 拉取模型列表走 GET {base_url}/models，五家均兼容 OpenAI /models 响应结构
+const presetOptions = [
+  { label: '智谱 GLM', value: 'zhipu' },
+  { label: 'Kimi（月之暗面）', value: 'kimi' },
+  { label: 'MiniMax', value: 'minimax' },
+  { label: 'OpenAI', value: 'openai' },
+  { label: '通义千问 Qwen（阿里云百炼）', value: 'qwen' },
+]
+const presetDefaults: Record<string, { name: string; code: string; base_url: string }> = {
+  zhipu: { name: '智谱 GLM', code: 'zhipu', base_url: 'https://open.bigmodel.cn/api/paas/v4' },
+  kimi: { name: 'Kimi', code: 'moonshot', base_url: 'https://api.moonshot.cn/v1' },
+  minimax: { name: 'MiniMax', code: 'minimax', base_url: 'https://api.minimaxi.com/v1' },
+  openai: { name: 'OpenAI', code: 'openai', base_url: 'https://api.openai.com/v1' },
+  qwen: { name: '通义千问 Qwen', code: 'qwen', base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+}
+// 预设选中值：表单与预设一致时回显（编辑打开时为空，不干扰既有供应商）
+const presetPick = computed(() => {
+  const hit = Object.entries(presetDefaults).find(([, v]) =>
+    v.code === form.code.trim() && v.base_url === form.base_url.trim())
+  return hit ? hit[0] : null
+})
+function applyPreset(key: string | null) {
+  if (!key) return
+  const d = presetDefaults[key]
+  if (!d) return
+  // 名称仅在新增时覆盖（编辑场景保留运营者自定义名称）；编码/地址始终填充
+  if (!editing.value) form.name = d.name
+  form.code = d.code
+  form.base_url = d.base_url
+}
 
 const rules = computed<FormRules>(() => ({
   name: [

@@ -1,7 +1,7 @@
 <template>
   <!-- 通知公告管理：搜索独立卡片 + 列表卡片头右侧「发布公告」（对齐用户管理页风格） -->
-  <SearchCard storage-key="notices" @search="load" @reset="resetQuery">
-    <n-input v-model:value="query.title" :placeholder="t('notice.titleField')" clearable style="width: 200px" @keyup.enter="load" />
+  <SearchCard storage-key="notices" @search="search" @reset="resetQuery">
+    <n-input v-model:value="query.title" :placeholder="t('notice.titleField')" clearable style="width: 200px" @keyup.enter="search" />
     <n-select v-model:value="query.level" :options="levelOptions" :placeholder="t('notice.level')" clearable style="width: 130px" />
     <n-select v-model:value="query.status" :options="statusOptions" :placeholder="t('notice.status')" clearable style="width: 130px" />
   </SearchCard>
@@ -73,7 +73,7 @@ const userStore = useUserStore()
 const query = reactive({ title: '', level: '', status: '', page: 1, page_size: 10 })
 const rows = ref<NoticeInfo[]>([])
 const loading = ref(false)
-const { pagination, setTotal } = usePagination(query, () => load())
+const { pagination, setTotal, runSearch: search } = usePagination(query, () => load())
 
 const levelOptions = computed(() => [
   { label: t('notice.levelInfo'), value: 'info' },

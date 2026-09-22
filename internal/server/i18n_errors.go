@@ -91,6 +91,7 @@ var errKeys = []struct {
 	{bizagent.ErrAgentDisabled, "agent.disabled"},
 	{bizagent.ErrDecryptFailed, "agent.decrypt_failed"},
 	{bizagent.ErrLLMTimeout, "agent.timeout"},
+	{bizagent.ErrLLMConnect, "agent.connect_failed"},
 	{bizagent.ErrConversationNotFound, "agent.conversation.not_found"},
 	{bizagent.ErrConversationAgentMismatch, "agent.conversation.agent_mismatch"},
 	{bizagent.ErrUnknownTool, "agent.tool.unknown"},

@@ -1,6 +1,6 @@
 <template>
   <!-- 搜索栏独立卡片：可折叠，重置/搜索按钮在卡片右下角 -->
-  <SearchCard storage-key="users" @search="load" @reset="resetQuery">
+  <SearchCard storage-key="users" @search="search" @reset="resetQuery">
     <n-input v-model:value="query.kw" :placeholder="t('user.searchKw')" clearable style="width: 220px" @keyup.enter="load" />
   </SearchCard>
 
@@ -76,7 +76,6 @@ const roleOptions = ref<{ label: string; value: number }[]>([])
 // 内置锁定角色（2=商户管理员，平台标记驱动）不参与手工分配
 const LOCKED_ROLE_IDS = new Set([2])
 
-const { pagination } = usePagination(query, () => load())
 
 const columns: DataTableColumns<MemberRow> = [
   { title: 'ID', key: 'platform_user_id', width: 70 },
@@ -148,6 +147,7 @@ const columns: DataTableColumns<MemberRow> = [
     },
   },
 ]
+const { pagination, setTotal, runSearch: search } = usePagination(query, load)
 
 async function load() {
   loading.value = true

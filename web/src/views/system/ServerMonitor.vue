@@ -406,12 +406,18 @@ function renderHistory() {
   const times = pts.map((p) => new Date(p.ts * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
   histChart.setOption({
     tooltip: { trigger: 'axis' },
-    legend: { data: ['CPU %', t('monitor.memTitle') + ' %', 'NET'] },
-    grid: { left: 48, right: 48, top: 36, bottom: 28 },
-    xAxis: { type: 'category', data: times },
+    // 图例固定右上角小字，避免与双 y 轴名称（左 % / 右 B/s）在顶部相互重叠
+    legend: { data: ['CPU %', t('monitor.memTitle') + ' %', 'NET'], top: 0, right: 0, itemWidth: 14, textStyle: { fontSize: 11, color: MUTED } },
+    grid: { left: 48, right: 52, top: 44, bottom: 28 },
+    xAxis: {
+      type: 'category',
+      data: times,
+      // 长时间段点位多：小字 + hideOverlap 防时间标签互相压盖
+      axisLabel: { fontSize: 10, color: MUTED, hideOverlap: true },
+    },
     yAxis: [
-      { type: 'value', max: 100, name: '%' },
-      { type: 'value', name: 'B/s', splitLine: { show: false } },
+      { type: 'value', max: 100, name: '%', nameTextStyle: { fontSize: 10, color: MUTED, align: 'right' }, nameGap: 10, axisLabel: { fontSize: 10, color: MUTED } },
+      { type: 'value', name: 'B/s', nameTextStyle: { fontSize: 10, color: MUTED, align: 'left' }, nameGap: 10, splitLine: { show: false }, axisLabel: { fontSize: 10, color: MUTED } },
     ],
     series: [
       { name: 'CPU %', type: 'line', showSymbol: false, itemStyle: { color: ACCENT.value }, data: pts.map((p) => p.cpu_percent.toFixed(1)) },

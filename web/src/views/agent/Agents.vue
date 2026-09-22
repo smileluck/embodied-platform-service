@@ -1,8 +1,8 @@
 <template>
   <!-- 智能体底座 · Agent 配置：标准搜索 + 表格 CRUD；行内「调试」打开无状态 Playground（SSE 流式） -->
-  <SearchCard storage-key="agents" @search="load" @reset="resetQuery">
-    <n-input v-model:value="query.name" :placeholder="t('agent.agent.searchName')" clearable style="width: 160px" @keyup.enter="load" />
-    <n-input v-model:value="query.code" :placeholder="t('agent.agent.searchCode')" clearable style="width: 160px" @keyup.enter="load" />
+  <SearchCard storage-key="agents" @search="search" @reset="resetQuery">
+    <n-input v-model:value="query.name" :placeholder="t('agent.agent.searchName')" clearable style="width: 160px" @keyup.enter="search" />
+    <n-input v-model:value="query.code" :placeholder="t('agent.agent.searchCode')" clearable style="width: 160px" @keyup.enter="search" />
   </SearchCard>
 
   <n-card>
@@ -25,7 +25,7 @@
         <n-input v-model:value="form.code" :maxlength="64" show-word-limit placeholder="assistant / summarizer / coder" />
       </n-form-item>
       <n-form-item :label="t('agent.agent.provider')" path="provider_id">
-        <n-select v-model:value="form.provider_id" :options="providerOptions" :placeholder="t('common.pleaseSelect')" @update:value="form.model_id = 0" />
+        <n-select v-model:value="form.provider_id" :options="providerOptions" :placeholder="t('common.pleaseSelect')" @update:value="form.model_id = null" />
       </n-form-item>
       <n-form-item :label="t('agent.agent.model')" path="model_id">
         <n-select
@@ -127,7 +127,7 @@ async function loadRefs() {
   models.value = mRes.data.data.list
 }
 
-const { pagination, setTotal } = usePagination(query, load)
+const { pagination, setTotal, runSearch: search } = usePagination(query, load)
 
 async function load() {
   loading.value = true
@@ -154,7 +154,9 @@ const showModal = ref(false)
 const editing = ref(false)
 const editId = ref(0)
 const form = reactive({
-  name: '', code: '', provider_id: 0, model_id: 0, tools: [] as string[],
+  name: '', code: '',
+  // null 表示未选择：n-select 值为 0 时无对应选项会直接显示"0"
+  provider_id: null as number | null, model_id: null as number | null, tools: [] as string[],
   system_prompt: '', temperature: 0.7, top_p: 0, max_tokens: 0, remark: '', status: 1,
 })
 const formRef = ref<FormInst | null>(null)
@@ -169,7 +171,7 @@ const rules = computed<FormRules>(() => ({
     { max: 64, message: t('agent.agent.form.codeMax'), trigger: ['blur', 'input'] },
   ],
   provider_id: [{ required: true, type: 'number', message: t('agent.agent.form.providerRequired'), trigger: ['blur', 'change'] }],
-  model_id: [{ required: true, type: 'number', validator: (_r, v: number) => v > 0, message: t('agent.agent.form.modelRequired'), trigger: ['blur', 'change'] }],
+  model_id: [{ required: true, type: 'number', validator: (_r, v: number | null) => v != null && v > 0, message: t('agent.agent.form.modelRequired'), trigger: ['blur', 'change'] }],
 }))
 
 const providerOptions = computed(() =>
@@ -184,7 +186,7 @@ const modelOptions = computed(() =>
 function openCreate() {
   editing.value = false
   Object.assign(form, {
-    name: '', code: '', provider_id: 0, model_id: 0, tools: [],
+    name: '', code: '', provider_id: null, model_id: null, tools: [],
     system_prompt: '', temperature: 0.7, top_p: 0, max_tokens: 0, remark: '', status: 1,
   })
   showModal.value = true
@@ -196,7 +198,7 @@ function openEdit(row: AgentInfo) {
   const m = modelById.value.get(row.model_id)
   Object.assign(form, {
     name: row.name, code: row.code,
-    provider_id: m?.provider_id ?? 0, model_id: row.model_id, tools: row.tools ?? [],
+    provider_id: m?.provider_id ?? null, model_id: row.model_id || null, tools: row.tools ?? [],
     system_prompt: row.system_prompt, temperature: row.temperature || 0.7,
     top_p: row.top_p, max_tokens: row.max_tokens, remark: row.remark, status: row.status,
   })
@@ -212,7 +214,7 @@ async function save() {
   saving.value = true
   try {
     const payload = {
-      name: form.name.trim(), code: form.code.trim(), model_id: form.model_id, tools: form.tools,
+      name: form.name.trim(), code: form.code.trim(), model_id: form.model_id as number, tools: form.tools,
       system_prompt: form.system_prompt.trim(), temperature: form.temperature, top_p: form.top_p,
       max_tokens: form.max_tokens, remark: form.remark.trim(), status: form.status,
     }

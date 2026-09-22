@@ -84,6 +84,7 @@ var messagesEn = map[string]string{
 	"agent.decrypt_failed":              "Failed to decrypt the API key (encryption key may have changed); save the key again",
 	"agent.upstream_error":              "LLM upstream call failed: %s",
 	"agent.timeout":                     "LLM upstream call timed out, please try again later",
+	"agent.connect_failed":              "Cannot connect to the upstream service; check the base URL, API key and network (proxy) settings",
 	"agent.conversation.not_found":      "Conversation not found",
 	"agent.conversation.agent_mismatch": "Conversation does not belong to this agent",
 	"agent.tool.unknown":                "Unknown tool, please choose again",

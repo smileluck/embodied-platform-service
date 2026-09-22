@@ -26,13 +26,14 @@ type CreateRequest struct {
 	TenantIDs []uint `json:"tenant_ids"`
 }
 
-// UpdateRequest 更新应用用户入参（username 创建后不可改；tenant_ids 全量替换）
+// UpdateRequest 更新应用用户入参（username 创建后不可改；tenant_ids 全量替换）。
+// 字段可选：省略即不修改，状态切换等局部更新不会清空其余资料。
 type UpdateRequest struct {
-	Nickname  string `json:"nickname" binding:"max=64"`
-	Phone     string `json:"phone" binding:"max=32"`
-	Email     string `json:"email" binding:"omitempty,max=128,email"`
-	Status    *int   `json:"status" binding:"omitempty,oneof=0 1"`
-	TenantIDs []uint `json:"tenant_ids"`
+	Nickname  *string `json:"nickname" binding:"omitempty,max=64"`
+	Phone     *string `json:"phone" binding:"omitempty,max=32"`
+	Email     *string `json:"email" binding:"omitempty,max=128,email"`
+	Status    *int    `json:"status" binding:"omitempty,oneof=0 1"`
+	TenantIDs *[]uint `json:"tenant_ids"`
 }
 
 // ResetPasswordRequest 重置密码入参
