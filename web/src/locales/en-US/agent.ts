@@ -29,6 +29,7 @@ export default {
       codeRequired: 'Please enter the provider code',
       codeMax: 'Code must be at most 64 characters',
       baseUrlRequired: 'Please enter the base URL',
+      apiKeyRequired: 'Please enter the API key',
       apiKeyMax: 'API key must be at most 512 characters',
     },
   },

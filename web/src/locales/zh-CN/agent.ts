@@ -29,6 +29,7 @@ export default {
       codeRequired: '请输入供应商编码',
       codeMax: '编码不能超过 64 个字符',
       baseUrlRequired: '请输入接口地址',
+      apiKeyRequired: '请输入 API Key',
       apiKeyMax: 'API Key 不能超过 512 个字符',
     },
   },

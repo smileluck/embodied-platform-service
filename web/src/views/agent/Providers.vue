@@ -112,7 +112,8 @@
             v-model:value="form.api_key" type="password" show-password-on="click"
             :maxlength="512" :placeholder="editing ? t('agent.provider.apiKeyPlaceholder') : t('agent.provider.apiKey')"
           />
-          <template #feedback>{{ apiKeyFeedback }}</template>
+          <!-- 自定义反馈仅在编辑态展示"保持原密钥"提示；新增态留给必填校验文案（占插槽会吞掉校验报错） -->
+          <template v-if="editing" #feedback>{{ apiKeyFeedback }}</template>
         </n-form-item>
         <n-form-item :label="t('common.remark')">
           <n-input v-model:value="form.remark" :maxlength="200" show-word-limit :placeholder="t('role.remarkPlaceholder')" />
@@ -291,6 +292,13 @@ const rules = computed<FormRules>(() => ({
     { max: 64, message: t('agent.provider.form.codeMax'), trigger: ['blur', 'input'] },
   ],
   base_url: [{ required: true, message: t('agent.provider.form.baseUrlRequired'), trigger: ['blur', 'input'] }],
+  // 新增时 API Key 必填；编辑留空表示保持原密钥不校验
+  api_key: editing.value
+    ? [{ max: 512, message: t('agent.provider.form.apiKeyMax'), trigger: ['blur', 'input'] }]
+    : [
+        { required: true, message: t('agent.provider.form.apiKeyRequired'), trigger: ['blur', 'input'] },
+        { max: 512, message: t('agent.provider.form.apiKeyMax'), trigger: ['blur', 'input'] },
+      ],
 }))
 
 const apiKeyFeedback = computed(() =>
