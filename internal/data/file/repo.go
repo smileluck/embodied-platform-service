@@ -65,7 +65,10 @@ func (r *repo) List(ctx context.Context, q file.Query, page, pageSize int) ([]*f
 		return nil, 0, err
 	}
 	var pos []model.FilePO
-	if err := tx.Offset((page - 1) * pageSize).Limit(pageSize).Order("id DESC").Find(&pos).Error; err != nil {
+	if pageSize > 0 { // pageSize<=0 表示全量（不分页）
+		tx = tx.Offset((page - 1) * pageSize).Limit(pageSize)
+	}
+	if err := tx.Order("id DESC").Find(&pos).Error; err != nil {
 		return nil, 0, err
 	}
 	out := make([]*file.File, 0, len(pos))

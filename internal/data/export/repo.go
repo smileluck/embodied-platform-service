@@ -66,7 +66,11 @@ func (r *repo) ListByUser(ctx context.Context, userID uint, page, pageSize int) 
 		return nil, 0, err
 	}
 	var pos []model.ExportRecordPO
-	if err := tx.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&pos).Error; err != nil {
+	tx = tx.Order("id DESC")
+	if pageSize > 0 { // pageSize<=0 表示全量（不分页）
+		tx = tx.Offset((page - 1) * pageSize).Limit(pageSize)
+	}
+	if err := tx.Find(&pos).Error; err != nil {
 		return nil, 0, err
 	}
 	out := make([]*bizexport.ExportRecord, 0, len(pos))
