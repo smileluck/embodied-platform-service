@@ -133,71 +133,6 @@ func (s *HTTPServer) registerRoutes() {
 	loginRateLimit := middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
 		KeyPrefix: "bl:rl:", Max: bizblacklist.LoginRateMax, Window: bizblacklist.LoginRateWindow, MessageKey: "security.login_frequent",
 	})
-<<<<<<< HEAD
-=======
-	authg := v1.Group("/auth")
-	{
-		// 图形验证码：无需鉴权，登录页拉取；按 IP 限流防接口刷量（占用 Redis 存储与带宽）
-		authg.GET("/captcha", middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
-			KeyPrefix: "rl:captcha:", Max: 30, Window: time.Minute, MessageKey: "security.rate_limited",
-		}), func(c *gin.Context) {
-			vo, err := s.auth.GenerateCaptcha()
-			if err != nil {
-				response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
-				return
-			}
-			response.OK(c, vo)
-		})
-		// 登录接口：IP 临时封禁（连续失败拉黑）→ 频率限制 → 登录，防口令爆破
-		authg.POST("/login", middleware.LoginIPGuard(s.log, s.blacklist.LoginGuard()), loginRateLimit, func(c *gin.Context) {
-			var req authsvc.LoginRequest
-			if err := c.ShouldBindJSON(&req); err != nil {
-				response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
-				return
-			}
-			// 登录环境注入（建立会话用；UA 截断防止超长存储）
-			req.IP = c.ClientIP()
-			req.UserAgent = truncate(c.GetHeader("User-Agent"), 255)
-			tp, err := s.auth.Login(c.Request.Context(), req)
-			// 登录尝试（成功/失败）均落登录日志（异步，不影响登录响应）；
-			// 失败原因统一转中文落库（与封禁拦截文案一致），管理页说明列不再中英混排
-			loginStatus := bizlog.LoginStatusSuccess
-			loginMsg := ""
-			if err != nil {
-				loginStatus = bizlog.LoginStatusFail
-				loginMsg = loginFailText(err)
-			}
-			s.log.RecordLogin(c.Request.Context(), &bizlog.LoginLog{
-				Username: req.Username, IP: req.IP, UserAgent: req.UserAgent,
-				Device: bizsession.NormalizeDevice(req.DeviceType),
-				Status: loginStatus, Msg: loginMsg,
-			})
-			if err != nil {
-				// 验证码错误属入参问题，返回 400 便于前端区分提示并自动刷新
-				if errors.Is(err, bizauth.ErrCaptcha) {
-					response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
-					return
-				}
-				response.FailI18n(c, http.StatusUnauthorized, response.CodeUnauthorized, err)
-				return
-			}
-			response.OK(c, tp)
-		})
-		authg.POST("/refresh", func(c *gin.Context) {
-			var req authsvc.RefreshRequest
-			if err := c.ShouldBindJSON(&req); err != nil {
-				response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
-				return
-			}
-			tp, err := s.auth.Refresh(c.Request.Context(), req)
-			if err != nil {
-				response.FailI18n(c, http.StatusUnauthorized, response.CodeUnauthorized, err)
-				return
-			}
-			response.OK(c, tp)
-		})
-	}
->>>>>>> 12ccad6d (fix: 批量修复 10 项页面问题（日志/租户/监控/智能体）)
 
 	// ---- 应用用户认证（本地体系，与平台身份 typ 隔离；无验证码、无服务端会话） ----
 	// 登录接口挂 IP 临时封禁 + 频率限制防护，防口令爆破
@@ -536,7 +471,6 @@ func (s *HTTPServer) registerRoutes() {
 	}
 }
 
-<<<<<<< HEAD
 // Start 启动 HTTP 服务（阻塞）
 func (s *HTTPServer) Start() error {
 	return s.srv.ListenAndServe()
@@ -604,19 +538,3 @@ func truncate(s string, n int) string {
 	}
 	return s[:n]
 }
-=======
-// loginFailText 登录日志失败原因统一中文：已知业务错误映射为与响应提示一致的中文文案
-// （与 pkg/i18n zh 文案同源），未知错误保留原始信息便于排查。
-func loginFailText(err error) string {
-	switch {
-	case errors.Is(err, bizauth.ErrInvalidCredentials):
-		return "用户名或密码错误"
-	case errors.Is(err, bizauth.ErrDisabledAccount):
-		return "账号已被禁用"
-	case errors.Is(err, bizauth.ErrCaptcha):
-		return "验证码错误或已过期"
-	default:
-		return err.Error()
-	}
-}
->>>>>>> 12ccad6d (fix: 批量修复 10 项页面问题（日志/租户/监控/智能体）)

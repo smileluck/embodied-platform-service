@@ -16,7 +16,7 @@ async function call<T>(path: string, init: RequestInit, acceptLanguage: string):
       ...(init.headers || {}),
     },
   })
-  let body: any = null
+  let body: any
   try {
     body = await resp.json()
   } catch {

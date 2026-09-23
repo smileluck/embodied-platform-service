@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-23T03:55:26.846Z",
+  "generatedAt": "2026-09-23T03:56:44.864Z",
   "commits": [
+    {
+      "hash": "105b5628",
+      "date": "2026-09-22",
+      "type": "feat",
+      "scope": "web",
+      "message": "新增模型供应商时 API Key 必填"
+    },
     {
       "hash": "557eb5be",
       "date": "2026-09-22",
