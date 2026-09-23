@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-23T07:33:19.035Z",
+  "generatedAt": "2026-09-23T07:33:51.391Z",
   "commits": [
+    {
+      "hash": "ab49f15b",
+      "date": "2026-09-23",
+      "type": "feat",
+      "scope": "role",
+      "message": "角色名称全栈唯一性校验；移除死代码 pagination.Parse"
+    },
     {
       "hash": "7f451d14",
       "date": "2026-09-23",
