@@ -8,6 +8,9 @@ import (
 // ErrRoleNotFound 角色不存在
 var ErrRoleNotFound = errors.New("角色不存在")
 
+// ErrDuplicateName 角色名称已存在
+var ErrDuplicateName = errors.New("角色名称已存在，请更换")
+
 // ErrRoleHasUsers 角色下仍有用户，须先移除
 var ErrRoleHasUsers = errors.New("该角色下存在用户，请先移除用户与该角色的关联")
 

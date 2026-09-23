@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -123,6 +124,12 @@ func ensurePostgresDatabase(c conf.Postgres) {
 // （/users/sync 拉取建投影），内置「商户管理员」角色由平台的商户管理员标记驱动绑定
 // （见 biz/admission）。冷启动：平台把某成员设为商户管理员后，其首次请求即自动准入。
 func (d *Data) migrateAndSeed() error {
+	// roles.name 唯一索引前置迁移：存量库可能存在重名（旧版无约束），先归档去重，
+	// 否则 AutoMigrate 建索引直接失败（须先于 AutoMigrate 执行）
+	if err := d.dedupeLegacyRoleNames(); err != nil {
+		return err
+	}
+
 	if err := d.DB.AutoMigrate(
 		&model.PlatformUserPO{}, &model.PlatformUserRolePO{},
 		&model.RolePO{}, &model.PermissionPO{}, &model.RolePermissionPO{},
@@ -509,6 +516,71 @@ func (d *Data) ensureSystemButtonPerms() error {
 
 	if inserted > 0 {
 		logger.Info("ensured system button permissions", zap.Int("inserted", inserted))
+	}
+	return nil
+}
+
+// dedupeLegacyRoleNames roles.name 唯一索引（uniqueIndex）的前置存量迁移，幂等：
+// 旧版无唯一约束且无删除归档，存量库中①软删行占用着 name（删除后无法重建同名），
+// ②软删/存活行可能重名——唯一索引是含软删行的全表硬约束，不去重 AutoMigrate 建索引即失败。
+// 规则：软删行一律归档为 name#id（释放名字，幂等守卫：已带 #自身id 后缀的跳过）；
+// 存活行同名组保留最小 ID、其余归档。截断宽度与 ArchiveUniqueColumns 一致（64）。
+// 全新库（表不存在）直接跳过。
+func (d *Data) dedupeLegacyRoleNames() error {
+	if !d.DB.Migrator().HasTable(&model.RolePO{}) {
+		return nil
+	}
+	archive := func(id uint, name string) error {
+		suffix := fmt.Sprintf("#%d", id)
+		if strings.HasSuffix(name, suffix) {
+			return nil // 已归档过（幂等）
+		}
+		keep := 64 - len(suffix)
+		runes := []rune(name)
+		if len(runes) > keep {
+			name = string(runes[:keep])
+		}
+		if err := d.DB.Exec("UPDATE roles SET name = ? WHERE id = ?", name+suffix, id).Error; err != nil {
+			return err
+		}
+		logger.Info("archived legacy role name for unique index", zap.Uint("id", id), zap.String("name", name+suffix))
+		return nil
+	}
+	// ① 软删行：一律归档释放名字
+	var softIDs []uint
+	if err := d.DB.Unscoped().Model(&model.RolePO{}).Where("deleted_at IS NOT NULL").
+		Order("id").Pluck("id", &softIDs).Error; err != nil {
+		return err
+	}
+	archived := make(map[uint]bool, len(softIDs))
+	for _, id := range softIDs {
+		var n string
+		if err := d.DB.Unscoped().Model(&model.RolePO{}).Where("id = ?", id).Pluck("name", &n).Error; err != nil {
+			return err
+		}
+		if err := archive(id, n); err != nil {
+			return err
+		}
+		archived[id] = true
+	}
+	// ② 存活行同名组：保留最小 ID，其余归档
+	type idName struct {
+		ID   uint
+		Name string
+	}
+	var live []idName
+	if err := d.DB.Model(&model.RolePO{}).Order("id").Find(&live).Error; err != nil {
+		return err
+	}
+	seen := make(map[string]bool, len(live))
+	for _, r := range live {
+		if seen[r.Name] {
+			if err := archive(r.ID, r.Name); err != nil {
+				return err
+			}
+			continue
+		}
+		seen[r.Name] = true
 	}
 	return nil
 }

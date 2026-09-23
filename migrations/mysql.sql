@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS roles (
   created_at DATETIME,
   updated_at DATETIME,
   deleted_at DATETIME,
+  UNIQUE KEY uk_name (name),
   KEY idx_deleted (deleted_at)
 );
 

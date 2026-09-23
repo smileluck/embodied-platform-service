@@ -4,6 +4,7 @@ package role
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/smilex/smilex-admin-gin/internal/biz/role"
 	"github.com/smilex/smilex-admin-gin/internal/data"
@@ -20,10 +21,25 @@ type repo struct {
 func NewRepo(d *data.Data) role.Repo { return &repo{data: d} }
 
 func mapErr(err error) error {
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
 		return role.ErrRoleNotFound
+	case isUniqueViolation(err):
+		return role.ErrDuplicateName
 	}
 	return err
+}
+
+// isUniqueViolation 各数据库唯一约束冲突文案判断：
+// MySQL Error 1062、Postgres 23505（duplicate key value）、SQLite UNIQUE constraint failed
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "Error 1062") ||
+		strings.Contains(msg, "duplicate key value") ||
+		strings.Contains(msg, "UNIQUE constraint failed")
 }
 
 func (r *repo) loadPermissions(ctx context.Context, ro *role.Role) error {
@@ -40,7 +56,7 @@ func (r *repo) loadPermissions(ctx context.Context, ro *role.Role) error {
 func (r *repo) Create(ctx context.Context, ro *role.Role) error {
 	po := model.RoleToPO(ro)
 	if err := r.data.DB.WithContext(ctx).Create(po).Error; err != nil {
-		return err
+		return mapErr(err)
 	}
 	// 回写自增主键与时间戳，供应用层返回给前端
 	ro.ID, ro.CreatedAt, ro.UpdatedAt = po.ID, po.CreatedAt, po.UpdatedAt
@@ -48,8 +64,11 @@ func (r *repo) Create(ctx context.Context, ro *role.Role) error {
 }
 
 func (r *repo) Update(ctx context.Context, ro *role.Role) error {
-	return r.data.DB.WithContext(ctx).Model(&model.RolePO{}).Where("id = ?", ro.ID).
-		Updates(map[string]interface{}{"name": ro.Name, "remark": ro.Remark}).Error
+	if err := r.data.DB.WithContext(ctx).Model(&model.RolePO{}).Where("id = ?", ro.ID).
+		Updates(map[string]interface{}{"name": ro.Name, "remark": ro.Remark}).Error; err != nil {
+		return mapErr(err)
+	}
+	return nil
 }
 
 func (r *repo) Delete(ctx context.Context, id uint) error {
@@ -60,6 +79,10 @@ func (r *repo) Delete(ctx context.Context, id uint) error {
 		}
 		if res.RowsAffected == 0 {
 			return role.ErrRoleNotFound
+		}
+		// 软删行仍占用 name 唯一索引，归档释放以便同角色名重建
+		if err := data.ArchiveUniqueColumns(tx, "roles", id, map[string]int{"name": 64}); err != nil {
+			return err
 		}
 		if err := tx.Where("role_id = ?", id).Delete(&model.RolePermissionPO{}).Error; err != nil {
 			return err

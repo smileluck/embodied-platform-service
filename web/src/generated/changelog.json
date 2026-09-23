@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-23T07:31:36.057Z",
+  "generatedAt": "2026-09-23T07:33:19.035Z",
   "commits": [
+    {
+      "hash": "7f451d14",
+      "date": "2026-09-23",
+      "type": "fix",
+      "scope": "",
+      "message": "修复列表接口 page_size=0 返回空列表；超管账号补自禁保护"
+    },
     {
       "hash": "c21b7a93",
       "date": "2026-09-23",

@@ -49,7 +49,7 @@ func (PlatformUserRolePO) TableName() string { return "platform_user_roles" }
 // RolePO 角色表
 type RolePO struct {
 	ID        uint   `gorm:"primaryKey"`
-	Name      string `gorm:"size:64"`
+	Name      string `gorm:"size:64;uniqueIndex"`
 	Remark    string `gorm:"size:255"`
 	CreatedAt time.Time
 	UpdatedAt time.Time

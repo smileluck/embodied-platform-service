@@ -14,6 +14,7 @@ var messagesZh = map[string]string{
 	// 角色
 	"role.not_found":    "角色不存在",
 	"role.has_users":    "该角色下存在用户，请先移除用户与该角色的关联",
+	"role.name_exists":  "角色名称已存在，请更换",
 	"role.super_locked": "商户管理员角色为系统内置，禁止修改和操作",
 	// 权限/菜单
 	"permission.not_found":          "权限不存在",

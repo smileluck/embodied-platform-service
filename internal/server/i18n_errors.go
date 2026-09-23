@@ -36,6 +36,7 @@ var errKeys = []struct {
 	// 角色
 	{role.ErrRoleNotFound, "role.not_found"},
 	{role.ErrRoleHasUsers, "role.has_users"},
+	{role.ErrDuplicateName, "role.name_exists"},
 	{role.ErrBuiltinRoleLocked, "role.super_locked"},
 	// 权限/菜单
 	{bizperm.ErrPermissionNotFound, "permission.not_found"},
