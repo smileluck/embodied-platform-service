@@ -1,20 +1,17 @@
 package agent
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"strings"
+
+	"github.com/smilex/smilex-admin-gin/pkg/security"
 )
 
-// Crypto API Key 加密器（AES-256-GCM）。
+// Crypto API Key 加密器（AES-256-GCM，实现泛化于 pkg/security.AESGCM，域前缀 smilex-agent:）。
 // 密钥派生：显式配置 agent.cryptoKey 优先；未配置时从 jwt.secret 派生，
 // 不引入必填新配置（注意：更换 jwt.secret 会使已存密钥不可解密，错误表现为 ErrDecryptFailed，
 // 重新保存一次供应商密钥即可恢复）。
 type Crypto struct {
-	key [32]byte
+	inner *security.AESGCM
 }
 
 // NewCrypto 构造加密器
@@ -23,56 +20,22 @@ func NewCrypto(cryptoKey, jwtSecret string) *Crypto {
 	if material == "" {
 		material = jwtSecret
 	}
-	c := &Crypto{}
-	c.key = sha256.Sum256([]byte("smilex-agent:" + material))
-	return c
+	return &Crypto{inner: security.NewAESGCM("smilex-agent:", material)}
 }
 
-// Encrypt 加密（空串原样返回，表示未配置密钥）；输出 base64(nonce | 密文)
-func (c *Crypto) Encrypt(plain string) (string, error) {
-	if plain == "" {
-		return "", nil
-	}
-	gcm, err := c.gcm()
-	if err != nil {
-		return "", err
-	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(gcm.Seal(nonce, nonce, []byte(plain), nil)), nil
-}
+// Encrypt 加密（空串原样返回，表示未配置密钥）
+func (c *Crypto) Encrypt(plain string) (string, error) { return c.inner.Encrypt(plain) }
 
 // Decrypt 解密（空串原样返回）；密钥不符或密文损坏返回 ErrDecryptFailed
 func (c *Crypto) Decrypt(enc string) (string, error) {
-	if enc == "" {
-		return "", nil
-	}
-	gcm, err := c.gcm()
-	if err != nil {
-		return "", err
-	}
-	data, err := base64.StdEncoding.DecodeString(enc)
-	if err != nil || len(data) < gcm.NonceSize() {
-		return "", ErrDecryptFailed
-	}
-	plain, err := gcm.Open(nil, data[:gcm.NonceSize()], data[gcm.NonceSize():], nil)
+	plain, err := c.inner.Decrypt(enc)
 	if err != nil {
 		return "", ErrDecryptFailed
 	}
-	return string(plain), nil
+	return plain, nil
 }
 
-func (c *Crypto) gcm() (cipher.AEAD, error) {
-	block, err := aes.NewCipher(c.key[:])
-	if err != nil {
-		return nil, err
-	}
-	return cipher.NewGCM(block)
-}
-
-// MaskKey 生成展示用掩码：保留前 3 位与末 4 位（如 sk-****abcd）；过短全遮蔽
+// MaskKey 生成展示用掩码（泛化实现见 security.MaskSecret）
 func MaskKey(key string) string {
 	if key == "" {
 		return ""

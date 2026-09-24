@@ -120,6 +120,9 @@ func (uc *Usecase) currentSnapshot() *Snapshot {
 	return s
 }
 
+// LatestSnapshot 当前最新采样帧（告警通知分发器越限评估用；与历史落库同源）
+func (uc *Usecase) LatestSnapshot() *Snapshot { return uc.currentSnapshot() }
+
 // History 历史快照（时间升序；hours 上限 72，最多 5000 点）
 func (uc *Usecase) History(ctx context.Context, hours int) ([]*Snapshot, error) {
 	if uc.snapRepo == nil {

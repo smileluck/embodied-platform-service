@@ -11,9 +11,9 @@ import (
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
+	bizdash "github.com/smilex/smilex-admin-gin/internal/biz/dashboard"
 	bizdevice "github.com/smilex/smilex-admin-gin/internal/biz/device"
 	bizdevmodel "github.com/smilex/smilex-admin-gin/internal/biz/devmodel"
-	bizdash "github.com/smilex/smilex-admin-gin/internal/biz/dashboard"
 	bizdict "github.com/smilex/smilex-admin-gin/internal/biz/dict"
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
@@ -23,6 +23,7 @@ import (
 	bizsys "github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
 
 	bizmonitor "github.com/smilex/smilex-admin-gin/internal/biz/monitor"
+	biznotify "github.com/smilex/smilex-admin-gin/internal/biz/notify"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	bizrole "github.com/smilex/smilex-admin-gin/internal/biz/role"
 
@@ -34,9 +35,9 @@ import (
 	dataappuser "github.com/smilex/smilex-admin-gin/internal/data/appuser"
 	dataauth "github.com/smilex/smilex-admin-gin/internal/data/auth"
 	datablacklist "github.com/smilex/smilex-admin-gin/internal/data/blacklist"
+	datadash "github.com/smilex/smilex-admin-gin/internal/data/dashboard"
 	datadevice "github.com/smilex/smilex-admin-gin/internal/data/device"
 	datadevmodel "github.com/smilex/smilex-admin-gin/internal/data/devmodel"
-	datadash "github.com/smilex/smilex-admin-gin/internal/data/dashboard"
 	datadict "github.com/smilex/smilex-admin-gin/internal/data/dict"
 	dataexport "github.com/smilex/smilex-admin-gin/internal/data/export"
 	datafile "github.com/smilex/smilex-admin-gin/internal/data/file"
@@ -45,6 +46,7 @@ import (
 
 	datamonitor "github.com/smilex/smilex-admin-gin/internal/data/monitor"
 	datanotice "github.com/smilex/smilex-admin-gin/internal/data/notice"
+	datanotify "github.com/smilex/smilex-admin-gin/internal/data/notify"
 	dataperm "github.com/smilex/smilex-admin-gin/internal/data/permission"
 	"github.com/smilex/smilex-admin-gin/internal/data/platform"
 	datarole "github.com/smilex/smilex-admin-gin/internal/data/role"
@@ -58,9 +60,9 @@ import (
 	appusersvc "github.com/smilex/smilex-admin-gin/internal/service/appuser"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	blacklistsvc "github.com/smilex/smilex-admin-gin/internal/service/blacklist"
+	dashsvc "github.com/smilex/smilex-admin-gin/internal/service/dashboard"
 	devicesvc "github.com/smilex/smilex-admin-gin/internal/service/device"
 	devmodelsvc "github.com/smilex/smilex-admin-gin/internal/service/devmodel"
-	dashsvc "github.com/smilex/smilex-admin-gin/internal/service/dashboard"
 	dictsvc "github.com/smilex/smilex-admin-gin/internal/service/dict"
 	exportsvc "github.com/smilex/smilex-admin-gin/internal/service/export"
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
@@ -70,6 +72,7 @@ import (
 	syssvc "github.com/smilex/smilex-admin-gin/internal/service/sysconfig"
 
 	monitorsvc "github.com/smilex/smilex-admin-gin/internal/service/monitor"
+	notifysvc "github.com/smilex/smilex-admin-gin/internal/service/notify"
 	permsvc "github.com/smilex/smilex-admin-gin/internal/service/permission"
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
 
@@ -94,6 +97,7 @@ var bizSet = wire.NewSet(
 	bizjob.NewUsecase,
 	bizmonitor.NewUsecase,
 	bizagent.NewUsecase,
+	biznotify.NewUsecase,
 	bizexport.NewUsecase,
 	bizexport.NewRegistry,
 	bizexport.NewUserExporter,
@@ -105,6 +109,8 @@ var bizSet = wire.NewSet(
 	wire.Bind(new(bizdevice.TenantRelinker), new(*biztenant.Usecase)),
 	// 智能体内置只读工具：服务器状态查询复用 monitor 用例
 	wire.Bind(new(bizagent.ServerStatusReader), new(*bizmonitor.Usecase)),
+	wire.Bind(new(biznotify.SnapshotReader), new(*bizmonitor.Usecase)),
+	wire.Bind(new(bizjob.NotifyCleaner), new(*biznotify.Usecase)),
 )
 
 var dataRepoSet = wire.NewSet(
@@ -132,6 +138,9 @@ var dataRepoSet = wire.NewSet(
 	datasys.NewRepo,
 
 	datanotice.NewRepo,
+
+	datanotify.NewRepo,
+	datajob.NewRepo,
 	dataexport.NewRepo,
 	dataexport.NewWorker,
 	// 平台集成层（商户 HMAC 开放面 + 身份自省 + 存储）
@@ -148,7 +157,6 @@ var dataRepoSet = wire.NewSet(
 	dataauth.NewIdentityAdapter,
 	// 跨上下文最小依赖接口绑定（provider 与 bind 需同 set）
 	wire.Bind(new(auth.IdentitySource), new(*dataauth.IdentityAdapter)),
-	datajob.NewRepo,
 	wire.Bind(new(bizjob.LogCleaner), new(*datalog.Repo)),
 	wire.Bind(new(bizjob.ExportCleaner), new(*dataexport.Worker)),
 	wire.Bind(new(bizagent.Repo), new(*dataagent.Repo)),
@@ -187,6 +195,7 @@ var serviceSet = wire.NewSet(
 	dashsvc.NewService,
 	syssvc.NewService,
 	noticesvc.NewService,
+	notifysvc.NewService,
 	jobsvc.NewService,
 )
 

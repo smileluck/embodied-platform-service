@@ -24,6 +24,7 @@ import (
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	blacklistsvc "github.com/smilex/smilex-admin-gin/internal/service/blacklist"
 	dashsvc "github.com/smilex/smilex-admin-gin/internal/service/dashboard"
+	notifysvc "github.com/smilex/smilex-admin-gin/internal/service/notify"
 	devicesvc "github.com/smilex/smilex-admin-gin/internal/service/device"
 	devmodelsvc "github.com/smilex/smilex-admin-gin/internal/service/devmodel"
 	dictsvc "github.com/smilex/smilex-admin-gin/internal/service/dict"
@@ -64,6 +65,7 @@ type HTTPServer struct {
 	notice        *noticesvc.Service
 	job           *jobsvc.Service
 	dashboard     *dashsvc.Service
+	notify        *notifysvc.Service
 	tenant        *tenantsvc.Service
 	appuser       *appusersvc.Service
 	appuserUC     *bizappuser.Usecase    // AppJWT 中间件直连领域用例（校验用户启用状态）
@@ -85,7 +87,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	tenant *tenantsvc.Service, appuser *appusersvc.Service, appuserUC *bizappuser.Usecase,
 	appIssuer bizappuser.TokenIssuer, device *devicesvc.Service, devmodel *devmodelsvc.Service,
 	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service, syscfg *syssvc.Service,
-	notice *noticesvc.Service, job *jobsvc.Service, dashboard *dashsvc.Service,
+	notice *noticesvc.Service, job *jobsvc.Service, dashboard *dashsvc.Service, notify *notifysvc.Service,
 	rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
 	gin.SetMode(cfg.Server.Mode)
 	e := gin.New()
@@ -373,6 +375,30 @@ func (s *HTTPServer) registerRoutes() {
 		// 发布表单送达范围选项（公告权限即可，无需角色/用户管理权限）
 		notices.GET("/options/roles", s.noticeRoleOptions)
 		notices.GET("/options/users", s.noticeUserOptions)
+	}
+
+	// ---- 告警通知 ----
+	notifyChannels := protected.Group("/notify/channels")
+	{
+		notifyChannels.GET("", s.listNotifyChannels)
+		notifyChannels.POST("", s.createNotifyChannel)
+		notifyChannels.GET("/:id", s.getNotifyChannel)
+		notifyChannels.PUT("/:id", s.updateNotifyChannel)
+		notifyChannels.DELETE("/:id", s.deleteNotifyChannel)
+		notifyChannels.POST("/:id/test", s.testNotifyChannel)
+	}
+	notifyRules := protected.Group("/notify/rules")
+	{
+		notifyRules.GET("", s.listNotifyRules)
+		notifyRules.POST("", s.createNotifyRule)
+		notifyRules.GET("/:id", s.getNotifyRule)
+		notifyRules.PUT("/:id", s.updateNotifyRule)
+		notifyRules.DELETE("/:id", s.deleteNotifyRule)
+	}
+	notifyRecords := protected.Group("/notify/records")
+	{
+		notifyRecords.GET("", s.listNotifyRecords)
+		notifyRecords.DELETE("", s.clearNotifyRecords)
 	}
 
 	// ---- 系统参数（运行时可调） ----

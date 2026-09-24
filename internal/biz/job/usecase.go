@@ -8,6 +8,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 
+	"github.com/smilex/smilex-admin-gin/pkg/eventbus"
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
 	"go.uber.org/zap"
@@ -18,6 +19,7 @@ const (
 	HandlerLogCleanup    = "log_cleanup"
 	HandlerExportCleanup = "export_cleanup"
 	HandlerUsageCleanup  = "agent_usage_cleanup"
+	HandlerNotifyCleanup   = "notify_cleanup"
 )
 
 // 清理器接口（各仓储实现；保留期取各自配置）
@@ -31,6 +33,11 @@ type UsageCleaner interface {
 	CleanupExpired(ctx context.Context) error
 }
 
+// NotifyCleaner 告警发送记录清理（notify.Usecase 实现）
+type NotifyCleaner interface {
+	DeleteRecordsBefore(ctx context.Context, before time.Time) error
+}
+
 // Usecase 定时任务用例：CRUD + cron 调度器 + 手动执行
 type Usecase struct {
 	repo     Repo
@@ -41,7 +48,7 @@ type Usecase struct {
 	entryIDs map[uint]cron.EntryID
 }
 
-func NewUsecase(repo Repo, lc LogCleaner, ec ExportCleaner, uc UsageCleaner) *Usecase {
+func NewUsecase(repo Repo, lc LogCleaner, ec ExportCleaner, uc UsageCleaner, nc NotifyCleaner) *Usecase {
 	handlers := map[string]Handler{
 		HandlerLogCleanup: {
 			Key: HandlerLogCleanup, Description: "清理保留期外的操作日志",
@@ -68,6 +75,15 @@ func NewUsecase(repo Repo, lc LogCleaner, ec ExportCleaner, uc UsageCleaner) *Us
 					return "", err
 				}
 				return "用量流水清理完成", nil
+			},
+		},
+		HandlerNotifyCleanup: {
+			Key: HandlerNotifyCleanup, Description: "清理保留期外的告警发送记录",
+			Run: func(ctx context.Context, _ string) (string, error) {
+				if err := nc.DeleteRecordsBefore(ctx, time.Now().AddDate(0, 0, -notifyRecordKeepDays)); err != nil {
+					return "", err
+				}
+				return "告警发送记录清理完成", nil
 			},
 		},
 	}
@@ -285,6 +301,8 @@ func (uc *Usecase) EnsureSeeded(ctx context.Context) error {
 			Remark: "清理保留期外的导出记录与产物文件"},
 		{Name: "用量流水保留期清理", Cron: "20 4 * * *", HandlerKey: HandlerUsageCleanup, Status: StatusEnabled,
 			Remark: "清理保留期外的 Agent 用量流水"},
+		{Name: "告警记录保留期清理", Cron: "40 4 * * *", HandlerKey: HandlerNotifyCleanup, Status: StatusEnabled,
+			Remark: "清理保留期外的告警发送记录（保留 30 天）"},
 	}
 	for _, s := range seeds {
 		if names[s.Name] {
@@ -315,9 +333,10 @@ func (s *scheduledJob) Run() {
 
 // 单次执行超时与输出截断
 const (
-	execTimeout = 10 * time.Minute
-	outputMax   = 2000
-	logKeepDays = 30
+	execTimeout          = 10 * time.Minute
+	outputMax            = 2000
+	logKeepDays          = 30
+	notifyRecordKeepDays = 30 // 告警发送记录保留期
 )
 
 // execute 执行任务并落执行日志（顺带清理过期日志）
@@ -347,6 +366,13 @@ func (uc *Usecase) execute(j *Job) {
 		DurationMs: time.Since(start).Milliseconds(), StartedAt: start,
 	}); err != nil {
 		logger.Warn("job log append failed", zap.Error(err))
+	}
+	// 执行失败跨上下文广播（告警通知订阅 job.failed；同步发布，订阅方须自行异步）
+	if status == RunFailed {
+		eventbus.Publish(FailedEvent{
+			JobID: j.ID, JobName: j.Name, HandlerKey: j.HandlerKey,
+			Output: out, DurationMs: time.Since(start).Milliseconds(), StartedAt: start,
+		})
 	}
 	_ = uc.repo.CleanupLogsBefore(context.Background(), now.AddDate(0, 0, -logKeepDays))
 	j.LastRunAt = &now

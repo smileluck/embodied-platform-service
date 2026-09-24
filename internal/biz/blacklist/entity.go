@@ -21,6 +21,15 @@ const (
 // AutoBanReason 自动封禁记录的封禁原因
 const AutoBanReason = "登录连续失败自动封禁"
 
+// AutoBanEvent IP 自动封禁事件（eventbus 跨上下文发布；告警通知按 topic blacklist.autoban 订阅）
+type AutoBanEvent struct {
+	IP        string
+	FailCount int64
+	Duration  time.Duration
+}
+
+func (AutoBanEvent) Topic() string { return "blacklist.autoban" }
+
 // 登录防护参数（临时封禁 + 限流，状态存 Redis）
 const (
 	LoginFailThreshold = 5                // 计数窗口内失败次数阈值

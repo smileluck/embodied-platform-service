@@ -16,6 +16,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/biz/job"
 	"github.com/smilex/smilex-admin-gin/internal/biz/log"
 	"github.com/smilex/smilex-admin-gin/internal/biz/notice"
+	"github.com/smilex/smilex-admin-gin/internal/biz/notify"
 	"github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/role"
 	"github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
@@ -773,3 +774,129 @@ type MonitorSnapshotPO struct {
 }
 
 func (MonitorSnapshotPO) TableName() string { return "monitor_snapshots" }
+
+// NotifyChannelPO 告警通知渠道表（SMTP 密码/Webhook 密钥 AES-GCM 密文存储）
+type NotifyChannelPO struct {
+	ID           uint   `gorm:"primaryKey"`
+	Name         string `gorm:"size:20"`
+	Type         string `gorm:"size:16"` // email | webhook
+	Status       int    // 1 启用 | 0 停用
+	SMTPHost     string `gorm:"size:128"`
+	SMTPPort     int
+	SMTPUser     string `gorm:"size:128"`
+	SMTPPassEnc  string `gorm:"size:512"`
+	SMTPPassMask string `gorm:"size:32"`
+	SMTPFrom     string `gorm:"size:128"`
+	Recipients   string `gorm:"type:text"` // 收件人 JSON 数组
+	WebhookURL   string `gorm:"size:512"`
+	WebhookEnc   string `gorm:"size:512"`
+	WebhookMask  string `gorm:"size:32"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+func (NotifyChannelPO) TableName() string { return "notify_channels" }
+
+// NotifyRulePO 告警规则表
+type NotifyRulePO struct {
+	ID              uint    `gorm:"primaryKey"`
+	Name            string  `gorm:"size:20"`
+	Source          string  `gorm:"size:16"` // job_failed | monitor | ip_autoban
+	Metric          string  `gorm:"size:8"`  // cpu | mem | swap（仅 monitor）
+	Threshold       float64 // 越限阈值（百分比，仅 monitor）
+	ChannelIDs      string  `gorm:"type:text"` // 命中渠道 JSON 数组
+	CooldownSeconds int     // 同指纹冷却窗口
+	Status          int     // 1 启用 | 0 停用
+	Remark          string  `gorm:"size:200"`
+	LastTriggeredAt *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+func (NotifyRulePO) TableName() string { return "notify_rules" }
+
+// NotifyRecordPO 告警发送记录表（每次投递一条，含失败原因）
+type NotifyRecordPO struct {
+	ID          uint   `gorm:"primaryKey"`
+	ChannelID   uint   `gorm:"index"`
+	ChannelName string `gorm:"size:20"`
+	ChannelType string `gorm:"size:16"`
+	RuleName    string `gorm:"size:20"`
+	Source      string `gorm:"size:16"` // job_failed | monitor | ip_autoban | test
+	Title       string `gorm:"size:200"`
+	Content     string `gorm:"type:text"`
+	Status      string `gorm:"size:8"` // sent | failed
+	Error       string `gorm:"size:512"`
+	DurationMs  int64
+	CreatedAt   time.Time `gorm:"index"`
+}
+
+func (NotifyRecordPO) TableName() string { return "notify_records" }
+
+func NotifyChannelToPO(c *notify.Channel) *NotifyChannelPO {
+	recipients, _ := json.Marshal(c.Recipients)
+	return &NotifyChannelPO{
+		ID: c.ID, Name: c.Name, Type: string(c.Type), Status: c.Status,
+		SMTPHost: c.SMTPHost, SMTPPort: c.SMTPPort, SMTPUser: c.SMTPUser,
+		SMTPPassEnc: c.SMTPPassEnc, SMTPPassMask: c.SMTPPassMask, SMTPFrom: c.SMTPFrom,
+		Recipients: string(recipients),
+		WebhookURL: c.WebhookURL, WebhookEnc: c.WebhookEnc, WebhookMask: c.WebhookMask,
+	}
+}
+
+func NotifyChannelFromPO(p *NotifyChannelPO) *notify.Channel {
+	c := &notify.Channel{
+		ID: p.ID, Name: p.Name, Type: notify.ChannelType(p.Type), Status: p.Status,
+		SMTPHost: p.SMTPHost, SMTPPort: p.SMTPPort, SMTPUser: p.SMTPUser,
+		SMTPPassEnc: p.SMTPPassEnc, SMTPPassMask: p.SMTPPassMask, SMTPFrom: p.SMTPFrom,
+		Recipients: []string{}, WebhookURL: p.WebhookURL, WebhookEnc: p.WebhookEnc, WebhookMask: p.WebhookMask,
+		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+	_ = json.Unmarshal([]byte(p.Recipients), &c.Recipients)
+	if c.Recipients == nil {
+		c.Recipients = []string{}
+	}
+	return c
+}
+
+func NotifyRuleToPO(r *notify.Rule) *NotifyRulePO {
+	channelIDs, _ := json.Marshal(r.ChannelIDs)
+	return &NotifyRulePO{
+		ID: r.ID, Name: r.Name, Source: string(r.Source), Metric: string(r.Metric),
+		Threshold: r.Threshold, ChannelIDs: string(channelIDs),
+		CooldownSeconds: r.CooldownSeconds, Status: r.Status, Remark: r.Remark,
+		LastTriggeredAt: r.LastTriggeredAt,
+	}
+}
+
+func NotifyRuleFromPO(p *NotifyRulePO) *notify.Rule {
+	r := &notify.Rule{
+		ID: p.ID, Name: p.Name, Source: notify.Source(p.Source), Metric: notify.Metric(p.Metric),
+		Threshold: p.Threshold, ChannelIDs: []uint{},
+		CooldownSeconds: p.CooldownSeconds, Status: p.Status, Remark: p.Remark,
+		LastTriggeredAt: p.LastTriggeredAt, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+	_ = json.Unmarshal([]byte(p.ChannelIDs), &r.ChannelIDs)
+	if r.ChannelIDs == nil {
+		r.ChannelIDs = []uint{}
+	}
+	return r
+}
+
+func NotifyRecordToPO(rec *notify.Record) *NotifyRecordPO {
+	return &NotifyRecordPO{
+		ID: rec.ID, ChannelID: rec.ChannelID, ChannelName: rec.ChannelName,
+		ChannelType: string(rec.ChannelType), RuleName: rec.RuleName, Source: string(rec.Source),
+		Title: rec.Title, Content: rec.Content, Status: rec.Status, Error: rec.Error,
+		DurationMs: rec.DurationMs,
+	}
+}
+
+func NotifyRecordFromPO(p *NotifyRecordPO) *notify.Record {
+	return &notify.Record{
+		ID: p.ID, ChannelID: p.ChannelID, ChannelName: p.ChannelName,
+		ChannelType: notify.ChannelType(p.ChannelType), RuleName: p.RuleName, Source: notify.Source(p.Source),
+		Title: p.Title, Content: p.Content, Status: p.Status, Error: p.Error,
+		DurationMs: p.DurationMs, CreatedAt: p.CreatedAt,
+	}
+}

@@ -82,6 +82,11 @@ agent: # 智能体模块（LLM 配置底座）
   cryptoKey: ""
   usageRetentionDays: 90 # 用量计量流水保留天数，超期每日自动清理；0 永久保留
 
+notify: # 告警通知模块（通知渠道/告警规则/发送记录，均存库运行时管理）
+  # 通知渠道密钥（SMTP 密码/Webhook 密钥）的 AES 加密密钥；留空则从 jwt.secret 派生（域前缀与 agent 隔离），
+  # 更换 jwt.secret 后需到「通知渠道」重新保存一次密钥
+  cryptoKey: ""
+
 log:
   retentionDays: 90 # 登录/操作日志保留天数，超期每日自动清理；0 表示永久保留
   # 应用运行日志：按日期滚动落盘（dir/filename-2006-01-02.log）

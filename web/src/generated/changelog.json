@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-24T09:46:22.956Z",
+  "generatedAt": "2026-09-24T09:48:12.476Z",
   "commits": [
+    {
+      "hash": "7b410adb",
+      "date": "2026-09-24",
+      "type": "feat",
+      "scope": "notice",
+      "message": "站内信定向送达（按角色/按用户）"
+    },
     {
       "hash": "378ac35f",
       "date": "2026-09-23",

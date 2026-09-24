@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/smilex/smilex-admin-gin/pkg/eventbus"
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
 	"go.uber.org/zap"
@@ -120,6 +121,8 @@ func (uc *Usecase) RecordLoginFail(ctx context.Context, ip string) {
 		logger.Warn("auto ban persist failed", zap.String("ip", ip), zap.Error(err))
 	}
 	logger.Info("ip temp banned", zap.String("ip", ip), zap.Int64("fails", n))
+	// 跨上下文广播（告警通知订阅 blacklist.autoban）
+	eventbus.Publish(AutoBanEvent{IP: ip, FailCount: n, Duration: TempBanDuration})
 }
 
 // ResetLoginFail 登录成功清空失败计数

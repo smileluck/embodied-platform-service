@@ -138,6 +138,7 @@ func (d *Data) migrateAndSeed() error {
 		&model.TenantPO{}, &model.AppUserPO{}, &model.AppUserTenantPO{},
 		&model.AgentProviderPO{}, &model.AgentModelPO{}, &model.AgentPO{},
 		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{}, &model.SysConfigPO{}, &model.NoticePO{}, &model.NoticeReadPO{}, &model.NoticeTargetPO{}, &model.JobPO{}, &model.JobLogPO{}, &model.MonitorSnapshotPO{},
+		&model.NotifyChannelPO{}, &model.NotifyRulePO{}, &model.NotifyRecordPO{},
 	); err != nil {
 		return err
 	}
@@ -203,6 +204,10 @@ var systemMenus = []systemMenuDef{
 	{Name: "Agent 配置", Code: "menu:agentList", Path: "/agent/agents", Icon: "ChatbubblesOutline", Sort: 2, ParentCode: "menu:agent"},
 	{Name: "聊天测试", Code: "menu:agentChat", Path: "/agent/chat", Icon: "ChatboxEllipsesOutline", Sort: 3, ParentCode: "menu:agent"},
 	{Name: "用量统计", Code: "menu:agentUsage", Path: "/agent/usage", Icon: "StatsChartOutline", Sort: 4, ParentCode: "menu:agent"},
+	{Name: "通知告警", Code: "menu:notify", Type: "dir", Icon: "NotificationsOutline", Sort: 8},
+	{Name: "通知渠道", Code: "menu:notifyChannel", Path: "/notify/channels", Icon: "MailOutline", Sort: 1, ParentCode: "menu:notify"},
+	{Name: "告警规则", Code: "menu:alertRule", Path: "/notify/rules", Icon: "AlertCircleOutline", Sort: 2, ParentCode: "menu:notify"},
+	{Name: "发送记录", Code: "menu:notifyRecord", Path: "/notify/records", Icon: "SendOutline", Sort: 3, ParentCode: "menu:notify"},
 	// 日志管理（顶级目录分组）
 	{Name: "日志管理", Code: "menu:log", Type: "dir", Icon: "DocumentTextOutline", Sort: 5},
 	{Name: "操作日志", Code: "menu:opLog", Path: "/log/operation-logs", Icon: "ClipboardOutline", Sort: 2, ParentCode: "menu:log"},
@@ -453,6 +458,23 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "删除任务", Code: "job:delete", Menu: "menu:job", Method: "DELETE", Path: "/api/v1/jobs/*", Sort: 7},
 	{Name: "立即执行", Code: "job:run", Menu: "menu:job", Method: "POST", Path: "/api/v1/jobs/*/run", Sort: 8},
 	{Name: "执行记录", Code: "job:log:list", Menu: "menu:job", Method: "GET", Path: "/api/v1/jobs/*/logs", Sort: 9},
+
+	// 通知告警 —— 通知渠道（SMTP 密码/Webhook 密钥密文存储；test 为子资源单列权限点）
+	{Name: "查询渠道", Code: "notify:channel:list", Menu: "menu:notifyChannel", Method: "GET", Path: "/api/v1/notify/channels", Sort: 1},
+	{Name: "渠道详情", Code: "notify:channel:view", Menu: "menu:notifyChannel", Method: "GET", Path: "/api/v1/notify/channels/*", Sort: 2},
+	{Name: "新增渠道", Code: "notify:channel:create", Menu: "menu:notifyChannel", Method: "POST", Path: "/api/v1/notify/channels", Sort: 3},
+	{Name: "编辑渠道", Code: "notify:channel:update", Menu: "menu:notifyChannel", Method: "PUT", Path: "/api/v1/notify/channels/*", Sort: 4},
+	{Name: "删除渠道", Code: "notify:channel:delete", Menu: "menu:notifyChannel", Method: "DELETE", Path: "/api/v1/notify/channels/*", Sort: 5},
+	{Name: "测试渠道", Code: "notify:channel:test", Menu: "menu:notifyChannel", Method: "POST", Path: "/api/v1/notify/channels/*/test", Sort: 6},
+	// 通知告警 —— 告警规则
+	{Name: "查询规则", Code: "notify:rule:list", Menu: "menu:alertRule", Method: "GET", Path: "/api/v1/notify/rules", Sort: 1},
+	{Name: "规则详情", Code: "notify:rule:view", Menu: "menu:alertRule", Method: "GET", Path: "/api/v1/notify/rules/*", Sort: 2},
+	{Name: "新增规则", Code: "notify:rule:create", Menu: "menu:alertRule", Method: "POST", Path: "/api/v1/notify/rules", Sort: 3},
+	{Name: "编辑规则", Code: "notify:rule:update", Menu: "menu:alertRule", Method: "PUT", Path: "/api/v1/notify/rules/*", Sort: 4},
+	{Name: "删除规则", Code: "notify:rule:delete", Menu: "menu:alertRule", Method: "DELETE", Path: "/api/v1/notify/rules/*", Sort: 5},
+	// 通知告警 —— 发送记录
+	{Name: "查询发送记录", Code: "notify:record:list", Menu: "menu:notifyRecord", Method: "GET", Path: "/api/v1/notify/records", Sort: 1},
+	{Name: "清空发送记录", Code: "notify:record:clear", Menu: "menu:notifyRecord", Method: "DELETE", Path: "/api/v1/notify/records", Sort: 2},
 }
 
 // ensureSystemButtonPerms 幂等补齐系统管理接口权限点并绑定商户管理员角色（每次启动执行）：

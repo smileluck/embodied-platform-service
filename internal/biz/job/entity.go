@@ -65,6 +65,18 @@ type Handler struct {
 	Run         func(ctx context.Context, params string) (string, error)
 }
 
+// FailedEvent 任务执行失败事件（eventbus 跨上下文发布；告警通知按 topic job.failed 订阅）
+type FailedEvent struct {
+	JobID      uint
+	JobName    string
+	HandlerKey string
+	Output     string // 已截断的错误输出
+	DurationMs int64
+	StartedAt  time.Time
+}
+
+func (FailedEvent) Topic() string { return "job.failed" }
+
 // Query 任务列表条件
 type Query struct {
 	Name string

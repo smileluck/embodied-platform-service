@@ -31,6 +31,9 @@ const viewModules: Record<string, () => Promise<any>> = {
   'menu:agentList': () => import('../views/agent/Agents.vue'),
   'menu:agentChat': () => import('../views/agent/Chat.vue'),
   'menu:agentUsage': () => import('../views/agent/Usage.vue'),
+  'menu:notifyChannel': () => import('../views/notify/Channels.vue'),
+  'menu:alertRule': () => import('../views/notify/Rules.vue'),
+  'menu:notifyRecord': () => import('../views/notify/Records.vue'),
 }
 
 // 将后端菜单树转换为路由

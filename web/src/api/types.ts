@@ -515,6 +515,63 @@ export interface NoticeUserOption {
   nickname: string
 }
 
+// 告警通知 —— 渠道
+export interface NotifyChannel {
+  id: number
+  name: string
+  type: 'email' | 'webhook'
+  status: number
+  smtp_host?: string
+  smtp_port?: number
+  smtp_user?: string
+  smtp_password_mask?: string
+  smtp_from?: string
+  recipients?: string[]
+  webhook_url?: string
+  webhook_secret_mask?: string
+  created_at: string
+  updated_at: string
+}
+
+// 告警通知 —— 规则
+export interface NotifyRule {
+  id: number
+  name: string
+  source: 'job_failed' | 'monitor' | 'ip_autoban'
+  metric: 'cpu' | 'mem' | 'swap' | ''
+  threshold: number
+  channel_ids: number[]
+  cooldown_seconds: number
+  status: number
+  remark: string
+  last_triggered_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
+// 告警通知 —— 发送记录
+export interface NotifyRecord {
+  id: number
+  channel_id: number
+  channel_name: string
+  channel_type: 'email' | 'webhook'
+  rule_name: string
+  source: 'job_failed' | 'monitor' | 'ip_autoban' | 'test'
+  title: string
+  content: string
+  status: 'sent' | 'failed'
+  error?: string
+  duration_ms: number
+  created_at: string
+}
+
+// 告警通知 —— 渠道测试结果
+export interface NotifyTestResult {
+  status: 'sent' | 'failed'
+  error?: string
+  duration_ms: number
+}
+
 // 定时任务
 export interface JobInfo {
   id: number
