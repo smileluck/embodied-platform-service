@@ -313,7 +313,7 @@ func (uc *Usecase) buildChannel(in ChannelInput) (*Channel, error) {
 }
 
 func (uc *Usecase) nameExists(name string, excludeID uint) (bool, error) {
-	list, err := uc.repo.ListChannels(context.Background())
+	list, err := uc.repo.ListChannels(context.Background(), ChannelQuery{})
 	if err != nil {
 		return false, err
 	}
@@ -382,8 +382,8 @@ func (uc *Usecase) GetChannel(ctx context.Context, id uint) (*Channel, error) {
 	return uc.repo.FindChannel(ctx, id)
 }
 
-func (uc *Usecase) ListChannels(ctx context.Context) ([]*Channel, error) {
-	return uc.repo.ListChannels(ctx)
+func (uc *Usecase) ListChannels(ctx context.Context, q ChannelQuery) ([]*Channel, error) {
+	return uc.repo.ListChannels(ctx, q)
 }
 
 // TestChannel 渠道连通性测试：发送测试消息并落一条记录，返回记录（含失败原因）
@@ -485,7 +485,7 @@ func dedupeIDs(ids []uint) []uint {
 }
 
 func (uc *Usecase) ruleNameExists(name string, excludeID uint) (bool, error) {
-	list, err := uc.repo.ListRules(context.Background())
+	list, err := uc.repo.ListRules(context.Background(), RuleQuery{})
 	if err != nil {
 		return false, err
 	}
@@ -541,8 +541,8 @@ func (uc *Usecase) GetRule(ctx context.Context, id uint) (*Rule, error) {
 	return uc.repo.FindRule(ctx, id)
 }
 
-func (uc *Usecase) ListRules(ctx context.Context) ([]*Rule, error) {
-	return uc.repo.ListRules(ctx)
+func (uc *Usecase) ListRules(ctx context.Context, q RuleQuery) ([]*Rule, error) {
+	return uc.repo.ListRules(ctx, q)
 }
 
 // ---- 发送记录 ----

@@ -11,6 +11,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/biz/notify"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	"github.com/smilex/smilex-admin-gin/internal/data/model"
+	"github.com/smilex/smilex-admin-gin/pkg/security"
 )
 
 type Repo struct {
@@ -42,9 +43,9 @@ func (r *Repo) UpdateChannel(ctx context.Context, ch *notify.Channel) error {
 		Updates(map[string]interface{}{
 			"name": ch.Name, "type": string(ch.Type), "status": ch.Status,
 			"smtp_host": ch.SMTPHost, "smtp_port": ch.SMTPPort, "smtp_user": ch.SMTPUser,
-			"smtp_password_enc": ch.SMTPPassEnc, "smtp_password_mask": ch.SMTPPassMask, "smtp_from": ch.SMTPFrom,
+			"smtp_pass_enc": ch.SMTPPassEnc, "smtp_pass_mask": ch.SMTPPassMask, "smtp_from": ch.SMTPFrom,
 			"recipients":  model.NotifyChannelToPO(ch).Recipients,
-			"webhook_url": ch.WebhookURL, "webhook_secret_enc": ch.WebhookEnc, "webhook_secret_mask": ch.WebhookMask,
+			"webhook_url": ch.WebhookURL, "webhook_enc": ch.WebhookEnc, "webhook_mask": ch.WebhookMask,
 		}).Error
 }
 
@@ -67,9 +68,20 @@ func (r *Repo) FindChannel(ctx context.Context, id uint) (*notify.Channel, error
 	return model.NotifyChannelFromPO(&po), nil
 }
 
-func (r *Repo) ListChannels(ctx context.Context) ([]*notify.Channel, error) {
+func (r *Repo) ListChannels(ctx context.Context, q notify.ChannelQuery) ([]*notify.Channel, error) {
+	tx := r.data.DB.WithContext(ctx).Model(&model.NotifyChannelPO{})
+	if q.Name != "" {
+		// 转义用户输入中的 LIKE 通配符，防止 %/_ 改变匹配语义（通配符注入）
+		tx = tx.Where("name LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Name)+"%")
+	}
+	if q.Type != "" {
+		tx = tx.Where("type = ?", q.Type)
+	}
+	if q.Status != nil {
+		tx = tx.Where("status = ?", *q.Status)
+	}
 	var pos []model.NotifyChannelPO
-	if err := r.data.DB.WithContext(ctx).Order("id ASC").Limit(500).Find(&pos).Error; err != nil {
+	if err := tx.Order("id ASC").Limit(500).Find(&pos).Error; err != nil {
 		return nil, err
 	}
 	out := make([]*notify.Channel, 0, len(pos))
@@ -121,9 +133,20 @@ func (r *Repo) FindRule(ctx context.Context, id uint) (*notify.Rule, error) {
 	return model.NotifyRuleFromPO(&po), nil
 }
 
-func (r *Repo) ListRules(ctx context.Context) ([]*notify.Rule, error) {
+func (r *Repo) ListRules(ctx context.Context, q notify.RuleQuery) ([]*notify.Rule, error) {
+	tx := r.data.DB.WithContext(ctx).Model(&model.NotifyRulePO{})
+	if q.Name != "" {
+		// 转义用户输入中的 LIKE 通配符，防止 %/_ 改变匹配语义（通配符注入）
+		tx = tx.Where("name LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Name)+"%")
+	}
+	if q.Source != "" {
+		tx = tx.Where("source = ?", q.Source)
+	}
+	if q.Status != nil {
+		tx = tx.Where("status = ?", *q.Status)
+	}
 	var pos []model.NotifyRulePO
-	if err := r.data.DB.WithContext(ctx).Order("id ASC").Limit(500).Find(&pos).Error; err != nil {
+	if err := tx.Order("id ASC").Limit(500).Find(&pos).Error; err != nil {
 		return nil, err
 	}
 	out := make([]*notify.Rule, 0, len(pos))

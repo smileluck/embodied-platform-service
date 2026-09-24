@@ -14,8 +14,23 @@ import (
 
 // ---- 通知渠道 ----
 
+// notifyListStatus 解析 status 筛选参数（空/非法 = 不筛）
+func notifyListStatus(c *gin.Context) *int {
+	if v := c.Query("status"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return &n
+		}
+	}
+	return nil
+}
+
 func (s *HTTPServer) listNotifyChannels(c *gin.Context) {
-	list, err := s.notify.ListChannels(c.Request.Context())
+	q := biznotify.ChannelQuery{
+		Name:   c.Query("kw"),
+		Type:   c.Query("type"),
+		Status: notifyListStatus(c),
+	}
+	list, err := s.notify.ListChannels(c.Request.Context(), q)
 	if err != nil {
 		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
 		return
@@ -96,7 +111,12 @@ func (s *HTTPServer) testNotifyChannel(c *gin.Context) {
 // ---- 告警规则 ----
 
 func (s *HTTPServer) listNotifyRules(c *gin.Context) {
-	list, err := s.notify.ListRules(c.Request.Context())
+	q := biznotify.RuleQuery{
+		Name:   c.Query("kw"),
+		Source: c.Query("source"),
+		Status: notifyListStatus(c),
+	}
+	list, err := s.notify.ListRules(c.Request.Context(), q)
 	if err != nil {
 		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
 		return

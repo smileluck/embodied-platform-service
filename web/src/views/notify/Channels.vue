@@ -1,5 +1,11 @@
 <template>
   <!-- 通知渠道：邮件 SMTP / Webhook，密钥密文存储（编辑留空=保持原值） -->
+  <SearchCard storage-key="notify-channels" @search="load" @reset="resetQuery">
+    <n-input v-model:value="query.kw" :placeholder="t('notify.channel.kwPlaceholder')" clearable style="width: 200px" @keyup.enter="load" />
+    <n-select v-model:value="query.type" :options="typeFilterOptions" :placeholder="t('notify.channel.allTypes')" clearable style="width: 140px" />
+    <n-select v-model:value="query.status" :options="statusFilterOptions" :placeholder="t('notify.channel.allStatus')" clearable style="width: 130px" />
+  </SearchCard>
+
   <n-card>
     <template #header>
       <div class="page-actions">
@@ -70,11 +76,12 @@
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref } from 'vue'
 import {
-  NButton, NCard, NDataTable, NForm, NFormItem, NInput, NInputNumber, NModal,
+  NButton, NCard, NDataTable, NForm, NFormItem, NInput, NInputNumber, NModal, NSelect,
   NRadioButton, NRadioGroup, NSwitch, NTag, useDialog, useMessage,
   type DataTableColumns, type FormInst, type FormRules,
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
+import SearchCard from '../../components/SearchCard.vue'
 import { renderActions } from '../../utils/tableActions'
 import { useUserStore } from '../../stores/user'
 import { createNotifyChannel, deleteNotifyChannel, listNotifyChannels, testNotifyChannel, updateNotifyChannel } from '../../api'
@@ -87,6 +94,22 @@ const userStore = useUserStore()
 
 const rows = ref<NotifyChannel[]>([])
 const loading = ref(false)
+
+// 搜索筛选：名称关键词全模糊 + 类型/状态精确；null = 不筛（n-select 清空归 null）
+const query = reactive<{ kw: string; type: string | null; status: number | null }>({ kw: '', type: null, status: null })
+const typeFilterOptions = computed(() => [
+  { label: t('notify.channel.typeEmail'), value: 'email' },
+  { label: t('notify.channel.typeWebhook'), value: 'webhook' },
+])
+const statusFilterOptions = computed(() => [
+  { label: t('notify.channel.enabled'), value: 1 },
+  { label: t('notify.channel.disabled'), value: 0 },
+])
+
+function resetQuery() {
+  Object.assign(query, { kw: '', type: null, status: null })
+  load()
+}
 
 const columns = computed<DataTableColumns<NotifyChannel>>(() => [
   { title: t('notify.channel.name'), key: 'name', width: 140, ellipsis: { tooltip: true } },
@@ -125,7 +148,9 @@ const columns = computed<DataTableColumns<NotifyChannel>>(() => [
 async function load() {
   loading.value = true
   try {
-    const res = await listNotifyChannels()
+    const res = await listNotifyChannels({
+      kw: query.kw.trim() || undefined, type: query.type ?? undefined, status: query.status ?? undefined,
+    })
     rows.value = res.data.data
   } catch (e: any) {
     message.error(e?.response?.data?.msg || t('common.failed'))

@@ -65,8 +65,8 @@ func (s *Service) DeleteChannel(ctx context.Context, id uint) error {
 func (s *Service) GetChannel(ctx context.Context, id uint) (*biznotify.Channel, error) {
 	return s.uc.GetChannel(ctx, id)
 }
-func (s *Service) ListChannels(ctx context.Context) ([]*biznotify.Channel, error) {
-	return s.uc.ListChannels(ctx)
+func (s *Service) ListChannels(ctx context.Context, q biznotify.ChannelQuery) ([]*biznotify.Channel, error) {
+	return s.uc.ListChannels(ctx, q)
 }
 
 // TestChannel 渠道连通性测试（返回发送记录：status=failed 时 error 字段含原因）
@@ -96,8 +96,8 @@ func (s *Service) DeleteRule(ctx context.Context, id uint) error { return s.uc.D
 func (s *Service) GetRule(ctx context.Context, id uint) (*biznotify.Rule, error) {
 	return s.uc.GetRule(ctx, id)
 }
-func (s *Service) ListRules(ctx context.Context) ([]*biznotify.Rule, error) {
-	return s.uc.ListRules(ctx)
+func (s *Service) ListRules(ctx context.Context, q biznotify.RuleQuery) ([]*biznotify.Rule, error) {
+	return s.uc.ListRules(ctx, q)
 }
 
 // ---- 发送记录 ----

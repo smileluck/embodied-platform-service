@@ -1,5 +1,11 @@
 <template>
   <!-- 告警规则：任务失败 / 监控阈值 / IP 自动封禁 → 命中后经渠道发送（冷却去重） -->
+  <SearchCard storage-key="notify-rules" @search="load" @reset="resetQuery">
+    <n-input v-model:value="query.kw" :placeholder="t('notify.rule.kwPlaceholder')" clearable style="width: 200px" @keyup.enter="load" />
+    <n-select v-model:value="query.source" :options="sourceFilterOptions" :placeholder="t('notify.record.allSources')" clearable style="width: 150px" />
+    <n-select v-model:value="query.status" :options="statusFilterOptions" :placeholder="t('notify.record.allStatus')" clearable style="width: 130px" />
+  </SearchCard>
+
   <n-card>
     <template #header>
       <div class="page-actions">
@@ -61,6 +67,7 @@ import {
   type DataTableColumns, type FormInst, type FormRules,
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
+import SearchCard from '../../components/SearchCard.vue'
 import { renderActions } from '../../utils/tableActions'
 import { useUserStore } from '../../stores/user'
 import { createNotifyRule, deleteNotifyRule, listNotifyChannels, listNotifyRules, updateNotifyRule } from '../../api'
@@ -73,6 +80,19 @@ const userStore = useUserStore()
 
 const rows = ref<NotifyRule[]>([])
 const loading = ref(false)
+
+// 搜索筛选：名称关键词全模糊 + 来源/状态精确；null = 不筛（n-select 清空归 null）
+const query = reactive<{ kw: string; source: string | null; status: number | null }>({ kw: '', source: null, status: null })
+const sourceFilterOptions = computed(() => sourceOptions.value)
+const statusFilterOptions = computed(() => [
+  { label: t('notify.rule.enabled'), value: 1 },
+  { label: t('notify.rule.disabled'), value: 0 },
+])
+
+function resetQuery() {
+  Object.assign(query, { kw: '', source: null, status: null })
+  load()
+}
 
 const sourceOptions = computed(() => [
   { label: t('notify.rule.sourceJobFailed'), value: 'job_failed' },
@@ -144,7 +164,9 @@ const columns = computed<DataTableColumns<NotifyRule>>(() => [
 async function load() {
   loading.value = true
   try {
-    const res = await listNotifyRules()
+    const res = await listNotifyRules({
+      kw: query.kw.trim() || undefined, source: query.source ?? undefined, status: query.status ?? undefined,
+    })
     rows.value = res.data.data
   } catch (e: any) {
     message.error(e?.response?.data?.msg || t('common.failed'))

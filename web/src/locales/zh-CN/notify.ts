@@ -31,6 +31,9 @@ export default {
     deleteConfirm: '确定删除渠道「{name}」吗？关联的告警规则将不再通过它发送。',
     enabled: '启用',
     disabled: '停用',
+    allTypes: '全部类型',
+    allStatus: '全部状态',
+    kwPlaceholder: '搜索渠道名称',
   },
   rule: {
     title: '告警规则',
@@ -56,6 +59,7 @@ export default {
     deleteConfirm: '确定删除规则「{name}」吗？',
     enabled: '启用',
     disabled: '停用',
+    kwPlaceholder: '搜索规则名称',
   },
   record: {
     title: '发送记录',

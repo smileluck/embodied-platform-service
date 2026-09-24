@@ -325,7 +325,8 @@ export const markNoticeRead = (id: number) => request.post<R<null>>(`/notices/${
 
 // ---- 告警通知：渠道 ----
 
-export const listNotifyChannels = () => request.get<R<NotifyChannel[]>>('/notify/channels')
+export const listNotifyChannels = (params?: { kw?: string; type?: string; status?: number }) =>
+  request.get<R<NotifyChannel[]>>('/notify/channels', { params })
 export const createNotifyChannel = (data: Partial<NotifyChannel> & { smtp_password?: string; webhook_secret?: string }) =>
   request.post<R<NotifyChannel>>('/notify/channels', data)
 export const getNotifyChannel = (id: number) => request.get<R<NotifyChannel>>(`/notify/channels/${id}`)
@@ -336,7 +337,8 @@ export const testNotifyChannel = (id: number) => request.post<R<NotifyTestResult
 
 // ---- 告警通知：规则 ----
 
-export const listNotifyRules = () => request.get<R<NotifyRule[]>>('/notify/rules')
+export const listNotifyRules = (params?: { kw?: string; source?: string; status?: number }) =>
+  request.get<R<NotifyRule[]>>('/notify/rules', { params })
 export const createNotifyRule = (data: Partial<NotifyRule>) => request.post<R<NotifyRule>>('/notify/rules', data)
 export const getNotifyRule = (id: number) => request.get<R<NotifyRule>>(`/notify/rules/${id}`)
 export const updateNotifyRule = (id: number, data: Partial<NotifyRule>) => request.put<R<null>>(`/notify/rules/${id}`, data)

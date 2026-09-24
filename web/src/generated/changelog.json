@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-24T09:51:46.070Z",
+  "generatedAt": "2026-09-24T09:51:50.010Z",
   "commits": [
+    {
+      "hash": "1e110931",
+      "date": "2026-09-24",
+      "type": "feat",
+      "scope": "dashboard",
+      "message": "首页最近登录与今日登录按用户去重"
+    },
     {
       "hash": "cbdd7c8f",
       "date": "2026-09-24",

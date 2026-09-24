@@ -172,6 +172,20 @@ func MetricValue(s *monitor.Snapshot, m Metric) float64 {
 	return 0
 }
 
+// ChannelQuery 渠道列表筛选（零值 = 全量；Name 全模糊，Type/Status 精确）
+type ChannelQuery struct {
+	Name   string
+	Type   string // email | webhook
+	Status *int   // 1 启用 2 禁用
+}
+
+// RuleQuery 规则列表筛选（零值 = 全量；Name 全模糊，Source/Status 精确）
+type RuleQuery struct {
+	Name   string
+	Source string // job_failed | monitor | ip_autoban
+	Status *int   // 1 启用 2 禁用
+}
+
 // Repo 仓储接口
 type Repo interface {
 	// 渠道
@@ -179,13 +193,13 @@ type Repo interface {
 	UpdateChannel(ctx context.Context, ch *Channel) error
 	DeleteChannel(ctx context.Context, id uint) error
 	FindChannel(ctx context.Context, id uint) (*Channel, error)
-	ListChannels(ctx context.Context) ([]*Channel, error)
+	ListChannels(ctx context.Context, q ChannelQuery) ([]*Channel, error)
 	// 规则
 	CreateRule(ctx context.Context, r *Rule) error
 	UpdateRule(ctx context.Context, r *Rule) error
 	DeleteRule(ctx context.Context, id uint) error
 	FindRule(ctx context.Context, id uint) (*Rule, error)
-	ListRules(ctx context.Context) ([]*Rule, error)
+	ListRules(ctx context.Context, q RuleQuery) ([]*Rule, error)
 	// 分发器
 	ListEnabledRules(ctx context.Context) ([]*Rule, error)
 	FindEnabledChannels(ctx context.Context, ids []uint) ([]*Channel, error)

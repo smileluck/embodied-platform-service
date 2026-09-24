@@ -31,6 +31,9 @@ export default {
     deleteConfirm: 'Delete channel "{name}"? Related rules will stop sending through it.',
     enabled: 'Enabled',
     disabled: 'Disabled',
+    allTypes: 'All types',
+    allStatus: 'All statuses',
+    kwPlaceholder: 'Search channel names',
   },
   rule: {
     title: 'Alert Rules',
@@ -56,6 +59,7 @@ export default {
     deleteConfirm: 'Delete rule "{name}"?',
     enabled: 'Enabled',
     disabled: 'Disabled',
+    kwPlaceholder: 'Search rule names',
   },
   record: {
     title: 'Delivery Logs',
