@@ -298,10 +298,7 @@
         <div class="settings-group">
           <div class="settings-caption">{{ t('layout.settings.layout') }}</div>
           <div class="settings-row">
-            <div class="settings-stack">
-              <span class="settings-label">{{ t('layout.settings.siderWidth') }}</span>
-              <span class="settings-hint">{{ t('layout.settings.siderWidthHint', { min: SIDER_WIDTH_MIN, max: SIDER_WIDTH_MAX }) }}</span>
-            </div>
+            <span class="settings-label">{{ t('layout.settings.siderWidth') }}</span>
             <div class="sider-width-control">
               <n-slider
                 :value="siderWidth" :min="SIDER_WIDTH_MIN" :max="SIDER_WIDTH_MAX" :step="1"

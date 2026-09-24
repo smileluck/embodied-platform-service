@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-24T09:51:10.997Z",
+  "generatedAt": "2026-09-24T09:51:15.688Z",
   "commits": [
+    {
+      "hash": "aa3dff71",
+      "date": "2026-09-24",
+      "type": "feat",
+      "scope": "web",
+      "message": "页面设置支持调整侧边栏宽度（190–210px）"
+    },
     {
       "hash": "7b908975",
       "date": "2026-09-24",

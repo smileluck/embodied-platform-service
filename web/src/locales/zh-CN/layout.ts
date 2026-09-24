@@ -57,7 +57,6 @@ export default {
     showTabsHint: '隐藏后页面缓存与路由同步不受影响',
     layout: '布局',
     siderWidth: '侧边栏宽度',
-    siderWidthHint: '{min}–{max}px，默认 200',
     darkSider: '深色侧边栏',
     narrowContent: '内容区定宽居中',
   },
