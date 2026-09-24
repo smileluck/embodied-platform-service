@@ -36,6 +36,7 @@ func (r *repo) Counts() (users, roles int64, err error) {
 func (r *repo) TodayLogins() (int64, error) {
 	var n int64
 	start := time.Now().Truncate(24 * time.Hour)
+	// 卡片口径为今日活跃操作用户数：同一用户多次操作去重
 	err := r.data.DB.Model(&model.OperationLogPO{}).
 		Where("created_at >= ? AND user_id > 0", start).
 		Distinct("user_id").Count(&n).Error
@@ -97,12 +98,13 @@ func (r *repo) OpTrend(days int) ([]dashboard.DailyPoint, error) {
 	return out, nil
 }
 
-// RecentLogins 最近操作（本地无登录日志；状态按响应码 2xx/3xx 视为成功）
+// RecentLogins 最近操作（本地无登录日志；同用户去重：每用户只保留最新一条；
+// id 自增与时间同向，MAX(id) 即该用户最新记录，IN 子查询写法三库通用；状态按响应码 <400 视为成功）
 func (r *repo) RecentLogins(n int) ([]dashboard.LoginItem, error) {
 	var pos []model.OperationLogPO
 	if err := r.data.DB.WithContext(context.Background()).
-		Where("user_id > 0").
-		Order("id DESC").Limit(n).Find(&pos).Error; err != nil {
+		Where("id IN (?)", r.data.DB.Model(&model.OperationLogPO{}).
+			Select("MAX(id)").Group("user_id")).Order("id DESC").Limit(n).Find(&pos).Error; err != nil {
 		return nil, err
 	}
 	out := make([]dashboard.LoginItem, 0, len(pos))

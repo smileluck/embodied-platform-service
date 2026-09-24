@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-24T09:51:15.688Z",
+  "generatedAt": "2026-09-24T09:51:46.070Z",
   "commits": [
+    {
+      "hash": "cbdd7c8f",
+      "date": "2026-09-24",
+      "type": "style",
+      "scope": "web",
+      "message": "去掉侧边栏宽度滑杆的提示文案"
+    },
     {
       "hash": "aa3dff71",
       "date": "2026-09-24",

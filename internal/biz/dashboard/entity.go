@@ -35,7 +35,7 @@ type Stats struct {
 	} `json:"cards"`
 	LoginTrend   []DailyPoint `json:"login_trend"`   // 近 7 日活跃趋势：total=操作量 success=活跃用户数（含零填充）
 	OpTrend      []DailyPoint `json:"op_trend"`      // 近 7 日操作趋势
-	RecentLogins []LoginItem  `json:"recent_logins"` // 最近 8 条操作记录
+	RecentLogins []LoginItem  `json:"recent_logins"` // 最近 8 条（同用户去重，各取最新一条操作）
 }
 
 // Repo 聚合仓储接口
