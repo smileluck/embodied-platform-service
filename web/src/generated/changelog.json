@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-24T09:50:54.430Z",
+  "generatedAt": "2026-09-24T09:51:06.619Z",
   "commits": [
+    {
+      "hash": "a7167284",
+      "date": "2026-09-24",
+      "type": "feat",
+      "scope": "web",
+      "message": "登录页新增日间/夜间模式切换"
+    },
     {
       "hash": "45b7e5eb",
       "date": "2026-09-24",
