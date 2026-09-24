@@ -1,6 +1,6 @@
 <template>
   <n-layout has-sider style="height: 100vh">
-    <n-layout-sider class="sider" :class="{ 'sider-dark': darkSider }" collapse-mode="width" :collapsed-width="64" :width="200" :collapsed="collapsed">
+    <n-layout-sider class="sider" :class="{ 'sider-dark': darkSider }" collapse-mode="width" :collapsed-width="64" :width="siderWidth" :collapsed="collapsed">
       <div class="logo" :class="{ 'logo-collapsed': collapsed }">
         <div class="seal">S</div>
         <div class="logo-text">
@@ -298,6 +298,19 @@
         <div class="settings-group">
           <div class="settings-caption">{{ t('layout.settings.layout') }}</div>
           <div class="settings-row">
+            <div class="settings-stack">
+              <span class="settings-label">{{ t('layout.settings.siderWidth') }}</span>
+              <span class="settings-hint">{{ t('layout.settings.siderWidthHint', { min: SIDER_WIDTH_MIN, max: SIDER_WIDTH_MAX }) }}</span>
+            </div>
+            <div class="sider-width-control">
+              <n-slider
+                :value="siderWidth" :min="SIDER_WIDTH_MIN" :max="SIDER_WIDTH_MAX" :step="1"
+                :tooltip="false" style="width: 120px" @update:value="setSiderWidth"
+              />
+              <span class="sider-width-value">{{ siderWidth }}px</span>
+            </div>
+          </div>
+          <div class="settings-row">
             <span class="settings-label">{{ t('layout.settings.darkSider') }}</span>
             <n-switch :value="darkSider" size="small" @update:value="setDarkSider" />
           </div>
@@ -318,7 +331,7 @@ import { useI18n } from 'vue-i18n'
 import {
   NLayout, NLayoutSider, NLayoutHeader, NLayoutContent, NMenu, NDropdown, NButton, NIcon,
   NModal, NForm, NFormItem, NInput, NPopover, NTag, NTooltip, useMessage,
-  NDrawer, NDrawerContent, NSwitch, NRadioGroup, NRadioButton,
+  NDrawer, NDrawerContent, NSwitch, NRadioGroup, NRadioButton, NSlider,
   type DropdownOption, type FormInst, type FormRules, type TagProps,
   NBadge,
 } from 'naive-ui'
@@ -326,7 +339,7 @@ import { SearchOutline, DownloadOutline, LanguageOutline, NotificationsOutline, 
 import SiderToggleIcon from '../components/SiderToggleIcon.vue'
 import { useUserStore } from '../stores/user'
 import { isDarkRef, mode as themeMode, setMode, toggleTheme } from '../stores/theme'
-import { showTabs, darkSider, narrowContent, setShowTabs, setDarkSider, setNarrowContent } from '../stores/settings'
+import { showTabs, darkSider, narrowContent, siderWidth, SIDER_WIDTH_MIN, SIDER_WIDTH_MAX, setShowTabs, setDarkSider, setNarrowContent, setSiderWidth } from '../stores/settings'
 import { renderMenuIcon } from '../utils/menuIcon'
 import { changePassword, searchMenus, listRecentExports, getExportBlob, listActiveNotices, getUnreadNoticeCount, markNoticeRead } from '../api'
 import request from '../api/request'
@@ -1329,6 +1342,20 @@ onUnmounted(() => {
 .settings-hint {
   font-size: 11px;
   color: var(--sx-muted);
+}
+/* 侧边栏宽度：滑杆 + 当前值 */
+.sider-width-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.sider-width-value {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--sx-muted);
+  min-width: 44px;
+  text-align: right;
 }
 
 /* 搜索命令面板：输入行 / 结果列表 / 快捷键提示栏 */

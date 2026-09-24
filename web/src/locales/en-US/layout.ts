@@ -56,6 +56,8 @@ export default {
     showTabs: 'Show tab bar',
     showTabsHint: 'Hiding it does not affect page cache or route sync',
     layout: 'Layout',
+    siderWidth: 'Sidebar width',
+    siderWidthHint: '{min}–{max}px, default 200',
     darkSider: 'Dark sidebar',
     narrowContent: 'Fixed-width content',
   },

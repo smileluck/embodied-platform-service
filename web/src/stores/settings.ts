@@ -36,3 +36,23 @@ export function setNarrowContent(v: boolean) {
   narrowContent.value = v
   persistBool(CONTENT_NARROW_KEY, v)
 }
+
+// 侧边栏展开宽度：默认 200px，页面设置里可调（现有宽度上下 10px）；
+// 折叠宽 64px 固定不跟随。存储值缺失/非法/越界一律回落默认
+const SIDER_WIDTH_KEY = 'sx-sider-width'
+export const SIDER_WIDTH_DEFAULT = 200
+export const SIDER_WIDTH_MIN = SIDER_WIDTH_DEFAULT - 10
+export const SIDER_WIDTH_MAX = SIDER_WIDTH_DEFAULT + 10
+
+function persistedWidth(): number {
+  const v = Number(localStorage.getItem(SIDER_WIDTH_KEY))
+  if (!Number.isInteger(v) || v < SIDER_WIDTH_MIN || v > SIDER_WIDTH_MAX) return SIDER_WIDTH_DEFAULT
+  return v
+}
+
+export const siderWidth = ref<number>(persistedWidth())
+export function setSiderWidth(v: number) {
+  if (v < SIDER_WIDTH_MIN || v > SIDER_WIDTH_MAX) return
+  siderWidth.value = v
+  localStorage.setItem(SIDER_WIDTH_KEY, String(v))
+}
