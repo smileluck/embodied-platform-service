@@ -11,6 +11,7 @@ import (
 
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
+	"github.com/smilex/smilex-admin-gin/pkg/i18n"
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
 	"go.uber.org/zap"
@@ -36,7 +37,9 @@ func NewUsecase(repo Repo, registry *Registry, enq Enqueuer, storage *bizfile.St
 }
 
 // Submit 提交导出任务：校验业务类型 → 落 pending 记录 → 入队；
-// 队列满时回滚记录并返回 ErrQueueFull（不残留永不执行的 pending 数据）
+// 队列满时回滚记录并返回 ErrQueueFull（不残留永不执行的 pending 数据）。
+// 展示名/文件名按请求语言即时翻译落库；语言一并快照进记录，
+// 供无请求上下文的 worker 翻译表头与行内枚举值（worker 后台执行拿不到 Accept-Language）
 func (uc *Usecase) Submit(ctx context.Context, biz string, params url.Values, userID uint, username string) (*ExportRecord, error) {
 	exp, ok := uc.registry.Get(biz)
 	if !ok {
@@ -49,7 +52,8 @@ func (uc *Usecase) Submit(ctx context.Context, biz string, params url.Values, us
 	rec := &ExportRecord{
 		UserID:    userID,
 		Biz:       biz,
-		Name:      fmt.Sprintf("%s-%s.csv", exp.Name(), time.Now().Format("20060102150405")),
+		Locale:    string(i18n.FromContext(ctx)),
+		Name:      fmt.Sprintf("%s-%s.csv", i18n.T(ctx, exp.NameKey()), time.Now().Format("20060102150405")),
 		Params:    string(paramsJSON),
 		Status:    StatusPending,
 		CreatedAt: time.Now(),

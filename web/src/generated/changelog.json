@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-24T09:48:12.476Z",
+  "generatedAt": "2026-09-24T09:50:10.503Z",
   "commits": [
+    {
+      "hash": "9db5bcb5",
+      "date": "2026-09-24",
+      "type": "feat",
+      "scope": "notify",
+      "message": "告警通知系统（邮件/Webhook 渠道 + 告警规则 + 发送记录）"
+    },
     {
       "hash": "7b410adb",
       "date": "2026-09-24",

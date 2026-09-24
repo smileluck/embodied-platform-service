@@ -134,7 +134,6 @@ type Agent struct {
 	UsageRetentionDays int `mapstructure:"usageRetentionDays"`
 }
 
-
 // Notify 告警通知模块配置（渠道密钥加密；告警规则/渠道均存库、运行时管理）
 type Notify struct {
 	// CryptoKey 通知渠道密钥（SMTP 密码/Webhook 密钥）的 AES 加密密钥（任意长度，内部派生 AES-256）；

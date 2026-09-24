@@ -29,22 +29,22 @@ func NewOpLogExporter(logs bizlog.Repo, c *conf.Bootstrap) *OpLogExporter {
 	return &OpLogExporter{logs: logs, mask: c.Export.Mask}
 }
 
-func (e *OpLogExporter) Biz() string  { return "op_log" }
-func (e *OpLogExporter) Name() string { return "操作日志" }
+func (e *OpLogExporter) Biz() string     { return "op_log" }
+func (e *OpLogExporter) NameKey() string { return "export.name.op_log" }
 
 func (e *OpLogExporter) Columns() []Column {
 	return []Column{
-		{Key: "id", Title: "ID"},
-		{Key: "username", Title: "操作人"},
-		{Key: "method", Title: "请求方式"},
-		{Key: "path", Title: "请求路径"},
-		{Key: "route", Title: "路由"},
-		{Key: "action", Title: "动作"},
-		{Key: "params", Title: "参数"},
-		{Key: "ip", Title: "IP"},
-		{Key: "status_code", Title: "状态码"},
-		{Key: "latency_ms", Title: "耗时(ms)"},
-		{Key: "created_at", Title: "操作时间"},
+		{Key: "id", Title: "export.col.id"},
+		{Key: "username", Title: "export.col.operator"},
+		{Key: "method", Title: "export.col.method"},
+		{Key: "path", Title: "export.col.path"},
+		{Key: "route", Title: "export.col.route"},
+		{Key: "action", Title: "export.col.action"},
+		{Key: "params", Title: "export.col.params"},
+		{Key: "ip", Title: "export.col.ip"},
+		{Key: "status_code", Title: "export.col.status_code"},
+		{Key: "latency_ms", Title: "export.col.latency"},
+		{Key: "created_at", Title: "export.col.op_time"},
 	}
 }
 

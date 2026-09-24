@@ -19,7 +19,7 @@ const (
 	HandlerLogCleanup    = "log_cleanup"
 	HandlerExportCleanup = "export_cleanup"
 	HandlerUsageCleanup  = "agent_usage_cleanup"
-	HandlerNotifyCleanup   = "notify_cleanup"
+	HandlerNotifyCleanup = "notify_cleanup"
 )
 
 // 清理器接口（各仓储实现；保留期取各自配置）

@@ -22,6 +22,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	"github.com/smilex/smilex-admin-gin/internal/data/model"
+	"github.com/smilex/smilex-admin-gin/pkg/i18n"
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -181,13 +182,17 @@ func (w *Worker) consumeLoop() {
 	}
 }
 
-// process 执行单个导出任务：状态推进 running → done/failed，任何失败落 error 不抛出
+// process 执行单个导出任务：状态推进 running → done/failed，任何失败落 error 不抛出；
+// 按任务的语言快照注入 locale（提交时 Accept-Language），表头/行内值/失败文案据此翻译
 func (w *Worker) process(id uint) {
 	ctx := context.Background()
 	rec, err := w.repo.FindByID(ctx, id)
 	if err != nil {
 		logger.Warn("export record load failed", zap.Uint("id", id), zap.Error(err))
 		return
+	}
+	if rec.Locale != "" {
+		ctx = i18n.WithLocale(ctx, i18n.Locale(rec.Locale))
 	}
 	if rec.Status != bizexport.StatusPending {
 		return // 重复入队或已被启动恢复标记，跳过
@@ -247,7 +252,7 @@ func (w *Worker) run(ctx context.Context, rec *bizexport.ExportRecord) error {
 	cols := exp.Columns()
 	header := make([]string, 0, len(cols))
 	for _, c := range cols {
-		header = append(header, c.Title)
+		header = append(header, i18n.T(ctx, c.Title)) // Title 为 i18n key，按任务 locale 快照翻译
 	}
 	if err := wtr.Write(header); err != nil {
 		return err

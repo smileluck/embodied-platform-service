@@ -89,7 +89,8 @@ CREATE TABLE IF NOT EXISTS export_records (
   id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   user_id BIGINT UNSIGNED DEFAULT 0,    -- 任务归属用户
   biz VARCHAR(32) DEFAULT '',           -- 业务类型（user / login_log / op_log）
-  name VARCHAR(255) DEFAULT '',         -- 展示名（兼作下载文件名）
+  name VARCHAR(255) DEFAULT '',         -- 展示名（兼作下载文件名，提交时已按语言翻译）
+  locale VARCHAR(16) DEFAULT '',        -- 提交时语言快照（worker 表头/行内值翻译用）
   params TEXT,                          -- 查询条件快照（JSON）
   driver VARCHAR(16) DEFAULT '',        -- 产物落库时的存储后端
   object_key VARCHAR(512) DEFAULT '',   -- 产物对象 key

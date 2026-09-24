@@ -146,7 +146,8 @@ type ExportRecordPO struct {
 	ID         uint       `gorm:"primaryKey"`
 	UserID     uint       `gorm:"index"`     // 任务归属用户（平台用户 ID）
 	Biz        string     `gorm:"size:32"`   // 业务类型（user / op_log）
-	Name       string     `gorm:"size:255"`  // 展示名（兼作下载文件名）
+	Name       string     `gorm:"size:255"`  // 展示名（兼作下载文件名，提交时已按语言翻译）
+	Locale     string     `gorm:"size:16"`   // 提交时语言快照（worker 表头/行内值翻译用）
 	Params     string     `gorm:"type:text"` // 查询条件快照（JSON）
 	Driver     string     `gorm:"size:16"`   // 产物落库时的存储后端
 	ObjectKey  string     `gorm:"size:512"`  // 产物对象 key
@@ -385,7 +386,7 @@ func FileFromPO(p *FilePO) *file.File {
 
 func ExportRecordToPO(r *export.ExportRecord) *ExportRecordPO {
 	return &ExportRecordPO{
-		ID: r.ID, UserID: r.UserID, Biz: r.Biz, Name: r.Name, Params: r.Params,
+		ID: r.ID, UserID: r.UserID, Biz: r.Biz, Name: r.Name, Locale: r.Locale, Params: r.Params,
 		Driver: r.Driver, ObjectKey: r.ObjectKey, Size: r.Size, Rows: r.Rows,
 		Status: r.Status, Truncated: r.Truncated, Error: r.Error,
 		CreatedAt: r.CreatedAt, FinishedAt: r.FinishedAt,
@@ -394,7 +395,7 @@ func ExportRecordToPO(r *export.ExportRecord) *ExportRecordPO {
 
 func ExportRecordFromPO(p *ExportRecordPO) *export.ExportRecord {
 	return &export.ExportRecord{
-		ID: p.ID, UserID: p.UserID, Biz: p.Biz, Name: p.Name, Params: p.Params,
+		ID: p.ID, UserID: p.UserID, Biz: p.Biz, Name: p.Name, Locale: p.Locale, Params: p.Params,
 		Driver: p.Driver, ObjectKey: p.ObjectKey, Size: p.Size, Rows: p.Rows,
 		Status: p.Status, Truncated: p.Truncated, Error: p.Error,
 		CreatedAt: p.CreatedAt, FinishedAt: p.FinishedAt,

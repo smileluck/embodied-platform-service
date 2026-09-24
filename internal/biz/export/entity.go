@@ -35,8 +35,9 @@ var ErrNotReady = errors.New("导出任务尚未完成，无法下载")
 type ExportRecord struct {
 	ID         uint
 	UserID     uint   // 任务归属用户（列表/下载/删除均强制按此过滤）
-	Biz        string // 业务类型（user / login_log / op_log）
-	Name       string // 展示名（兼作下载文件名，如 用户列表-20260822103000.csv）
+	Biz        string // 业务类型（user / op_log）
+	Name       string // 展示名（兼作下载文件名，如 用户列表-20260822103000.csv；提交时按请求语言翻译）
+	Locale     string // 提交时语言快照（worker 无请求上下文，表头/行内值按此翻译）
 	Params     string // 查询条件快照（url.Values 的 JSON 序列化）
 	Driver     string // 产物落库时的存储后端（local | oss | cos | tos | minio）
 	ObjectKey  string // 产物对象 key

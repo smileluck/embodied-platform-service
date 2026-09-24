@@ -72,7 +72,8 @@ CREATE TABLE IF NOT EXISTS export_records (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER DEFAULT 0,            -- 任务归属用户
   biz TEXT DEFAULT '',                  -- 业务类型（user / login_log / op_log）
-  name TEXT DEFAULT '',                 -- 展示名（兼作下载文件名）
+  name TEXT DEFAULT '',                 -- 展示名（兼作下载文件名，提交时已按语言翻译）
+  locale TEXT DEFAULT '',               -- 提交时语言快照（worker 表头/行内值翻译用）
   params TEXT,                          -- 查询条件快照（JSON）
   driver TEXT DEFAULT '',               -- 产物落库时的存储后端
   object_key TEXT DEFAULT '',           -- 产物对象 key

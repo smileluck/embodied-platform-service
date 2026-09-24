@@ -8,7 +8,8 @@ import (
 	"github.com/smilex/smilex-admin-gin/pkg/security"
 )
 
-// Column 导出列定义：Key 为脱敏配置（export.mask）的匹配键，Title 为 CSV 表头
+// Column 导出列定义：Key 为脱敏配置（export.mask）的匹配键；Title 为表头 i18n key
+// （worker 写表头时按任务 locale 快照翻译，见 messages_*.go export.col.* 段）
 type Column struct {
 	Key   string
 	Title string
@@ -18,11 +19,12 @@ type Column struct {
 
 // Exporter 业务导出器：worker 循环调用 Fetch 分批拉数（offset/limit 语义），
 // 返回行须与 Columns 一一对应，且已按 export.mask 对列 Key 应用 security.Mask。
+// 行内枚举值（状态/设备端等）由实现按 ctx 中的 locale 用 i18n.T 翻译。
 type Exporter interface {
-	// Biz 业务类型标识（提交路由与记录落库用，如 user / login_log / op_log）
+	// Biz 业务类型标识（提交路由与记录落库用，如 user / op_log）
 	Biz() string
-	// Name 展示名（如「用户列表」，用于生成记录 Name）
-	Name() string
+	// NameKey 展示名 i18n key（如 export.name.user，提交时按请求语言翻译成记录 Name/下载文件名）
+	NameKey() string
 	// Columns 导出列（顺序即 CSV 列序）
 	Columns() []Column
 	// Fetch 拉取 [offset, offset+limit) 一批数据行，total 为满足条件的总行数
