@@ -81,6 +81,26 @@ func (s *HTTPServer) deleteNotice(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// noticeRoleOptions / noticeUserOptions 发布表单送达范围选项（protected，公告权限即可，无需角色/用户管理权限）
+func (s *HTTPServer) noticeRoleOptions(c *gin.Context) {
+	list, err := s.notice.ListRoleOptions(c.Request.Context())
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, list)
+}
+
+func (s *HTTPServer) noticeUserOptions(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	list, err := s.notice.ListUserOptions(c.Request.Context(), c.Query("kw"), limit)
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, list)
+}
+
 // ---- 消费端 ----
 
 func (s *HTTPServer) listActiveNotices(c *gin.Context) {

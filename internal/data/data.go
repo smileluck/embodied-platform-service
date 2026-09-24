@@ -137,7 +137,7 @@ func (d *Data) migrateAndSeed() error {
 		&model.FilePO{}, &model.ExportRecordPO{}, &model.IPBlacklistPO{},
 		&model.TenantPO{}, &model.AppUserPO{}, &model.AppUserTenantPO{},
 		&model.AgentProviderPO{}, &model.AgentModelPO{}, &model.AgentPO{},
-		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{}, &model.SysConfigPO{}, &model.NoticePO{}, &model.NoticeReadPO{}, &model.JobPO{}, &model.JobLogPO{}, &model.MonitorSnapshotPO{},
+		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{}, &model.SysConfigPO{}, &model.NoticePO{}, &model.NoticeReadPO{}, &model.NoticeTargetPO{}, &model.JobPO{}, &model.JobLogPO{}, &model.MonitorSnapshotPO{},
 	); err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ var systemMenus = []systemMenuDef{
 	{Name: "租户中心", Code: "menu:tenantCenter", Type: "dir", Icon: "BusinessOutline", Sort: 4},
 	{Name: "数据字典", Code: "menu:dict", Path: "/system/dicts", Icon: "BookOutline", Sort: 10, ParentCode: "menu:system"},
 	{Name: "系统参数", Code: "menu:sysConfig", Path: "/system/configs", Icon: "SettingsOutline", Sort: 11, ParentCode: "menu:system"},
-	{Name: "通知公告", Code: "menu:notice", Path: "/system/notices", Icon: "MegaphoneOutline", Sort: 12, ParentCode: "menu:system"},
+	{Name: "消息通知", Code: "menu:notice", Path: "/system/notices", Icon: "MegaphoneOutline", Sort: 12, ParentCode: "menu:system"},
 	{Name: "定时任务", Code: "menu:job", Path: "/system/jobs", Icon: "TimerOutline", Sort: 13, ParentCode: "menu:system"},
 	{Name: "关于我们", Code: "menu:about", Path: "/about", Icon: "InformationCircleOutline", Sort: 9},
 	{Name: "日志管理", Code: "menu:log", Type: "dir", Icon: "DocumentTextOutline", Sort: 3},
@@ -441,6 +441,7 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "发布公告", Code: "notice:create", Menu: "menu:notice", Method: "POST", Path: "/api/v1/notices", Sort: 3},
 	{Name: "编辑公告", Code: "notice:update", Menu: "menu:notice", Method: "PUT", Path: "/api/v1/notices/*", Sort: 4},
 	{Name: "删除公告", Code: "notice:delete", Menu: "menu:notice", Method: "DELETE", Path: "/api/v1/notices/*", Sort: 5},
+	{Name: "送达范围选项", Code: "notice:options", Menu: "menu:notice", Method: "GET", Path: "/api/v1/notices/options/*", Sort: 6},
 
 	// 定时任务
 	{Name: "查询任务", Code: "job:list", Menu: "menu:job", Method: "GET", Path: "/api/v1/jobs", Sort: 1},

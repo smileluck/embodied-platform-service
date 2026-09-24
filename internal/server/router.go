@@ -370,6 +370,9 @@ func (s *HTTPServer) registerRoutes() {
 		notices.GET("/:id", s.getNotice)
 		notices.PUT("/:id", s.updateNotice)
 		notices.DELETE("/:id", s.deleteNotice)
+		// 发布表单送达范围选项（公告权限即可，无需角色/用户管理权限）
+		notices.GET("/options/roles", s.noticeRoleOptions)
+		notices.GET("/options/users", s.noticeUserOptions)
 	}
 
 	// ---- 系统参数（运行时可调） ----

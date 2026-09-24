@@ -28,6 +28,8 @@ import type {
   MenuNode,
   MonitorHistoryPoint,
   NoticeInfo,
+  NoticeRoleOption,
+  NoticeUserOption,
   OperationLogInfo,
   PageResult,
   Permission,
@@ -43,7 +45,6 @@ import type {
   UsageStats,
   UserInfo,
 } from './types'
-
 // ---- 认证（登录/刷新/登出直调平台，见 ./platform.ts；这里只保留本系统自身数据接口） ----
 export const getProfile = () =>
   request.get<R<{ user: UserInfo; permissions: Permission[] }>>('/auth/profile')
@@ -309,6 +310,10 @@ export const createNotice = (data: Partial<NoticeInfo>) => request.post<R<Notice
 export const getNotice = (id: number) => request.get<R<NoticeInfo>>(`/notices/${id}`)
 export const updateNotice = (id: number, data: Partial<NoticeInfo>) => request.put<R<null>>(`/notices/${id}`, data)
 export const deleteNotice = (id: number) => request.delete<R<null>>(`/notices/${id}`)
+// 送达范围选项（发布表单；公告权限即可，无需角色/用户管理权限）
+export const listNoticeRoleOptions = () => request.get<R<NoticeRoleOption[]>>('/notices/options/roles')
+export const listNoticeUserOptions = (kw: string) =>
+  request.get<R<NoticeUserOption[]>>('/notices/options/users', { params: { kw } })
 // 消费端（basic）
 export const listActiveNotices = () => request.get<R<NoticeInfo[]>>('/notices/active')
 export const getUnreadNoticeCount = () => request.get<R<{ count: number }>>('/notices/unread-count')

@@ -19,8 +19,11 @@ type CreateRequest struct {
 	Title     string `json:"title" binding:"required,max=100"`
 	Content   string `json:"content" binding:"required,max=8000"`
 	Level     string `json:"level" binding:"omitempty,oneof=info warning important"`
-	PublishAt string `json:"publish_at"` // RFC3339，空=立即
-	ExpireAt  string `json:"expire_at"`  // RFC3339，空=长期
+	Scope     string `json:"scope" binding:"omitempty,oneof=all roles users"` // 空=all
+	RoleIDs   []uint `json:"role_ids"`                                        // scope=roles 时必填
+	UserIDs   []uint `json:"user_ids"`                                        // scope=users 时必填
+	PublishAt string `json:"publish_at"`                                      // RFC3339，空=立即
+	ExpireAt  string `json:"expire_at"`                                       // RFC3339，空=长期
 }
 
 type UpdateRequest = CreateRequest
@@ -47,6 +50,7 @@ func (s *Service) toInput(req CreateRequest) (biznotice.NoticeInput, error) {
 	}
 	return biznotice.NoticeInput{
 		Title: req.Title, Content: req.Content, Level: req.Level,
+		Scope: req.Scope, RoleIDs: req.RoleIDs, UserIDs: req.UserIDs,
 		PublishAt: pub, ExpireAt: exp,
 	}, nil
 }
@@ -87,4 +91,14 @@ func (s *Service) CountUnread(ctx context.Context, userID uint) (int64, error) {
 
 func (s *Service) MarkRead(ctx context.Context, userID, noticeID uint) error {
 	return s.uc.MarkRead(ctx, userID, noticeID)
+}
+
+// ---- 送达范围选项（管理端发布表单用） ----
+
+func (s *Service) ListRoleOptions(ctx context.Context) ([]biznotice.RoleOption, error) {
+	return s.uc.ListRoleOptions(ctx)
+}
+
+func (s *Service) ListUserOptions(ctx context.Context, kw string, limit int) ([]biznotice.UserOption, error) {
+	return s.uc.ListUserOptions(ctx, kw, limit)
 }

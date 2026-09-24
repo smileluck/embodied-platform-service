@@ -647,8 +647,9 @@ func SysConfigFromPO(p *SysConfigPO) *sysconfig.Config {
 type NoticePO struct {
 	ID          uint      `gorm:"primaryKey"`
 	Title       string    `gorm:"size:100"`
-	Content     string    `gorm:"type:text"` // markdown
-	Level       string    `gorm:"size:16"`   // info | warning | important
+	Content     string    `gorm:"type:text"`                 // markdown
+	Level       string    `gorm:"size:16"`                   // info | warning | important
+	Scope       string    `gorm:"size:16;default:all;index"` // 送达范围：all | roles | users（存量广播公告缺省 all）
 	PublishAt   time.Time `gorm:"index"`
 	ExpireAt    *time.Time
 	CreatorID   uint
@@ -670,9 +671,21 @@ type NoticeReadPO struct {
 
 func (NoticeReadPO) TableName() string { return "notice_reads" }
 
+// NoticeTargetPO 定向送达目标（scope=roles/users 时生效；公告+目标类型+目标ID 唯一）
+type NoticeTargetPO struct {
+	ID         uint   `gorm:"primaryKey"`
+	NoticeID   uint   `gorm:"uniqueIndex:uk_notice_target;index"`
+	TargetType string `gorm:"size:8;uniqueIndex:uk_notice_target"` // role | user
+	TargetID   uint   `gorm:"uniqueIndex:uk_notice_target"`
+	CreatedAt  time.Time
+}
+
+func (NoticeTargetPO) TableName() string { return "notice_targets" }
+
 func NoticeToPO(n *notice.Notice) *NoticePO {
 	return &NoticePO{
 		ID: n.ID, Title: n.Title, Content: n.Content, Level: string(n.Level),
+		Scope:     string(n.Scope),
 		PublishAt: n.PublishAt, ExpireAt: n.ExpireAt,
 		CreatorID: n.CreatorID, CreatorName: n.CreatorName,
 	}
@@ -681,6 +694,7 @@ func NoticeToPO(n *notice.Notice) *NoticePO {
 func NoticeFromPO(p *NoticePO) *notice.Notice {
 	return &notice.Notice{
 		ID: p.ID, Title: p.Title, Content: p.Content, Level: notice.Level(p.Level),
+		Scope:     notice.Scope(p.Scope),
 		PublishAt: p.PublishAt, ExpireAt: p.ExpireAt,
 		CreatorID: p.CreatorID, CreatorName: p.CreatorName,
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,

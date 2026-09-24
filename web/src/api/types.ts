@@ -491,12 +491,28 @@ export interface NoticeInfo {
   title: string
   content: string // markdown
   level: 'info' | 'warning' | 'important'
+  scope: 'all' | 'roles' | 'users' // 送达范围：全体/按角色/按用户
+  role_ids?: number[] // scope=roles 时回显（与 role_names 同序）
+  role_names?: string[]
+  user_ids?: number[] // scope=users 时回显（与 user_names 同序）
+  user_names?: string[]
   publish_at: string
   expire_at?: string | null
   creator_name: string
   created_at: string
   updated_at: string
   has_read?: boolean
+}
+
+// 公告送达范围选项（发布表单用）
+export interface NoticeRoleOption {
+  id: number
+  name: string
+}
+export interface NoticeUserOption {
+  id: number
+  username: string
+  nickname: string
 }
 
 // 定时任务

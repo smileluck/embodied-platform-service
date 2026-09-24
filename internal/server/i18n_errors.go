@@ -110,6 +110,8 @@ var errKeys = []struct {
 	// 通知公告
 	{biznotice.ErrNotFound, "notice.not_found"},
 	{biznotice.ErrInvalidTitle, "notice.inactive"},
+	{biznotice.ErrInvalidTargets, "notice.invalid_targets"},
+	{biznotice.ErrNotDelivered, "notice.not_delivered"},
 	// 定时任务
 	{bizjob.ErrNotFound, "job.not_found"},
 	{bizjob.ErrNameExists, "job.name_exists"},
