@@ -47,7 +47,17 @@
           </div>
           <!-- 中：占位，撑开左右两块 -->
           <div class="form-head-center"></div>
-          <!-- 右：语言切换，与主页面顶栏同款 -->
+          <!-- 右：日间/夜间切换 + 语言切换，与主页面顶栏同款 -->
+          <n-button
+            class="theme-switch" quaternary circle :focusable="false"
+            :aria-label="isDarkRef ? t('layout.toLight') : t('layout.toDark')"
+            :title="isDarkRef ? t('layout.toLight') : t('layout.toDark')"
+            @click="toggleTheme"
+          >
+            <template #icon>
+              <n-icon :component="isDarkRef ? SunnyOutline : MoonOutline" />
+            </template>
+          </n-button>
           <n-dropdown class="locale-switch" :options="localeOptions" @select="onLocaleChange">
             <n-button quaternary circle :focusable="false" :aria-label="t('layout.language')">
               <template #icon>
@@ -90,12 +100,13 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NForm, NFormItem, NInput, NButton, NCheckbox, NDropdown, NIcon, useMessage, type FormInst, type DropdownOption } from 'naive-ui'
-import { LanguageOutline } from '@vicons/ionicons5'
+import { LanguageOutline, MoonOutline, SunnyOutline } from '@vicons/ionicons5'
 import { platformCaptcha } from '../../api/platform'
 import { setupDynamicRoutes } from '../../router/dynamic'
 import { useUserStore } from '../../stores/user'
 import { getLocale, setLocale, type AppLocale } from '../../locales'
 import EgoUnit from './EgoUnit.vue'
+import { isDarkRef, toggleTheme } from '../../stores/theme'
 import PulseWave from './PulseWave.vue'
 const REMEMBER_KEY = 'remember_account'
 
@@ -414,7 +425,8 @@ onMounted(() => {
 .form-head-center {
   flex: 1;
 }
-/* 右：语言切换图标按钮，与主页面顶栏一致 */
+/* 右：日间/夜间 + 语言切换图标按钮，与主页面顶栏一致 */
+.theme-switch,
 .locale-switch {
   flex-shrink: 0;
   color: var(--sx-muted);

@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-24T09:50:10.503Z",
+  "generatedAt": "2026-09-24T09:50:54.430Z",
   "commits": [
+    {
+      "hash": "45b7e5eb",
+      "date": "2026-09-24",
+      "type": "feat",
+      "scope": "export",
+      "message": "导出文件名/表头/行内值按 i18n 语言输出"
+    },
     {
       "hash": "9db5bcb5",
       "date": "2026-09-24",
