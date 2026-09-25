@@ -1,7 +1,20 @@
 {
-<<<<<<< HEAD
-  "generatedAt": "2026-09-25T08:41:48.736Z",
+  "generatedAt": "2026-09-25T08:42:24.814Z",
   "commits": [
+    {
+      "hash": "8605b5e55",
+      "date": "2026-09-25",
+      "type": "feat",
+      "scope": "web",
+      "message": "登录后清空标签栏，仅保留落地页"
+    },
+    {
+      "hash": "44037910a",
+      "date": "2026-09-25",
+      "type": "feat",
+      "scope": "web",
+      "message": "标签栏右键菜单（关闭左侧/右侧/其他）"
+    },
     {
       "hash": "f7aa93032",
       "date": "2026-09-25",
@@ -11,19 +24,6 @@
     },
     {
       "hash": "5b40402b3",
-=======
-  "generatedAt": "2026-09-25T08:29:07.641Z",
-  "commits": [
-    {
-      "hash": "6ff6edf",
-      "date": "2026-09-25",
-      "type": "feat",
-      "scope": "web",
-      "message": "标签栏右键菜单（关闭左侧/右侧/其他）"
-    },
-    {
-      "hash": "7350a4a",
->>>>>>> 825b3f360 (feat(web): 登录后清空标签栏，仅保留落地页)
       "date": "2026-09-25",
       "type": "feat",
       "scope": "web",

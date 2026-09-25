@@ -780,12 +780,17 @@ function updateTabsOverflow() {
   tabsCanRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
 }
 
-// 滚轮竖滚在标签栏上转为横向滚动（触摸板 deltaX 横滑原生支持）
+// 滚轮在标签栏上转为横向滑动：竖滚（deltaY）→ 横向，触摸板/Shift 组合的 deltaX 优先；
+// Firefox 行模式（deltaMode=1，deltaY≈3/行）需按行高放大，否则步长过小形同没反应
 function onTabsWheel(e: WheelEvent) {
   const el = tabsBarEl.value
-  if (!el || e.deltaY === 0 || el.scrollWidth <= el.clientWidth) return
+  if (!el || el.scrollWidth <= el.clientWidth) return
+  let delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+  if (e.deltaMode === 1) delta *= 40 // DOM_DELTA_LINE：每行约 40px
+  else if (e.deltaMode === 2) delta = Math.sign(delta) * el.clientWidth // DOM_DELTA_PAGE：整屏
+  if (delta === 0) return
   e.preventDefault()
-  el.scrollLeft += e.deltaY
+  el.scrollLeft += delta
 }
 
 // 箭头点击滚动约 3/4 屏
