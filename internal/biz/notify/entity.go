@@ -25,12 +25,26 @@ var (
 type ChannelType string
 
 const (
-	ChannelEmail   ChannelType = "email"
+	ChannelEmail ChannelType = "email"
+	// ChannelWebhook 通用 Webhook（HMAC-SHA256 签名头）
 	ChannelWebhook ChannelType = "webhook"
+	// 以下三类为 IM 群机器人（URL 形态复用 WebhookURL 字段，密钥复用 WebhookEnc/mask）：
+	ChannelWecom    ChannelType = "wecom"    // 企业微信群机器人（key 在 URL，无需密钥）
+	ChannelDingtalk ChannelType = "dingtalk" // 钉钉群机器人（可选加签密钥）
+	ChannelFeishu   ChannelType = "feishu"   // 飞书群机器人（可选加签密钥）
 )
 
 func ValidChannelType(t string) bool {
-	return t == string(ChannelEmail) || t == string(ChannelWebhook)
+	switch ChannelType(t) {
+	case ChannelEmail, ChannelWebhook, ChannelWecom, ChannelDingtalk, ChannelFeishu:
+		return true
+	}
+	return false
+}
+
+// IsRobotType 是否 IM 群机器人渠道（配置面相同：机器人 Webhook 地址 + 可选密钥）
+func IsRobotType(t ChannelType) bool {
+	return t == ChannelWecom || t == ChannelDingtalk || t == ChannelFeishu
 }
 
 // Source 告警规则来源

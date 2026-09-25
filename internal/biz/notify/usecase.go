@@ -237,6 +237,12 @@ func (uc *Usecase) deliver(ctx context.Context, ch *Channel, r *Rule, a pendingA
 		err = uc.sendEmail(ctx, ch, a.title, a.content)
 	case ChannelWebhook:
 		err = uc.sendWebhook(ctx, ch, a.source, a.title, a.content, r.Name)
+	case ChannelWecom:
+		err = uc.sendWecom(ctx, ch, a.title, a.content)
+	case ChannelDingtalk:
+		err = uc.sendDingtalk(ctx, ch, a.title, a.content)
+	case ChannelFeishu:
+		err = uc.sendFeishu(ctx, ch, a.title, a.content)
 	}
 	rec.DurationMs = time.Since(start).Milliseconds()
 	if err != nil {
@@ -298,7 +304,9 @@ func (uc *Usecase) buildChannel(in ChannelInput) (*Channel, error) {
 			return nil, err
 		}
 		ch.SMTPPassEnc, ch.SMTPPassMask = enc, security.MaskSecret(in.SMTPPassword)
-	case ChannelWebhook:
+	case ChannelWebhook, ChannelWecom, ChannelDingtalk, ChannelFeishu:
+		// 通用 Webhook 与 IM 群机器人共用配置面：Webhook 地址必填 http(s)，
+		// 密钥可选（通用 Webhook 不填则不带签名头；机器人中仅钉钉/飞书加签用，企业微信不需要）
 		ch.WebhookURL = strings.TrimSpace(in.WebhookURL)
 		if !strings.HasPrefix(ch.WebhookURL, "http://") && !strings.HasPrefix(ch.WebhookURL, "https://") {
 			return nil, ErrInvalidChannel
@@ -400,6 +408,12 @@ func (uc *Usecase) TestChannel(ctx context.Context, id uint) (*Record, error) {
 		err = uc.sendEmail(ctx, ch, rec.Title, rec.Content)
 	case ChannelWebhook:
 		err = uc.sendWebhook(ctx, ch, SourceTest, rec.Title, rec.Content, rec.RuleName)
+	case ChannelWecom:
+		err = uc.sendWecom(ctx, ch, rec.Title, rec.Content)
+	case ChannelDingtalk:
+		err = uc.sendDingtalk(ctx, ch, rec.Title, rec.Content)
+	case ChannelFeishu:
+		err = uc.sendFeishu(ctx, ch, rec.Title, rec.Content)
 	}
 	rec.DurationMs = time.Since(start).Milliseconds()
 	if err != nil {

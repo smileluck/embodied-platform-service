@@ -16,7 +16,7 @@ func NewService(uc *biznotify.Usecase) *Service { return &Service{uc: uc} }
 // ChannelRequest 渠道写入参数（SMTP 密码/Webhook 密钥留空=保持原值；类型创建后不可改）
 type ChannelRequest struct {
 	Name          string   `json:"name" binding:"required,max=20"`
-	Type          string   `json:"type" binding:"required,oneof=email webhook"`
+	Type          string   `json:"type" binding:"required,oneof=email webhook wecom dingtalk feishu"`
 	Status        int      `json:"status"`
 	SMTPHost      string   `json:"smtp_host" binding:"max=128"`
 	SMTPPort      int      `json:"smtp_port"`

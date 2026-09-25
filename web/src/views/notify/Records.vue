@@ -64,6 +64,15 @@ const sourceLabels = computed(() => ({
   test: t('notify.record.sourceTest'),
 }))
 
+// 渠道类型标签（邮件/通用 Webhook/企业微信/钉钉/飞书）
+const channelTypeLabel = (v: string) => ({
+  email: t('notify.channel.typeEmail'),
+  webhook: t('notify.channel.typeWebhook'),
+  wecom: t('notify.channel.typeWecom'),
+  dingtalk: t('notify.channel.typeDingtalk'),
+  feishu: t('notify.channel.typeFeishu'),
+} as Record<string, string>)[v] ?? v
+
 const channels = ref<{ id: number; name: string }[]>([])
 const channelFilterOptions = computed(() => channels.value.map((c) => ({ label: c.name, value: c.id })))
 const sourceFilterOptions = computed(() => [
@@ -81,7 +90,7 @@ const columns = computed<DataTableColumns<NotifyRecord>>(() => [
   { title: t('notify.record.time'), key: 'created_at', width: 150, render: (row) => row.created_at?.slice(0, 19).replace('T', ' ') ?? '—' },
   {
     title: t('notify.record.channel'), key: 'channel_name', width: 150, ellipsis: { tooltip: true },
-    render: (row) => `${row.channel_name}（${row.channel_type === 'email' ? t('notify.channel.typeEmail') : t('notify.channel.typeWebhook')}）`,
+    render: (row) => `${row.channel_name}（${channelTypeLabel(row.channel_type)}）`,
   },
   { title: t('notify.record.rule'), key: 'rule_name', width: 110, ellipsis: { tooltip: true } },
   { title: t('notify.record.source'), key: 'source', width: 100, render: (row) => sourceLabels.value[row.source] ?? row.source },

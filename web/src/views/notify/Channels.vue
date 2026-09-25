@@ -24,6 +24,9 @@
         <n-radio-group v-model:value="form.type" size="small" :disabled="editing">
           <n-radio-button value="email">{{ t('notify.channel.typeEmail') }}</n-radio-button>
           <n-radio-button value="webhook">{{ t('notify.channel.typeWebhook') }}</n-radio-button>
+          <n-radio-button value="wecom">{{ t('notify.channel.typeWecom') }}</n-radio-button>
+          <n-radio-button value="dingtalk">{{ t('notify.channel.typeDingtalk') }}</n-radio-button>
+          <n-radio-button value="feishu">{{ t('notify.channel.typeFeishu') }}</n-radio-button>
         </n-radio-group>
       </n-form-item>
       <n-form-item :label="t('notify.channel.name')" path="name">
@@ -55,13 +58,15 @@
 
       <template v-else>
         <n-form-item :label="t('notify.channel.webhookUrl')" path="webhookUrl">
-          <n-input v-model:value="form.webhookUrl" :maxlength="512" placeholder="https://example.com/hook" />
+          <n-input v-model:value="form.webhookUrl" :maxlength="512" :placeholder="urlPlaceholder" />
         </n-form-item>
-        <n-form-item :label="t('notify.channel.webhookSecret')">
-          <n-input v-model:value="form.webhookSecret" type="password" show-password-on="click" :maxlength="128" :placeholder="editing && form.webhookSecretMask ? t('notify.channel.keepSecret') : ''" />
+        <!-- 密钥：通用 Webhook 签名密钥；钉钉/飞书为加签密钥（选填）；企业微信 key 在 URL 中无需密钥 -->
+        <n-form-item v-if="form.type !== 'wecom'" :label="t('notify.channel.webhookSecret')">
+          <n-input v-model:value="form.webhookSecret" type="password" show-password-on="click" :maxlength="128" :placeholder="secretPlaceholder" />
           <template v-if="editing && form.webhookSecretMask" #feedback>{{ form.webhookSecretMask }}</template>
         </n-form-item>
-        <div class="secret-tip">{{ t('notify.channel.secretTip') }}</div>
+        <div v-if="form.type === 'webhook'" class="secret-tip">{{ t('notify.channel.secretTip') }}</div>
+        <div v-else-if="form.type !== 'wecom'" class="secret-tip">{{ t('notify.channel.signTip') }}</div>
       </template>
     </n-form>
     <template #action>
@@ -85,7 +90,7 @@ import SearchCard from '../../components/SearchCard.vue'
 import { renderActions } from '../../utils/tableActions'
 import { useUserStore } from '../../stores/user'
 import { createNotifyChannel, deleteNotifyChannel, listNotifyChannels, testNotifyChannel, updateNotifyChannel } from '../../api'
-import type { NotifyChannel } from '../../api/types'
+import type { NotifyChannel, NotifyChannelType } from '../../api/types'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -95,12 +100,21 @@ const userStore = useUserStore()
 const rows = ref<NotifyChannel[]>([])
 const loading = ref(false)
 
+// 渠道类型标签/占位文案（表格标签、筛选下拉、表单共用）
+const typeLabel = (v: string) => ({
+  email: t('notify.channel.typeEmail'),
+  webhook: t('notify.channel.typeWebhook'),
+  wecom: t('notify.channel.typeWecom'),
+  dingtalk: t('notify.channel.typeDingtalk'),
+  feishu: t('notify.channel.typeFeishu'),
+} as Record<string, string>)[v] ?? v
+const tagType = (v: string) => (v === 'email' ? 'info' : v === 'webhook' ? 'success'
+  : v === 'wecom' ? 'warning' : v === 'dingtalk' ? 'primary' : 'error') as 'info' | 'success' | 'warning' | 'primary' | 'error'
+
 // 搜索筛选：名称关键词全模糊 + 类型/状态精确；null = 不筛（n-select 清空归 null）
 const query = reactive<{ kw: string; type: string | null; status: number | null }>({ kw: '', type: null, status: null })
-const typeFilterOptions = computed(() => [
-  { label: t('notify.channel.typeEmail'), value: 'email' },
-  { label: t('notify.channel.typeWebhook'), value: 'webhook' },
-])
+const typeFilterOptions = computed(() =>
+  (['email', 'webhook', 'wecom', 'dingtalk', 'feishu'] as const).map((v) => ({ label: typeLabel(v), value: v })))
 const statusFilterOptions = computed(() => [
   { label: t('notify.channel.enabled'), value: 1 },
   { label: t('notify.channel.disabled'), value: 0 },
@@ -115,8 +129,8 @@ const columns = computed<DataTableColumns<NotifyChannel>>(() => [
   { title: t('notify.channel.name'), key: 'name', width: 140, ellipsis: { tooltip: true } },
   {
     title: t('notify.channel.type'), key: 'type', width: 90,
-    render: (row) => h(NTag, { size: 'small', bordered: false, type: row.type === 'email' ? 'info' : 'success' },
-      { default: () => row.type === 'email' ? t('notify.channel.typeEmail') : t('notify.channel.typeWebhook') }),
+    render: (row) => h(NTag, { size: 'small', bordered: false, type: tagType(row.type) },
+      { default: () => typeLabel(row.type) }),
   },
   {
     title: t('notify.channel.config'), key: 'config', minWidth: 220, ellipsis: { tooltip: true },
@@ -166,7 +180,7 @@ const saving = ref(false)
 const testingId = ref(0)
 const formRef = ref<FormInst>()
 const form = reactive({
-  type: 'email' as 'email' | 'webhook',
+  type: 'email' as NotifyChannelType,
   name: '',
   status: 1,
   smtpHost: '',
@@ -181,11 +195,23 @@ const form = reactive({
   webhookSecretMask: '',
 })
 
+// 非邮件类型 URL 均必填；地址占位按平台给官方机器人 URL 形态示例
+const urlPlaceholder = computed(() => ({
+  webhook: 'https://example.com/hook',
+  wecom: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…',
+  dingtalk: 'https://oapi.dingtalk.com/robot/send?access_token=…',
+  feishu: 'https://open.feishu.cn/open-apis/bot/v2/hook/…',
+} as Record<string, string>)[form.type] ?? '')
+const secretPlaceholder = computed(() =>
+  editing.value && form.webhookSecretMask
+    ? t('notify.channel.keepSecret')
+    : form.type === 'webhook' ? '' : t('notify.channel.signOptional'))
+
 const rules = computed<FormRules>(() => ({
   name: [{ required: true, message: t('notify.channel.nameRequired'), trigger: ['blur', 'change'] }],
   smtpHost: form.type === 'email' ? [{ required: true, message: t('notify.channel.hostRequired'), trigger: ['blur', 'change'] }] : [],
   smtpFrom: form.type === 'email' ? [{ required: true, message: t('notify.channel.fromRequired'), trigger: ['blur', 'change'] }] : [],
-  webhookUrl: form.type === 'webhook' ? [{ required: true, message: t('notify.channel.urlRequired'), trigger: ['blur', 'change'] }] : [],
+  webhookUrl: form.type !== 'email' ? [{ required: true, message: t('notify.channel.urlRequired'), trigger: ['blur', 'change'] }] : [],
 }))
 
 function openCreate() {

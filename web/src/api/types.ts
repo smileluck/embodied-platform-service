@@ -23,6 +23,7 @@ export interface UserInfo {
 export interface Permission {
   id: number
   name: string
+  localized_name?: string // 按当前语言的展示名（语言包命中时才有；展示用，编辑表单仍用 name）
   code: string
   type: 'dir' | 'menu' | 'button' // dir 目录分组 | menu 菜单页面 | button 按钮权限点（method/path 非空时同时参与后端 RBAC 校验）
   method: string
@@ -516,10 +517,11 @@ export interface NoticeUserOption {
 }
 
 // 告警通知 —— 渠道
+export type NotifyChannelType = 'email' | 'webhook' | 'wecom' | 'dingtalk' | 'feishu'
 export interface NotifyChannel {
   id: number
   name: string
-  type: 'email' | 'webhook'
+  type: NotifyChannelType
   status: number
   smtp_host?: string
   smtp_port?: number

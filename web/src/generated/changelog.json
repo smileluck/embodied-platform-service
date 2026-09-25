@@ -1,687 +1,694 @@
 {
-  "generatedAt": "2026-09-24T09:52:31.491Z",
+  "generatedAt": "2026-09-25T08:12:04.723Z",
   "commits": [
     {
-      "hash": "9fb2e425",
+      "hash": "f3e48a12c",
+      "date": "2026-09-24",
+      "type": "chore",
+      "scope": "web",
+      "message": "同步后重新生成变更日志"
+    },
+    {
+      "hash": "9fb2e425b",
       "date": "2026-09-24",
       "type": "feat",
       "scope": "notify",
       "message": "通知渠道/告警规则列表增加搜索筛选"
     },
     {
-      "hash": "1e110931",
+      "hash": "1e1109313",
       "date": "2026-09-24",
       "type": "feat",
       "scope": "dashboard",
       "message": "首页最近登录与今日登录按用户去重"
     },
     {
-      "hash": "cbdd7c8f",
+      "hash": "cbdd7c8fc",
       "date": "2026-09-24",
       "type": "style",
       "scope": "web",
       "message": "去掉侧边栏宽度滑杆的提示文案"
     },
     {
-      "hash": "aa3dff71",
+      "hash": "aa3dff717",
       "date": "2026-09-24",
       "type": "feat",
       "scope": "web",
       "message": "页面设置支持调整侧边栏宽度（190–210px）"
     },
     {
-      "hash": "7b908975",
+      "hash": "7b908975e",
       "date": "2026-09-24",
       "type": "style",
       "scope": "web",
       "message": "菜单管理「权限点」按钮英文精简为 New/Add Permission"
     },
     {
-      "hash": "a7167284",
+      "hash": "a7167284d",
       "date": "2026-09-24",
       "type": "feat",
       "scope": "web",
       "message": "登录页新增日间/夜间模式切换"
     },
     {
-      "hash": "45b7e5eb",
+      "hash": "45b7e5ebc",
       "date": "2026-09-24",
       "type": "feat",
       "scope": "export",
       "message": "导出文件名/表头/行内值按 i18n 语言输出"
     },
     {
-      "hash": "9db5bcb5",
+      "hash": "9db5bcb57",
       "date": "2026-09-24",
       "type": "feat",
       "scope": "notify",
       "message": "告警通知系统（邮件/Webhook 渠道 + 告警规则 + 发送记录）"
     },
     {
-      "hash": "7b410adb",
+      "hash": "7b410adbf",
       "date": "2026-09-24",
       "type": "feat",
       "scope": "notice",
       "message": "站内信定向送达（按角色/按用户）"
     },
     {
-      "hash": "378ac35f",
+      "hash": "378ac35fd",
       "date": "2026-09-23",
       "type": "chore",
       "scope": "web",
       "message": "同步后重新生成变更日志"
     },
     {
-      "hash": "ab49f15b",
+      "hash": "ab49f15bb",
       "date": "2026-09-23",
       "type": "feat",
       "scope": "role",
       "message": "角色名称全栈唯一性校验；移除死代码 pagination.Parse"
     },
     {
-      "hash": "7f451d14",
+      "hash": "7f451d14b",
       "date": "2026-09-23",
       "type": "fix",
       "scope": "",
       "message": "修复列表接口 page_size=0 返回空列表；超管账号补自禁保护"
     },
     {
-      "hash": "c21b7a93",
+      "hash": "c21b7a936",
       "date": "2026-09-23",
       "type": "chore",
       "scope": "web",
       "message": "同步后重新生成变更日志"
     },
     {
-      "hash": "b77e0115",
+      "hash": "b77e01156",
       "date": "2026-09-23",
       "type": "chore",
       "scope": "sync",
       "message": "收尾冲突解决残留（日志 handler/router 冲突标记清理与 lint 修正）"
     },
     {
-      "hash": "105b5628",
+      "hash": "105b56287",
       "date": "2026-09-22",
       "type": "feat",
       "scope": "web",
       "message": "新增模型供应商时 API Key 必填"
     },
     {
-      "hash": "557eb5be",
+      "hash": "557eb5be7",
       "date": "2026-09-22",
       "type": "fix",
       "scope": "",
       "message": "批量修复 10 项页面问题（日志/租户/监控/智能体）"
     },
     {
-      "hash": "b86e85d9",
+      "hash": "b86e85d9a",
       "date": "2026-09-22",
       "type": "fix",
       "scope": "web",
       "message": "被顶号/踢下线时静止页面自动跳回登录页"
     },
     {
-      "hash": "5af7a05d",
+      "hash": "5af7a05d6",
       "date": "2026-09-21",
       "type": "fix",
       "scope": "web",
       "message": "IP 黑名单窄屏下操作列固定但左侧内容无法横向滚动"
     },
     {
-      "hash": "4c8f1bff",
+      "hash": "4c8f1bff1",
       "date": "2026-09-21",
       "type": "style",
       "scope": "web",
       "message": "IP 黑名单页布局对齐用户管理"
     },
     {
-      "hash": "4ba4fe05",
+      "hash": "4ba4fe05c",
       "date": "2026-09-21",
       "type": "style",
       "scope": "web",
       "message": "全部表格操作列宽度统一 200px"
     },
     {
-      "hash": "a4799e9d",
+      "hash": "a4799e9d7",
       "date": "2026-09-21",
       "type": "chore",
       "scope": "web",
       "message": "更新自动生成的 changelog"
     },
     {
-      "hash": "72f8130e",
+      "hash": "72f8130e9",
       "date": "2026-09-21",
       "type": "fix",
       "scope": "web",
       "message": "操作列按钮过多不再溢出；黑名单解封按钮统一风格"
     },
     {
-      "hash": "8a4035b1",
+      "hash": "8a4035b1c",
       "date": "2026-09-21",
       "type": "style",
       "scope": "web",
       "message": "系统参数/定时任务页对齐用户管理布局"
     },
     {
-      "hash": "c1a15334",
+      "hash": "c1a153346",
       "date": "2026-09-21",
       "type": "fix",
       "scope": "web",
       "message": "语言切换页签滞后一拍；黑名单封禁时间列支持换行"
     },
     {
-      "hash": "a080fb29",
+      "hash": "a080fb29d",
       "date": "2026-09-21",
       "type": "fix",
       "scope": "",
       "message": "批量修复 14 项巡检问题（i18n/搜索/导出/字典/公告等）"
     },
     {
-      "hash": "43e7a43c",
+      "hash": "43e7a43c6",
       "date": "2026-09-21",
       "type": "feat",
       "scope": "web",
       "message": "顶栏图标按钮增加悬停/触摸说明 tooltip"
     },
     {
-      "hash": "8e7111f0",
+      "hash": "8e7111f0e",
       "date": "2026-09-21",
       "type": "style",
       "scope": "web",
       "message": "折叠图标箭头改为实心等腰三角形"
     },
     {
-      "hash": "c9ad510d",
+      "hash": "c9ad510d2",
       "date": "2026-09-21",
       "type": "feat",
       "scope": "web",
       "message": "侧边栏折叠图标改自绘 SVG，箭头随折叠滑动翻转"
     },
     {
-      "hash": "89adb97f",
+      "hash": "89adb97f9",
       "date": "2026-09-21",
       "type": "fix",
       "scope": "web",
       "message": "面包屑改水平展开"
     },
     {
-      "hash": "e9f38477",
+      "hash": "e9f38477e",
       "date": "2026-09-21",
       "type": "feat",
       "scope": "web",
       "message": "顶栏页面设置抽屉——主题跟随系统/标签栏显隐/深色侧边栏/定宽内容"
     },
     {
-      "hash": "703ce0aa",
+      "hash": "703ce0aa0",
       "date": "2026-09-21",
       "type": "feat",
       "scope": "web",
       "message": "主题切换整屏渐变过渡，消除硬切割裂感"
     },
     {
-      "hash": "1b78a62c",
+      "hash": "1b78a62cd",
       "date": "2026-09-21",
       "type": "feat",
       "scope": "web",
       "message": "发布/编辑公告改为标准卡片弹窗并对齐主题配色"
     },
     {
-      "hash": "1e6e3ffe",
+      "hash": "1e6e3ffec",
       "date": "2026-09-21",
       "type": "fix",
       "scope": "dashboard",
       "message": "近7日趋势数据全零与图表标签暗色不可读"
     },
     {
-      "hash": "48af487c",
+      "hash": "48af487c1",
       "date": "2026-09-21",
       "type": "fix",
       "scope": "web",
       "message": "主题切换时 naive 卡片等组件配色不跟随"
     },
     {
-      "hash": "40e3f62e",
+      "hash": "40e3f62e5",
       "date": "2026-09-20",
       "type": "chore",
       "scope": "web",
       "message": "登录页装饰改真实文案，引入 ESLint 并接入 CI"
     },
     {
-      "hash": "3118e298",
+      "hash": "3118e298c",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "顶栏真面包屑（按菜单树层级）"
     },
     {
-      "hash": "254519d3",
+      "hash": "254519d33",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "多标签页栏与页面缓存 keep-alive"
     },
     {
-      "hash": "dc84ab40",
+      "hash": "dc84ab401",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "主题收敛单一来源与暗色模式"
     },
     {
-      "hash": "3fca66cd",
+      "hash": "3fca66cd2",
       "date": "2026-09-20",
       "type": "fix",
       "scope": "security",
       "message": "RBAC 通配改单段语义防越权，软删归档释放唯一索引"
     },
     {
-      "hash": "98df6069",
+      "hash": "98df60697",
       "date": "2026-09-20",
       "type": "fix",
       "scope": "web",
       "message": "引用数据全量拉取改 page_size=0 语义，消除百条静默截断"
     },
     {
-      "hash": "b5a18aa9",
+      "hash": "b5a18aa99",
       "date": "2026-09-20",
       "type": "fix",
       "scope": "web",
       "message": "全局请求错误兜底 toast（网络层/5xx，silent 可抑制）"
     },
     {
-      "hash": "7e32e1a2",
+      "hash": "7e32e1a26",
       "date": "2026-09-20",
       "type": "fix",
       "scope": "dict/job",
       "message": "字典项路由参数修正与分页上限夹取、处理器清单序列化"
     },
     {
-      "hash": "16bd475e",
+      "hash": "16bd475eb",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "监控页历史区间回看"
     },
     {
-      "hash": "24490a31",
+      "hash": "24490a319",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "monitor",
       "message": "监控快照落库与历史查询接口"
     },
     {
-      "hash": "f17ce83d",
+      "hash": "f17ce83d2",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "Dashboard 实质化——统计卡、趋势图与最近登录"
     },
     {
-      "hash": "9ebe1c75",
+      "hash": "9ebe1c752",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "dashboard",
       "message": "统计聚合接口"
     },
     {
-      "hash": "464b8b1c",
+      "hash": "464b8b1c1",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "定时任务管理页"
     },
     {
-      "hash": "83084e97",
+      "hash": "83084e972",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "job",
       "message": "定时任务底座——cron 调度、内置清理 handler 与执行记录"
     },
     {
-      "hash": "ba4753fd",
+      "hash": "ba4753fdd",
       "date": "2026-09-20",
       "type": "refactor",
       "scope": "data",
       "message": "保留期清理迁移为定时任务 handler，停用各仓储内置 ticker"
     },
     {
-      "hash": "d5ae7035",
+      "hash": "d5ae70353",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "通知公告管理页与顶栏铃铛"
     },
     {
-      "hash": "27f9c80b",
+      "hash": "27f9c80b8",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "notice",
       "message": "通知公告后端——发布管理与已读记录"
     },
     {
-      "hash": "a31ec854",
+      "hash": "a31ec854e",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "系统参数管理页"
     },
     {
-      "hash": "5b6a07c1",
+      "hash": "5b6a07c1a",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "config",
       "message": "系统参数运行时配置底座与分页上限消费点"
     },
     {
-      "hash": "aa8b4890",
+      "hash": "aa8b48904",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "数据字典管理页"
     },
     {
-      "hash": "d4c84405",
+      "hash": "d4c844050",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "dict",
       "message": "数据字典后端——类型/项 CRUD 与按编码查询接口"
     },
     {
-      "hash": "e96082aa",
+      "hash": "e96082aa0",
       "date": "2026-09-20",
       "type": "fix",
       "scope": "agent",
       "message": "StreamCompletion 请求补传 tools 定义"
     },
     {
-      "hash": "4730bb09",
+      "hash": "4730bb09f",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "工具调用过程气泡展示与 Agent 工具多选"
     },
     {
-      "hash": "a2897e1c",
+      "hash": "a2897e1c7",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "agent",
       "message": "agents 绑定工具与执行循环，内置只读示范工具"
     },
     {
-      "hash": "5cd89863",
+      "hash": "5cd898634",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "agent",
       "message": "runtime 支持 tool_calls 流式解析与工具注册表"
     },
     {
-      "hash": "063f779b",
+      "hash": "063f779b7",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "agent 用量统计页与模型单价表单"
     },
     {
-      "hash": "165249eb",
+      "hash": "165249ebb",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "agent",
       "message": "用量计量落库与模型单价"
     },
     {
-      "hash": "d5f0e54c",
+      "hash": "d5f0e54c3",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "对话消息 markdown 渲染与代码高亮"
     },
     {
-      "hash": "49cde90a",
+      "hash": "49cde90a9",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "web",
       "message": "聊天页多会话管理"
     },
     {
-      "hash": "07314e11",
+      "hash": "07314e116",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "agent",
       "message": "SSE 对话接入会话持久化"
     },
     {
-      "hash": "33874a3e",
+      "hash": "33874a3e4",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "agent",
       "message": "会话与消息落库——表结构、三层与 CRUD 接口"
     },
     {
-      "hash": "20880325",
+      "hash": "208803251",
       "date": "2026-09-20",
       "type": "refactor",
       "scope": "server",
       "message": "http.go 按模块拆分 handler 文件"
     },
     {
-      "hash": "0f053c65",
+      "hash": "0f053c652",
       "date": "2026-09-20",
       "type": "fix",
       "scope": "web",
       "message": "聊天「（已停止）」文案接入 i18n"
     },
     {
-      "hash": "cc99f5e7",
+      "hash": "cc99f5e78",
       "date": "2026-09-20",
       "type": "fix",
       "scope": "log",
       "message": "操作日志动作名补录 tenant/appuser/agent/export"
     },
     {
-      "hash": "8c0a4fbc",
+      "hash": "8c0a4fbcb",
       "date": "2026-09-20",
       "type": "ci",
       "scope": "",
       "message": "新增 GitHub Actions 流水线，Makefile 增加 lint"
     },
     {
-      "hash": "7ed4a32e",
+      "hash": "7ed4a32e5",
       "date": "2026-09-20",
       "type": "test",
       "scope": "middleware",
       "message": "补 CORS/JWT/RBAC/限流中间件测试（miniredis）"
     },
     {
-      "hash": "bef52981",
+      "hash": "bef529811",
       "date": "2026-09-20",
       "type": "chore",
       "scope": "conf",
       "message": "移除仓库内明文密钥与弱种子密码，release 模式弱 secret 启动拦截"
     },
     {
-      "hash": "34ba44be",
+      "hash": "34ba44be2",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "security",
       "message": "抽出通用限流中间件，agent 对话与验证码接入频控"
     },
     {
-      "hash": "0436edf2",
+      "hash": "0436edf2b",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "security",
       "message": "CORS 支持来源白名单，默认同源不下发跨域头"
     },
     {
-      "hash": "30ae02fd",
+      "hash": "30ae02fd8",
       "date": "2026-09-20",
       "type": "chore",
       "scope": "git",
       "message": "移除误跟踪的编译产物与测试截图"
     },
     {
-      "hash": "96ee280d",
+      "hash": "96ee280d0",
       "date": "2026-09-20",
       "type": "fix",
       "scope": "make",
       "message": "Makefile 兼容 Windows 原生环境"
     },
     {
-      "hash": "64265888",
+      "hash": "642658882",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "agent",
       "message": "新增聊天测试页并抽出可复用对话面板"
     },
     {
-      "hash": "fcaa4bba",
+      "hash": "fcaa4bba7",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "agent",
       "message": "新增智能体模块——LLM 配置底座与 harness 运行时"
     },
     {
-      "hash": "25f56c39",
+      "hash": "25f56c390",
       "date": "2026-09-20",
       "type": "feat",
       "scope": "monitor",
       "message": "增加服务器状态监控"
     },
     {
-      "hash": "0606256e",
+      "hash": "0606256e4",
       "date": "2026-09-19",
       "type": "feat",
       "scope": "deploy",
       "message": "增加 Docker 与 docker-compose 部署"
     },
     {
-      "hash": "c4acc3fd",
+      "hash": "c4acc3fd6",
       "date": "2026-09-19",
       "type": "refactor",
       "scope": "permission",
       "message": "清理 all 通配权限残留死代码"
     },
     {
-      "hash": "b9288595",
+      "hash": "b92885953",
       "date": "2026-09-19",
       "type": "feat",
       "scope": "admission",
       "message": "孤儿投影回收与全仓数据完整性收口"
     },
     {
-      "hash": "de00a8fd",
+      "hash": "de00a8fd3",
       "date": "2026-09-19",
       "type": "feat",
       "scope": "tenant",
       "message": "实现平台侧租户丢失的自愈与幂等删除治理"
     },
     {
-      "hash": "a2854833",
+      "hash": "a2854833e",
       "date": "2026-09-18",
       "type": "docs",
       "scope": "readme",
       "message": "同步租户唯一性规则与开放面通道现状"
     },
     {
-      "hash": "d8e5c9f0",
+      "hash": "d8e5c9f01",
       "date": "2026-09-18",
       "type": "docs",
       "scope": "about",
       "message": "「关于我们」说明更新为业务管理端定位"
     },
     {
-      "hash": "8bab9e78",
+      "hash": "8bab9e78c",
       "date": "2026-09-18",
       "type": "refactor",
       "scope": "tenant",
       "message": "调整租户唯一性规则与删除逻辑，新增权限项"
     },
     {
-      "hash": "1037f4cb",
+      "hash": "1037f4cb4",
       "date": "2026-09-18",
       "type": "feat",
       "scope": "admission",
       "message": "实现商户准入状态与管理员角色的平台侧事实源同步"
     },
     {
-      "hash": "528de762",
+      "hash": "528de762d",
       "date": "2026-09-18",
       "type": "refactor",
       "scope": "login",
       "message": "移除本地引导超管逻辑，更新登录提示与流程"
     },
     {
-      "hash": "7d6a4231",
+      "hash": "7d6a4231e",
       "date": "2026-09-18",
       "type": "refactor",
       "scope": "",
       "message": "移除本地引导超管逻辑，统一以商户管理员作为唯一内置角色"
     },
     {
-      "hash": "ab49e10a",
+      "hash": "ab49e10ac",
       "date": "2026-09-18",
       "type": "feat",
       "scope": "",
       "message": "add merchant admin role and auto-admission logic"
     },
     {
-      "hash": "3bfc64c0",
+      "hash": "3bfc64c04",
       "date": "2026-09-17",
       "type": "refactor",
       "scope": "",
       "message": "移除平台管理面通道，切换成员管理到开放面"
     },
     {
-      "hash": "57f8993e",
+      "hash": "57f8993e0",
       "date": "2026-09-17",
       "type": "docs",
       "scope": "login",
       "message": "simplify login page subtitle text"
     },
     {
-      "hash": "59852a49",
+      "hash": "59852a49d",
       "date": "2026-09-17",
       "type": "chore",
       "scope": "config, changelog",
       "message": "update config and regenerate changelog"
     },
     {
-      "hash": "498af271",
+      "hash": "498af2711",
       "date": "2026-09-16",
       "type": "refactor",
       "scope": "",
       "message": "迁移租户/型号同步到开放面，简化平台依赖"
     },
     {
-      "hash": "151b5904",
+      "hash": "151b5904e",
       "date": "2026-09-16",
       "type": "fix",
       "scope": "login",
       "message": "添加平台不可达的专属错误提示"
     },
     {
-      "hash": "2186fe84",
+      "hash": "2186fe84b",
       "date": "2026-09-16",
       "type": "feat",
       "scope": "",
       "message": "完成具身设备管理系统首期改版"
     },
     {
-      "hash": "24c386e7",
+      "hash": "24c386e70",
       "date": "2026-09-16",
       "type": "chore",
       "scope": "",
       "message": "更新自动生成的变更日志"
     },
     {
-      "hash": "3d1353fe",
+      "hash": "3d1353fee",
       "date": "2026-09-16",
       "type": "refactor",
       "scope": "",
       "message": "重构系统架构，迁移至平台统一身份与设备管理"
     },
     {
-      "hash": "29e21541",
+      "hash": "29e21541c",
       "date": "2026-09-14",
       "type": "other",
       "scope": "",
