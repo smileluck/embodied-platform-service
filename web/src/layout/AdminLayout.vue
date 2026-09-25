@@ -176,7 +176,7 @@
           <div
             v-for="tb in tabs" :key="tb.path" :ref="(el) => setTabEl(tb.path, el)"
             class="tab-item" :class="{ active: tb.path === activeTabPath }"
-            :title="tabTitle(tb)" @click="gotoTab(tb)"
+            :title="tabTitle(tb)" @click="gotoTab(tb)" @contextmenu.prevent="openTabMenu(tb, $event)"
           >
             <span class="tab-label">{{ tabTitle(tb) }}</span>
             <span v-if="tb.closable" class="tab-close" @click.stop="closeTab(tb)">✕</span>
@@ -190,6 +190,12 @@
             <n-icon :size="14"><ChevronDownOutline /></n-icon>
           </button>
         </n-dropdown>
+        <!-- 右键菜单：关闭左侧/右侧/其他（无可关标签的方向禁用；首页等常驻标签始终保留） -->
+        <n-dropdown
+          trigger="manual" placement="bottom-start" :show="showTabMenu"
+          :x="tabMenuX" :y="tabMenuY" :options="tabMenuOptions"
+          @select="onTabMenuSelect" @clickoutside="showTabMenu = false"
+        />
       </div>
 
       <n-layout-content class="content" content-style="padding: 8px;" :native-scrollbar="false">
@@ -805,6 +811,53 @@ const tabJumpOptions = computed<DropdownOption[]>(() =>
 function onTabJumpSelect(path: string | number) {
   const tb = tabs.value.find((x) => x.path === path)
   if (tb) gotoTab(tb)
+}
+
+// ---- 标签右键菜单：关闭左侧/右侧/其他（closable=false 的常驻标签始终保留） ----
+const showTabMenu = ref(false)
+const tabMenuX = ref(0)
+const tabMenuY = ref(0)
+const tabMenuTarget = ref<PageTab | null>(null)
+
+function openTabMenu(tb: PageTab, e: MouseEvent) {
+  tabMenuTarget.value = tb
+  tabMenuX.value = e.clientX
+  tabMenuY.value = e.clientY
+  showTabMenu.value = true
+}
+
+const tabMenuOptions = computed<DropdownOption[]>(() => {
+  const tb = tabMenuTarget.value
+  if (!tb) return []
+  const i = tabs.value.findIndex((x) => x.path === tb.path)
+  if (i < 0) return []
+  const closable = (x: PageTab) => x.closable
+  const leftCount = tabs.value.slice(0, i).filter(closable).length
+  const rightCount = tabs.value.slice(i + 1).filter(closable).length
+  return [
+    { key: 'closeLeft', label: t('layout.tabsBar.closeLeft'), disabled: leftCount === 0 },
+    { key: 'closeRight', label: t('layout.tabsBar.closeRight'), disabled: rightCount === 0 },
+    { key: 'closeOthers', label: t('layout.tabsBar.closeOthers'), disabled: leftCount + rightCount === 0 },
+  ]
+})
+
+function onTabMenuSelect(key: string | number) {
+  const tb = tabMenuTarget.value
+  showTabMenu.value = false
+  if (!tb) return
+  const i = tabs.value.findIndex((x) => x.path === tb.path)
+  if (i < 0) return
+  switch (key) {
+    case 'closeLeft': tabs.value = tabs.value.filter((x, j) => j >= i || !x.closable); break
+    case 'closeRight': tabs.value = tabs.value.filter((x, j) => j <= i || !x.closable); break
+    case 'closeOthers': tabs.value = tabs.value.filter((x, j) => j === i || !x.closable); break
+    default: return
+  }
+  persistTabs()
+  // closeRight/closeOthers 可能关掉当前激活标签 → 跳到操作目标
+  if (!tabs.value.find((x) => x.path === activeTabPath.value)) {
+    router.push(tb.path)
+  }
 }
 
 watch(activeTabPath, () => nextTick(scrollActiveTabIntoView))

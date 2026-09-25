@@ -5,7 +5,10 @@ export default {
   notice: { title: 'Notices', empty: 'No notices', new: 'NEW' },
   toggleSider: 'Toggle sidebar',
   searchMenu: 'Search menu pages',
-  tabsBar: { scrollLeft: 'Scroll left', scrollRight: 'Scroll right', jump: 'Jump to tab' },
+  tabsBar: {
+    scrollLeft: 'Scroll left', scrollRight: 'Scroll right', jump: 'Jump to tab',
+    closeLeft: 'Close tabs to the left', closeRight: 'Close tabs to the right', closeOthers: 'Close other tabs',
+  },
   language: 'Language',
   profile: 'Profile',
   changePassword: 'Change Password',
