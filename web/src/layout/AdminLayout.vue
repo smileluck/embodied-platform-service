@@ -166,16 +166,30 @@
         </div>
       </n-layout-header>
 
-      <!-- 多标签页：路由访问即入列（上限 12，首个常驻），点击切换/关闭；可在页面设置中隐藏 -->
-      <div v-show="showTabs" class="tabs-bar">
-        <div
-          v-for="tb in tabs" :key="tb.path"
-          class="tab-item" :class="{ active: tb.path === activeTabPath }"
-          :title="tabTitle(tb)" @click="gotoTab(tb)"
-        >
-          <span class="tab-label">{{ tabTitle(tb) }}</span>
-          <span v-if="tb.closable" class="tab-close" @click.stop="closeTab(tb)">✕</span>
+      <!-- 多标签页：路由访问即入列（上限 12，首个常驻），点击切换/关闭；可在页面设置中隐藏。
+           溢出交互：滚轮/触摸板横滚 + 激活标签自动滚入居中 + 方向箭头；右端下拉快速跳转 -->
+      <div v-show="showTabs" class="tabs-row">
+        <button v-show="tabsCanLeft" class="tab-arrow" :title="t('layout.tabsBar.scrollLeft')" @click="scrollTabsBy(-1)">
+          <n-icon :size="14"><ChevronBackOutline /></n-icon>
+        </button>
+        <div ref="tabsBarEl" class="tabs-bar" @wheel="onTabsWheel">
+          <div
+            v-for="tb in tabs" :key="tb.path" :ref="(el) => setTabEl(tb.path, el)"
+            class="tab-item" :class="{ active: tb.path === activeTabPath }"
+            :title="tabTitle(tb)" @click="gotoTab(tb)"
+          >
+            <span class="tab-label">{{ tabTitle(tb) }}</span>
+            <span v-if="tb.closable" class="tab-close" @click.stop="closeTab(tb)">✕</span>
+          </div>
         </div>
+        <button v-show="tabsCanRight" class="tab-arrow" :title="t('layout.tabsBar.scrollRight')" @click="scrollTabsBy(1)">
+          <n-icon :size="14"><ChevronForwardOutline /></n-icon>
+        </button>
+        <n-dropdown trigger="click" :options="tabJumpOptions" @select="onTabJumpSelect">
+          <button class="tab-jump" :title="t('layout.tabsBar.jump')">
+            <n-icon :size="14"><ChevronDownOutline /></n-icon>
+          </button>
+        </n-dropdown>
       </div>
 
       <n-layout-content class="content" content-style="padding: 8px;" :native-scrollbar="false">
@@ -332,7 +346,7 @@ import {
   type DropdownOption, type FormInst, type FormRules, type TagProps,
   NBadge,
 } from 'naive-ui'
-import { SearchOutline, DownloadOutline, LanguageOutline, NotificationsOutline, MoonOutline, SunnyOutline, SettingsOutline } from '@vicons/ionicons5'
+import { SearchOutline, DownloadOutline, LanguageOutline, NotificationsOutline, MoonOutline, SunnyOutline, SettingsOutline, ChevronBackOutline, ChevronForwardOutline, ChevronDownOutline } from '@vicons/ionicons5'
 import SiderToggleIcon from '../components/SiderToggleIcon.vue'
 import { useUserStore } from '../stores/user'
 import { isDarkRef, mode as themeMode, setMode, toggleTheme } from '../stores/theme'
@@ -741,6 +755,71 @@ function closeTab(tb: PageTab) {
   }
 }
 
+// ---- 标签栏溢出交互：滚轮横滚 / 箭头 / 激活滚入居中 / 下拉快速跳转 ----
+const tabsBarEl = ref<HTMLElement | null>(null)
+const tabEls = new Map<string, HTMLElement>()
+const tabsCanLeft = ref(false)
+const tabsCanRight = ref(false)
+
+// v-for 动态 ref：收集各标签 DOM（卸载时 el 为 null 清理，防 Map 泄漏）
+function setTabEl(path: string, el: unknown) {
+  if (el) tabEls.set(path, el as HTMLElement)
+  else tabEls.delete(path)
+}
+
+function updateTabsOverflow() {
+  const el = tabsBarEl.value
+  if (!el) return
+  tabsCanLeft.value = el.scrollLeft > 1
+  tabsCanRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+}
+
+// 滚轮竖滚在标签栏上转为横向滚动（触摸板 deltaX 横滑原生支持）
+function onTabsWheel(e: WheelEvent) {
+  const el = tabsBarEl.value
+  if (!el || e.deltaY === 0 || el.scrollWidth <= el.clientWidth) return
+  e.preventDefault()
+  el.scrollLeft += e.deltaY
+}
+
+// 箭头点击滚动约 3/4 屏
+function scrollTabsBy(dir: 1 | -1) {
+  const el = tabsBarEl.value
+  if (!el) return
+  el.scrollBy({ left: dir * Math.max(160, el.clientWidth * 0.75), behavior: 'smooth' })
+}
+
+// 激活标签滚入视野并尽量居中（切换标签/路由跳转/语言切换标题变宽后触发）
+function scrollActiveTabIntoView() {
+  const bar = tabsBarEl.value
+  const el = tabEls.get(activeTabPath.value)
+  if (!bar || !el) return
+  const target = el.offsetLeft - (bar.clientWidth - el.offsetWidth) / 2
+  bar.scrollTo({ left: Math.max(0, target), behavior: 'smooth' })
+}
+
+// 下拉快速跳转（当前标签置灰不可选）
+const tabJumpOptions = computed<DropdownOption[]>(() =>
+  tabs.value.map((tb) => ({ key: tb.path, label: tabTitle(tb), disabled: tb.path === activeTabPath.value })),
+)
+function onTabJumpSelect(path: string | number) {
+  const tb = tabs.value.find((x) => x.path === path)
+  if (tb) gotoTab(tb)
+}
+
+watch(activeTabPath, () => nextTick(scrollActiveTabIntoView))
+watch(tabs, () => nextTick(updateTabsOverflow), { deep: true })
+watch(tabsLocaleKey, () => nextTick(() => { updateTabsOverflow(); scrollActiveTabIntoView() }))
+onMounted(() => {
+  tabsBarEl.value?.addEventListener('scroll', updateTabsOverflow, { passive: true })
+  window.addEventListener('resize', updateTabsOverflow)
+  nextTick(() => { updateTabsOverflow(); scrollActiveTabIntoView() })
+})
+onUnmounted(() => {
+  tabsBarEl.value?.removeEventListener('scroll', updateTabsOverflow)
+  window.removeEventListener('resize', updateTabsOverflow)
+})
+
 watch(() => route.fullPath, () => syncTab(route), { immediate: true })
 
 // ---- 顶栏通知公告：未读角标 + 弹层（打开时拉取，点击展开正文并上报已读） ----
@@ -1148,15 +1227,46 @@ onUnmounted(() => {
   border-radius: 4px;
 }
 
+/* 标签栏行：滚动容器 + 左右箭头（仅对应方向可滚时出现）+ 右端下拉快速跳转 */
+.tabs-row {
+  display: flex;
+  align-items: stretch;
+  background: var(--sx-surface);
+  border-bottom: 1px solid var(--sx-line);
+  flex: none;
+}
 .tabs-bar {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px 0;
-  background: var(--sx-surface);
-  border-bottom: 1px solid var(--sx-line);
+  padding: 4px 8px 0;
   overflow-x: auto;
+  scrollbar-width: none; /* Firefox 隐藏滚动条 */
+  min-width: 0;
+  flex: 1;
+}
+.tabs-bar::-webkit-scrollbar {
+  display: none;
+}
+.tab-arrow,
+.tab-jump {
   flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 7px;
+  border: none;
+  background: transparent;
+  color: var(--sx-muted);
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+.tab-arrow:hover,
+.tab-jump:hover {
+  color: var(--sx-accent);
+  background: var(--sx-accent-soft);
+}
+.tab-jump {
+  border-left: 1px solid var(--sx-line);
 }
 .tab-item {
   display: flex;

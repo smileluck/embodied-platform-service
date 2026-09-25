@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-25T08:13:28.475Z",
+  "generatedAt": "2026-09-25T08:23:59.910Z",
   "commits": [
+    {
+      "hash": "1b951c82e",
+      "date": "2026-09-25",
+      "type": "chore",
+      "scope": "web",
+      "message": "同步后重新生成变更日志"
+    },
     {
       "hash": "e4d2dc760",
       "date": "2026-09-25",

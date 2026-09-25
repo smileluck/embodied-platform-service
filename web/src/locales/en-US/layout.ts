@@ -5,6 +5,7 @@ export default {
   notice: { title: 'Notices', empty: 'No notices', new: 'NEW' },
   toggleSider: 'Toggle sidebar',
   searchMenu: 'Search menu pages',
+  tabsBar: { scrollLeft: 'Scroll left', scrollRight: 'Scroll right', jump: 'Jump to tab' },
   language: 'Language',
   profile: 'Profile',
   changePassword: 'Change Password',

@@ -5,6 +5,7 @@ export default {
   notice: { title: '通知公告', empty: '暂无公告', new: '新' },
   toggleSider: '折叠/展开侧边栏',
   searchMenu: '搜索菜单页面',
+  tabsBar: { scrollLeft: '向左滚动', scrollRight: '向右滚动', jump: '快速跳转标签页' },
   language: '语言',
   profile: '个人中心',
   changePassword: '修改密码',
