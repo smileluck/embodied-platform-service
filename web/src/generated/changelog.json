@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-09-25T08:23:59.910Z",
+  "generatedAt": "2026-09-25T08:24:34.974Z",
   "commits": [
+    {
+      "hash": "5b40402b3",
+      "date": "2026-09-25",
+      "type": "feat",
+      "scope": "web",
+      "message": "标签栏溢出滚动与下拉快速跳转"
+    },
     {
       "hash": "1b951c82e",
       "date": "2026-09-25",
