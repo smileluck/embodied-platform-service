@@ -1,6 +1,20 @@
 {
-  "generatedAt": "2026-09-25T08:12:04.723Z",
+  "generatedAt": "2026-09-25T08:13:28.475Z",
   "commits": [
+    {
+      "hash": "e4d2dc760",
+      "date": "2026-09-25",
+      "type": "fix",
+      "scope": "i18n",
+      "message": "菜单管理/角色权限树的菜单名随语言切换"
+    },
+    {
+      "hash": "cc7d40053",
+      "date": "2026-09-25",
+      "type": "feat",
+      "scope": "notify",
+      "message": "通知渠道新增企业微信/钉钉/飞书群机器人"
+    },
     {
       "hash": "f3e48a12c",
       "date": "2026-09-24",
