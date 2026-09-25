@@ -32,6 +32,9 @@ type Permission struct {
 	Sort      int       `json:"sort"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	// LocalizedName 按请求 locale 用语言包（menu.<code>）翻译的展示名（管理端列表填充）；
+	// 语言包未命中留空，前端回退 Name。Name 恒为库中规范原名（编辑表单回显用，勿被译文覆盖）
+	LocalizedName string `json:"localized_name,omitempty"`
 }
 
 // Match 判断权限是否能命中请求：button（及存量未迁移的 api）绑定了 method/path 即参与校验。

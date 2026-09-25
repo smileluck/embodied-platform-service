@@ -107,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref, type VNode } from 'vue'
+import { computed, h, onMounted, reactive, ref, watch, type VNode } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NCard, NButton, NDataTable, NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NInputGroup, NTabs, NTabPane, NTreeSelect, NTag, useMessage, useDialog, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
 import { renderActions, type TableAction } from '../../utils/tableActions'
@@ -120,7 +120,7 @@ import type { Permission } from '../../api/types'
 // 模板中预览用的函数式组件
 const IconPreview = (props: { icon?: string; size?: number }) => renderMenuIcon(props.icon, props.size ?? 16)
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const message = useMessage()
 const dialog = useDialog()
 const userStore = useUserStore()
@@ -187,6 +187,7 @@ async function load() {
 }
 
 // 平铺 -> 树（菜单 + 按钮权限点统一按 parent_id 组树，n-data-table rowKey/children）
+// displayName：后端按 locale 翻译的展示名（语言包未命中回退库中原名）
 const tree = ref<any[]>([])
 function buildTree() {
   const build = (parentID: number): any[] =>
@@ -195,7 +196,7 @@ function buildTree() {
       .sort((a, b) => a.sort - b.sort)
       .map((p) => {
         const children = build(p.id)
-        const n: any = { id: p.id, name: p.name, code: p.code, type: p.type, method: p.method, path: p.path, icon: p.icon, sort: p.sort }
+        const n: any = { id: p.id, name: p.name, displayName: p.localized_name || p.name, code: p.code, type: p.type, method: p.method, path: p.path, icon: p.icon, sort: p.sort }
         if (children.length) n.children = children
         return n
       })
@@ -228,7 +229,7 @@ function buildParentOptions(selectableType: 'dir' | 'menu') {
       .sort((a, b) => a.sort - b.sort)
       .map((p) => {
         const children = build(p.id)
-        const n: any = { label: p.name, key: p.id, disabled: p.type !== selectableType }
+        const n: any = { label: p.localized_name || p.name, key: p.id, disabled: p.type !== selectableType }
         if (children.length) n.children = children
         return n
       })
@@ -294,7 +295,7 @@ async function remove(row: any) {
   }
   dialog.warning({
     title: t('permMenu.deleteConfirmTitle'),
-    content: t('permMenu.deleteConfirmContent', { name: row.name, code: row.code }),
+    content: t('permMenu.deleteConfirmContent', { name: row.displayName, code: row.code }),
     positiveText: t('common.delete'),
     negativeText: t('common.cancel'),
     onPositiveClick: async () => {
@@ -323,7 +324,7 @@ const columns = computed<DataTableColumns<any>>(() => [
     render(row) {
       return h('span', { style: 'display:inline-flex;align-items:center;gap:6px' }, [
         row.type !== 'button' ? renderMenuIcon(row.icon, 16) : null,
-        h('span', {}, row.name),
+        h('span', {}, row.displayName),
       ])
     },
   },
@@ -367,6 +368,10 @@ const columns = computed<DataTableColumns<any>>(() => [
 ])
 
 onMounted(refresh)
+// 展示名由后端按 Accept-Language 翻译，语言切换后重拉数据
+watch(locale, () => {
+  if (tree.value.length) refresh()
+})
 </script>
 
 <style scoped>

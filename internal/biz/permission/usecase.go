@@ -143,10 +143,27 @@ func (uc *Usecase) Get(ctx context.Context, id uint) (*Permission, error) {
 
 func (uc *Usecase) List(ctx context.Context, q Query, page, pageSize int) ([]*Permission, pagination.Page, error) {
 	ps, total, err := uc.repo.List(ctx, q, page, pageSize)
+	// 管理端（菜单管理表格/角色分配权限树）的菜单展示名与侧栏一致按 locale 翻译；
+	// Name 保持库中规范原名（编辑表单回显，勿被译文覆盖），译文放 LocalizedName 由前端回退展示
+	for _, p := range ps {
+		localizePermission(ctx, p)
+	}
 	if pageSize <= 0 { // 全量返回时分页元信息按单页全量填充
 		page, pageSize = 1, int(total)
 	}
 	return ps, pagination.Page{Page: page, PageSize: pageSize, Total: total}, err
+}
+
+// localizePermission 按请求 locale 用语言包（menu.<code>）翻译展示名（dir/menu）；
+// 语言包未命中（T 返回 key 本身）留空，前端回退 Name
+func localizePermission(ctx context.Context, p *Permission) {
+	if p.Type != TypeDir && p.Type != TypeMenu {
+		return
+	}
+	key := "menu." + p.Code
+	if v := i18n.T(ctx, key); v != key {
+		p.LocalizedName = v
+	}
 }
 
 // UserMenuTree 当前用户可见的菜单树（含 dir 目录分组与 menu 菜单页面）

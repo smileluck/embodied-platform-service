@@ -191,7 +191,8 @@ function buildTree(items: Permission[], parentID = 0): any[] {
     .map((p) => {
       const children = buildTree(items, p.id)
       const typeTag = p.type === 'dir' ? t('role.dirTag') : p.type === 'button' ? t('role.buttonTag') : ''
-      const n: any = { key: p.id, label: `${p.name}（${p.code}）${typeTag}` }
+      // 菜单名按当前语言展示（后端 localized_name，语言包未命中回退库中原名）
+      const n: any = { key: p.id, label: `${p.localized_name || p.name}（${p.code}）${typeTag}` }
       if (children.length) n.children = children
       return n
     })
