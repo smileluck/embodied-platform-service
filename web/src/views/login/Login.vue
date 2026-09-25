@@ -107,6 +107,7 @@ import { useUserStore } from '../../stores/user'
 import { getLocale, setLocale, type AppLocale } from '../../locales'
 import EgoUnit from './EgoUnit.vue'
 import { isDarkRef, toggleTheme } from '../../stores/theme'
+import { TABS_STORAGE_KEY } from '../../utils/tabStorage'
 import PulseWave from './PulseWave.vue'
 const REMEMBER_KEY = 'remember_account'
 
@@ -197,7 +198,7 @@ async function onLogin() {
   } catch {
     return // 校验失败，表单项已提示，静默返回
   }
-  loading.value = true
+    loading.value = true
   try {
     // 登录直调平台（token 双用：既调本系统也直调平台）
     await userStore.login(form.username, form.password, captchaId.value, form.captchaCode)
@@ -206,6 +207,8 @@ async function onLogin() {
     // 403（非本商户成员/未准入）时清态留在登录页——绝不先弹「登录成功」再被拦下
     let firstPath: string
     try {
+      // 新会话不继承旧标签：清空持久化标签页（换账号登录也避免恢复出他人权限下的页面）
+      localStorage.removeItem(TABS_STORAGE_KEY)
       firstPath = await setupDynamicRoutes()
     } catch (e: any) {
       userStore.clearAuth()

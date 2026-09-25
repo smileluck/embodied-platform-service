@@ -365,6 +365,7 @@ import { getLocale, setLocale, type AppLocale } from '../locales'
 import { refreshRouteTitles } from '../router/dynamic'
 import type { ExportRecord, MenuHit, MenuNode, NoticeInfo } from '../api/types'
 import { renderMarkdown } from '../utils/markdown'
+import { TABS_STORAGE_KEY } from '../utils/tabStorage'
 
 const route = useRoute()
 const router = useRouter()
@@ -710,19 +711,18 @@ function onGlobalKeydown(e: KeyboardEvent) {
 // ---- 顶栏导出记录悬浮框（打开时拉取近期 5 条；有进行中任务时每 5s 轮询） ----
 // ---- 多标签页：访问即入列（上限 12，首个常驻）；关闭当前跳相邻 ----
 interface PageTab { path: string; name: string | null; closable: boolean }
-const TABS_KEY = 'sx-tabs'
 const tabs = ref<PageTab[]>([])
 const activeTabPath = ref('')
 const tabsLocaleKey = ref(0) // 语言切换后强制重取标题
 
 function loadTabs() {
   try {
-    const saved = JSON.parse(localStorage.getItem(TABS_KEY) || '[]')
+    const saved = JSON.parse(localStorage.getItem(TABS_STORAGE_KEY) || '[]')
     if (Array.isArray(saved)) tabs.value = saved.filter((x) => x?.path)
   } catch { tabs.value = [] }
 }
 function persistTabs() {
-  localStorage.setItem(TABS_KEY, JSON.stringify(tabs.value.slice(-12)))
+  localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify(tabs.value.slice(-12)))
 }
 
 function syncTab(r: { path: string; name?: unknown; meta?: { title?: string; hidden?: boolean } }) {
