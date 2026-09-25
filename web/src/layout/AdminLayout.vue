@@ -781,7 +781,12 @@ function updateTabsOverflow() {
 }
 
 // 滚轮在标签栏上转为横向滑动：竖滚（deltaY）→ 横向，触摸板/Shift 组合的 deltaX 优先；
-// Firefox 行模式（deltaMode=1，deltaY≈3/行）需按行高放大，否则步长过小形同没反应
+// Firefox 行模式（deltaMode=1，deltaY≈3/行）按行高放大，页模式滚一整屏。
+// 滚动走 rAF 缓动（目标累计 + 每帧向目标渐进）而非直接跳变 scrollLeft——
+// 连击滚轮有惯性积累，视觉平滑；触摸板原生滚动已被接管（preventDefault），无打架来源
+let tabsScrollTarget = 0
+let tabsScrollRaf = 0
+
 function onTabsWheel(e: WheelEvent) {
   const el = tabsBarEl.value
   if (!el || el.scrollWidth <= el.clientWidth) return
@@ -790,7 +795,30 @@ function onTabsWheel(e: WheelEvent) {
   else if (e.deltaMode === 2) delta = Math.sign(delta) * el.clientWidth // DOM_DELTA_PAGE：整屏
   if (delta === 0) return
   e.preventDefault()
-  el.scrollLeft += delta
+  if (!tabsScrollRaf) tabsScrollTarget = el.scrollLeft // 箭头/激活滚入等非滚轮滚动后重置基准
+  tabsScrollTarget = Math.max(0, Math.min(el.scrollWidth - el.clientWidth, tabsScrollTarget + delta))
+  startTabsScrollAnim(el)
+}
+
+// ease-out 缓动：每帧靠近目标 25%，约 150-200ms 到位，跟手不迟滞。
+// 两道终止守卫缺一不可：箭头显隐会改变容器宽度，若只看 |diff|<1，
+// 目标超出新的物理上限时赋值被钳制、位置推进不动，rAF 会陷入永不终止的僵尸循环
+function startTabsScrollAnim(el: HTMLElement) {
+  if (tabsScrollRaf) return
+  const step = () => {
+    const max = el.scrollWidth - el.clientWidth
+    if (tabsScrollTarget > max) tabsScrollTarget = max < 0 ? 0 : max
+    const diff = tabsScrollTarget - el.scrollLeft
+    const before = el.scrollLeft
+    el.scrollLeft += diff * 0.25
+    if (Math.abs(diff) < 1 || el.scrollLeft === before) {
+      el.scrollLeft = tabsScrollTarget
+      tabsScrollRaf = 0
+      return
+    }
+    tabsScrollRaf = requestAnimationFrame(step)
+  }
+  tabsScrollRaf = requestAnimationFrame(step)
 }
 
 // 箭头点击滚动约 3/4 屏
@@ -876,6 +904,7 @@ onMounted(() => {
 onUnmounted(() => {
   tabsBarEl.value?.removeEventListener('scroll', updateTabsOverflow)
   window.removeEventListener('resize', updateTabsOverflow)
+  if (tabsScrollRaf) cancelAnimationFrame(tabsScrollRaf)
 })
 
 watch(() => route.fullPath, () => syncTab(route), { immediate: true })
