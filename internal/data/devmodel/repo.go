@@ -9,21 +9,21 @@ import (
 	"net/http"
 
 	bizdevmodel "github.com/smilex/smilex-admin-gin/internal/biz/devmodel"
+	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
-	sdk "github.com/smilex/smilex-admin-gin/sdk"
 )
 
 // GatewayAdapter 开放面 SDK → biz 型号网关（类型镜像转换）
 type GatewayAdapter struct {
-	client *sdk.Client
+	client *platformsdk.Client
 }
 
 // NewGatewayAdapter 构造（wire provider，绑定 bizdevmodel.Gateway）
-func NewGatewayAdapter(client *sdk.Client) *GatewayAdapter {
+func NewGatewayAdapter(client *platformsdk.Client) *GatewayAdapter {
 	return &GatewayAdapter{client: client}
 }
 
-func modelFromSDK(m *sdk.DeviceModel) *bizdevmodel.Model {
+func modelFromSDK(m *platformsdk.DeviceModel) *bizdevmodel.Model {
 	if m == nil {
 		return nil
 	}
@@ -37,7 +37,7 @@ func modelFromSDK(m *sdk.DeviceModel) *bizdevmodel.Model {
 	}
 }
 
-func pageFromSDK(p *sdk.Page) *pagination.Page {
+func pageFromSDK(p *platformsdk.Page) *pagination.Page {
 	if p == nil {
 		return nil
 	}
@@ -45,7 +45,7 @@ func pageFromSDK(p *sdk.Page) *pagination.Page {
 }
 
 func (a *GatewayAdapter) ListModels(ctx context.Context, q bizdevmodel.ModelQuery, page, pageSize int) ([]*bizdevmodel.Model, *pagination.Page, error) {
-	list, pg, err := a.client.ListDeviceModels(ctx, page, pageSize, sdk.ModelFilter{
+	list, pg, err := a.client.ListDeviceModels(ctx, page, pageSize, platformsdk.ModelFilter{
 		Keyword: q.Keyword, Status: q.Status,
 	})
 	if err != nil {
@@ -67,7 +67,7 @@ func (a *GatewayAdapter) GetModel(ctx context.Context, id uint) (*bizdevmodel.Mo
 }
 
 func (a *GatewayAdapter) CreateModel(ctx context.Context, req bizdevmodel.ModelCreate) (*bizdevmodel.Model, error) {
-	m, err := a.client.CreateDeviceModel(ctx, sdk.ModelCreateRequest{
+	m, err := a.client.CreateDeviceModel(ctx, platformsdk.ModelCreateRequest{
 		Code: req.Code, Name: req.Name, TMNodeID: req.TMNodeID, TMVersionID: req.TMVersionID,
 		Manufacturer: req.Manufacturer, Description: req.Description, Transport: req.Transport,
 	})
@@ -78,7 +78,7 @@ func (a *GatewayAdapter) CreateModel(ctx context.Context, req bizdevmodel.ModelC
 }
 
 func (a *GatewayAdapter) UpdateModel(ctx context.Context, id uint, req bizdevmodel.ModelUpdate) error {
-	return a.client.UpdateDeviceModel(ctx, id, sdk.ModelUpdateRequest{
+	return a.client.UpdateDeviceModel(ctx, id, platformsdk.ModelUpdateRequest{
 		Name: req.Name, TMVersionID: req.TMVersionID, Status: req.Status,
 		Manufacturer: req.Manufacturer, Description: req.Description, Transport: req.Transport,
 	})
@@ -87,7 +87,7 @@ func (a *GatewayAdapter) UpdateModel(ctx context.Context, id uint, req bizdevmod
 func (a *GatewayAdapter) DeleteModel(ctx context.Context, id uint) error {
 	err := a.client.DeleteDeviceModel(ctx, id)
 	// 平台侧已删（404）幂等放行——型号为纯代理无本地状态，重复删除视为目标已达成
-	var se *sdk.Error
+	var se *platformsdk.Error
 	if errors.As(err, &se) && se.HTTPStatus == http.StatusNotFound {
 		return nil
 	}

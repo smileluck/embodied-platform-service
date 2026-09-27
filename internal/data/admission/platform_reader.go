@@ -5,23 +5,23 @@ import (
 	"errors"
 
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
-	sdk "github.com/smilex/smilex-admin-gin/sdk"
+	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 )
 
 // PlatformGateway 平台商户成员网关（开放面 user:* 域，经平台 SDK 商户 HMAC）。
 // 2026-09-17 起用户列表/新增/删除全部走开放面（账号本体全局在平台，绑定按本商户收敛），
 // 管理面服务账号（platform.admin）通道随之废弃移除。
 type PlatformGateway struct {
-	client *sdk.Client
+	client *platformsdk.Client
 }
 
 // NewPlatformGateway 构造（wire provider，绑定 bizadmission.MemberGateway）
-func NewPlatformGateway(client *sdk.Client) *PlatformGateway {
+func NewPlatformGateway(client *platformsdk.Client) *PlatformGateway {
 	return &PlatformGateway{client: client}
 }
 
 func (g *PlatformGateway) ListMembers(ctx context.Context, keyword string, page, pageSize int) ([]*bizadmission.PlatformAccount, int64, error) {
-	users, pg, err := g.client.ListUsers(ctx, page, pageSize, sdk.UserFilter{Keyword: keyword})
+	users, pg, err := g.client.ListUsers(ctx, page, pageSize, platformsdk.UserFilter{Keyword: keyword})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -39,7 +39,7 @@ func (g *PlatformGateway) ListMembers(ctx context.Context, keyword string, page,
 }
 
 func (g *PlatformGateway) CreateOrBind(ctx context.Context, username, nickname, password string) (uint, bool, error) {
-	res, err := g.client.CreateOrBindUser(ctx, sdk.UserCreateOrBindRequest{
+	res, err := g.client.CreateOrBindUser(ctx, platformsdk.UserCreateOrBindRequest{
 		Username: username, Nickname: nickname, Password: password,
 	})
 	if err != nil {
@@ -54,7 +54,7 @@ func (g *PlatformGateway) CreateOrBind(ctx context.Context, username, nickname, 
 // SetAdmission 开/关成员准入（写回平台事实源）；404 映射为 ErrPlatformNotBound
 func (g *PlatformGateway) SetAdmission(ctx context.Context, platformUserID uint, admitted bool) error {
 	err := g.client.SetUserAdmission(ctx, platformUserID, admitted)
-	var perr *sdk.Error
+	var perr *platformsdk.Error
 	if errors.As(err, &perr) && perr.HTTPStatus == 404 {
 		return bizadmission.ErrPlatformNotBound
 	}
@@ -64,7 +64,7 @@ func (g *PlatformGateway) SetAdmission(ctx context.Context, platformUserID uint,
 // Unbind 解除平台侧绑定；404（未绑定/账号不存在）映射为 ErrPlatformNotBound（解绑幂等语义）
 func (g *PlatformGateway) Unbind(ctx context.Context, platformUserID uint) error {
 	err := g.client.UnbindUser(ctx, platformUserID)
-	var perr *sdk.Error
+	var perr *platformsdk.Error
 	if errors.As(err, &perr) && perr.HTTPStatus == 404 {
 		return bizadmission.ErrPlatformNotBound
 	}

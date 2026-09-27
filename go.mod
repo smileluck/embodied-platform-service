@@ -11,7 +11,6 @@ require (
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/shirou/gopsutil/v4 v4.26.8
-	github.com/smilex/smilex-admin-gin/sdk v0.0.0
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.55.0
@@ -21,10 +20,6 @@ require (
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.2
 )
-
-// 平台 SDK：联调期直接 replace 到同仓 ../embodied-platform/sdk；
-// 正式部署经 GOPRIVATE 拉取（见 embodied-platform/sdk/README.md），删除本 replace 即可
-replace github.com/smilex/smilex-admin-gin/sdk => ../embodied-platform/sdk
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect

@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	sdk "github.com/smilex/smilex-admin-gin/sdk"
+	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 )
 
 // MerchantIdentity 本商户身份发现（开放面 /open-api/v1/ping 恒放行、无需 scope）：
@@ -12,7 +12,7 @@ import (
 // 商户在运行期不变）。识别失败（平台不可达/响应异常）返回未知，调用方跳过
 // 商户管理员投影的自愈（绝不因未知而误解绑）。
 type MerchantIdentity struct {
-	client *sdk.Client
+	client *platformsdk.Client
 
 	mu    sync.Mutex
 	id    uint
@@ -20,7 +20,7 @@ type MerchantIdentity struct {
 }
 
 // NewMerchantIdentity 构造（wire provider，绑定 bizadmission.MerchantIdentity）
-func NewMerchantIdentity(client *sdk.Client) *MerchantIdentity {
+func NewMerchantIdentity(client *platformsdk.Client) *MerchantIdentity {
 	return &MerchantIdentity{client: client}
 }
 

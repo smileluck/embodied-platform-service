@@ -94,16 +94,14 @@ make web-install web-build run   # 打开 http://localhost:28180
 make dev    # 后端 air 热加载 :28180 + 前端 Vite :28170（/api 代理到后端，登录/刷新直调平台）
 ```
 
-## 平台 SDK 引入方式
+## 平台 SDK（已内联）
 
-`go.mod` 中联调期直接 replace 到同仓平台 SDK：
+平台开放 API 的 Go SDK（HMAC 签名 + 客户端 + 契约类型镜像，仅标准库依赖）已内联为
+`internal/platformsdk/`，本仓库不依赖任何外部路径或私有凭据，CI / Docker 构建直接可用。
 
-```go
-require github.com/smilex/smilex-admin-gin/sdk v0.0.0
-replace github.com/smilex/smilex-admin-gin/sdk => ../embodied-platform/sdk
-```
-
-CI / Docker 构建走仓库内 `vendor/`（`make vendor` 生成），无需 GOPRIVATE。
+注意：平台侧权威定义在 `embodied-platform/sdk`，与本副本同源。平台开放面 API 演进
+（新增接口、字段调整、签名规则变更）后，需将 `../embodied-platform/sdk/*.go` 的改动
+同步复制到 `internal/platformsdk/`（含测试），两边保持逐字节一致。
 
 Windows 环境说明：
 
@@ -130,7 +128,6 @@ docker compose up -d          # 构建镜像并启动
 - **默认生产语义**：release 模式、登录验证码开启、日志同时输出控制台（`docker logs`）
 - **端口冲突**：宿主机 8080 已被占用（如本地开发后端）时，在 `.env` 中改 `APP_PORT` 换对外端口
 - 常用命令：`make docker-up` / `make docker-down` / `make docker-logs` / `make docker-rebuild`
-- **平台 SDK 依赖**：本服务依赖 `github.com/smilex/smilex-admin-gin/sdk`（联调期 replace 到本地 `../embodied-platform/sdk`）；镜像与 CI 构建依赖已提交的 `vendor/`（含 SDK 契约镜像，仅标准库），无需 GOPRIVATE。SDK 或 go.mod 变更后执行 `make vendor` 同步
 
 ## API（/api/v1，平台 token 认证）
 

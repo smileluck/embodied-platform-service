@@ -9,17 +9,17 @@ import (
 	"testing"
 
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
-	sdk "github.com/smilex/smilex-admin-gin/sdk"
+	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 )
 
 // fakePlatformOpenAPI 假平台开放面（租户域）：校验 HMAC 签名头存在即可，
 // 行为按用例脚本化（create 冲突/成功、findByCode 命中/未命中、/tenants/:id 类 404/500）。
 type fakePlatformOpenAPI struct {
 	t        *testing.T
-	existing []*sdk.Tenant // 已有租户（列表返回）
-	created  *sdk.Tenant   // 记录创建请求
-	failNext int           // 接下来 N 个写请求返回 500
-	gone     bool          // /tenants/:id 类请求恒返回 404（平台侧已删）
+	existing []*platformsdk.Tenant // 已有租户（列表返回）
+	created  *platformsdk.Tenant   // 记录创建请求
+	failNext int                   // 接下来 N 个写请求返回 500
+	gone     bool                  // /tenants/:id 类请求恒返回 404（平台侧已删）
 }
 
 func (f *fakePlatformOpenAPI) handler() http.Handler {
@@ -40,7 +40,7 @@ func (f *fakePlatformOpenAPI) handler() http.Handler {
 				_ = json.NewEncoder(w).Encode(map[string]any{"code": 1, "msg": "boom"})
 				return
 			}
-			var req sdk.TenantCreateRequest
+			var req platformsdk.TenantCreateRequest
 			_ = json.NewDecoder(r.Body).Decode(&req)
 			for _, e := range f.existing {
 				if e.Code == req.Code {
@@ -49,7 +49,7 @@ func (f *fakePlatformOpenAPI) handler() http.Handler {
 					return
 				}
 			}
-			vo := &sdk.Tenant{ID: 77, Name: req.Name, Code: req.Code, Status: 1}
+			vo := &platformsdk.Tenant{ID: 77, Name: req.Name, Code: req.Code, Status: 1}
 			f.existing = append(f.existing, vo)
 			f.created = vo
 			_ = json.NewEncoder(w).Encode(map[string]any{"code": 0, "msg": "ok", "data": vo})
@@ -84,7 +84,7 @@ func (f *fakePlatformOpenAPI) handler() http.Handler {
 
 func newTestSyncer(f *fakePlatformOpenAPI) (*Syncer, *httptest.Server) {
 	srv := httptest.NewServer(f.handler())
-	return NewSyncer(sdk.NewClient(srv.URL, "mk_test", "secret-test")), srv
+	return NewSyncer(platformsdk.NewClient(srv.URL, "mk_test", "secret-test")), srv
 }
 
 // TestSyncer_CreateOnPlatform 创建：走开放面（签名头齐备），返回平台 ID
@@ -104,25 +104,25 @@ func TestSyncer_CreateOnPlatform(t *testing.T) {
 	}
 }
 
-// TestSyncer_CreateDuplicateCode 平台侧 code 冲突透传 *sdk.Error（HTTPStatus=409）
+// TestSyncer_CreateDuplicateCode 平台侧 code 冲突透传 *platformsdk.Error（HTTPStatus=409）
 func TestSyncer_CreateDuplicateCode(t *testing.T) {
-	f := &fakePlatformOpenAPI{t: t, existing: []*sdk.Tenant{{ID: 1, Code: "dup"}}}
+	f := &fakePlatformOpenAPI{t: t, existing: []*platformsdk.Tenant{{ID: 1, Code: "dup"}}}
 	syncer, srv := newTestSyncer(f)
 	defer srv.Close()
 
 	_, err := syncer.CreateOnPlatform(context.Background(), &biztenant.Tenant{Name: "n", Code: "dup"})
-	var se *sdk.Error
+	var se *platformsdk.Error
 	if err == nil {
 		t.Fatal("应返回冲突错误")
 	}
 	if ok := asSDKError(err, &se); !ok || se.HTTPStatus != http.StatusConflict {
-		t.Fatalf("应为 *sdk.Error(409), got %v", err)
+		t.Fatalf("应为 *platformsdk.Error(409), got %v", err)
 	}
 }
 
 // TestSyncer_LinkOrCreate 命中已有同 code 租户（本商户可见）→ 复用其 ID
 func TestSyncer_LinkOrCreate(t *testing.T) {
-	f := &fakePlatformOpenAPI{t: t, existing: []*sdk.Tenant{{ID: 55, Code: "exist-1", Name: "旧名"}}}
+	f := &fakePlatformOpenAPI{t: t, existing: []*platformsdk.Tenant{{ID: 55, Code: "exist-1", Name: "旧名"}}}
 	syncer, srv := newTestSyncer(f)
 	defer srv.Close()
 
@@ -201,8 +201,8 @@ func TestSyncer_PlatformGoneMapping(t *testing.T) {
 	}
 }
 
-func asSDKError(err error, target **sdk.Error) bool {
-	if e, ok := err.(*sdk.Error); ok {
+func asSDKError(err error, target **platformsdk.Error) bool {
+	if e, ok := err.(*platformsdk.Error); ok {
 		*target = e
 		return true
 	}

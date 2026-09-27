@@ -11,7 +11,7 @@ import (
 	"errors"
 	"net/http"
 
-	sdk "github.com/smilex/smilex-admin-gin/sdk"
+	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 )
 
 // ErrTenantNotSynced 注册设备时所选租户未同步至平台（或不存在/被停用）
@@ -31,15 +31,15 @@ type TenantRelinker interface {
 
 // Gateway 平台设备网关接口（data 层经开放面 SDK 实现，依赖倒置）
 type Gateway interface {
-	ListDevices(ctx context.Context, page, pageSize int, filter sdk.DeviceFilter) ([]*sdk.Device, *sdk.Page, error)
-	GetDevice(ctx context.Context, id uint) (*sdk.Device, error)
-	RegisterDevice(ctx context.Context, req sdk.RegisterDeviceRequest) (*sdk.Device, error)
-	GetShadow(ctx context.Context, deviceID uint) (*sdk.Shadow, error)
-	IssueCommand(ctx context.Context, deviceID uint, req sdk.IssueCommandRequest) (*sdk.Command, error)
-	ListDeviceCommands(ctx context.Context, deviceID uint, status string, page, pageSize int) ([]*sdk.Command, *sdk.Page, error)
-	GetCommand(ctx context.Context, id uint) (*sdk.Command, error)
-	QueryTelemetry(ctx context.Context, deviceID uint, q sdk.TelemetryQuery) (*sdk.TelemetryHistory, error)
-	ListDataEvents(ctx context.Context, deviceID, sinceID uint, limit int) ([]*sdk.DataEvent, error)
+	ListDevices(ctx context.Context, page, pageSize int, filter platformsdk.DeviceFilter) ([]*platformsdk.Device, *platformsdk.Page, error)
+	GetDevice(ctx context.Context, id uint) (*platformsdk.Device, error)
+	RegisterDevice(ctx context.Context, req platformsdk.RegisterDeviceRequest) (*platformsdk.Device, error)
+	GetShadow(ctx context.Context, deviceID uint) (*platformsdk.Shadow, error)
+	IssueCommand(ctx context.Context, deviceID uint, req platformsdk.IssueCommandRequest) (*platformsdk.Command, error)
+	ListDeviceCommands(ctx context.Context, deviceID uint, status string, page, pageSize int) ([]*platformsdk.Command, *platformsdk.Page, error)
+	GetCommand(ctx context.Context, id uint) (*platformsdk.Command, error)
+	QueryTelemetry(ctx context.Context, deviceID uint, q platformsdk.TelemetryQuery) (*platformsdk.TelemetryHistory, error)
+	ListDataEvents(ctx context.Context, deviceID, sinceID uint, limit int) ([]*platformsdk.DataEvent, error)
 }
 
 // Usecase 设备领域用例
@@ -53,11 +53,11 @@ func NewUsecase(gw Gateway, tenants TenantReader, relinker TenantRelinker) *Usec
 	return &Usecase{gw: gw, tenants: tenants, relinker: relinker}
 }
 
-func (uc *Usecase) List(ctx context.Context, page, pageSize int, filter sdk.DeviceFilter) ([]*sdk.Device, *sdk.Page, error) {
+func (uc *Usecase) List(ctx context.Context, page, pageSize int, filter platformsdk.DeviceFilter) ([]*platformsdk.Device, *platformsdk.Page, error) {
 	return uc.gw.ListDevices(ctx, page, pageSize, filter)
 }
 
-func (uc *Usecase) Get(ctx context.Context, id uint) (*sdk.Device, error) {
+func (uc *Usecase) Get(ctx context.Context, id uint) (*platformsdk.Device, error) {
 	return uc.gw.GetDevice(ctx, id)
 }
 
@@ -65,7 +65,7 @@ func (uc *Usecase) Get(ctx context.Context, id uint) (*sdk.Device, error) {
 // 通过后经开放面注册（平台还会校验租户在商户绑定集内）。
 // 平台 403（本地租户镜像悬挂——平台租户被删导致不在绑定集）时补链重建一次再重试；
 // LinkOrCreate 幂等保证 scope 拒绝等其他 403 场景重试无害（重试仍失败则透传原错误）
-func (uc *Usecase) Register(ctx context.Context, req sdk.RegisterDeviceRequest) (*sdk.Device, error) {
+func (uc *Usecase) Register(ctx context.Context, req platformsdk.RegisterDeviceRequest) (*platformsdk.Device, error) {
 	ok, err := uc.tenants.TenantAvailable(ctx, req.TenantID)
 	if err != nil {
 		return nil, err
@@ -87,31 +87,31 @@ func (uc *Usecase) Register(ctx context.Context, req sdk.RegisterDeviceRequest) 
 
 // isForbidden 平台开放面 403（租户不在商户绑定集 / scope 拒绝）
 func isForbidden(err error) bool {
-	var se *sdk.Error
+	var se *platformsdk.Error
 	return errors.As(err, &se) && se.HTTPStatus == http.StatusForbidden
 }
 
-func (uc *Usecase) Shadow(ctx context.Context, deviceID uint) (*sdk.Shadow, error) {
+func (uc *Usecase) Shadow(ctx context.Context, deviceID uint) (*platformsdk.Shadow, error) {
 	return uc.gw.GetShadow(ctx, deviceID)
 }
 
 // IssueCommand 下发命令（priority 语义：0 急停最高危；caller 由平台固定为本服务商户）
-func (uc *Usecase) IssueCommand(ctx context.Context, deviceID uint, req sdk.IssueCommandRequest) (*sdk.Command, error) {
+func (uc *Usecase) IssueCommand(ctx context.Context, deviceID uint, req platformsdk.IssueCommandRequest) (*platformsdk.Command, error) {
 	return uc.gw.IssueCommand(ctx, deviceID, req)
 }
 
-func (uc *Usecase) ListCommands(ctx context.Context, deviceID uint, status string, page, pageSize int) ([]*sdk.Command, *sdk.Page, error) {
+func (uc *Usecase) ListCommands(ctx context.Context, deviceID uint, status string, page, pageSize int) ([]*platformsdk.Command, *platformsdk.Page, error) {
 	return uc.gw.ListDeviceCommands(ctx, deviceID, status, page, pageSize)
 }
 
-func (uc *Usecase) GetCommand(ctx context.Context, id uint) (*sdk.Command, error) {
+func (uc *Usecase) GetCommand(ctx context.Context, id uint) (*platformsdk.Command, error) {
 	return uc.gw.GetCommand(ctx, id)
 }
 
-func (uc *Usecase) Telemetry(ctx context.Context, deviceID uint, q sdk.TelemetryQuery) (*sdk.TelemetryHistory, error) {
+func (uc *Usecase) Telemetry(ctx context.Context, deviceID uint, q platformsdk.TelemetryQuery) (*platformsdk.TelemetryHistory, error) {
 	return uc.gw.QueryTelemetry(ctx, deviceID, q)
 }
 
-func (uc *Usecase) DataEvents(ctx context.Context, deviceID, sinceID uint, limit int) ([]*sdk.DataEvent, error) {
+func (uc *Usecase) DataEvents(ctx context.Context, deviceID, sinceID uint, limit int) ([]*platformsdk.DataEvent, error) {
 	return uc.gw.ListDataEvents(ctx, deviceID, sinceID, limit)
 }

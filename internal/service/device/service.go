@@ -7,7 +7,7 @@ import (
 	"time"
 
 	bizdevice "github.com/smilex/smilex-admin-gin/internal/biz/device"
-	sdk "github.com/smilex/smilex-admin-gin/sdk"
+	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 )
 
 type Service struct {
@@ -25,8 +25,8 @@ type ListRequest struct {
 	Transport string `form:"transport"`
 }
 
-func (s *Service) List(ctx context.Context, req ListRequest, page, pageSize int) ([]*sdk.Device, interface{}, error) {
-	return s.uc.List(ctx, page, pageSize, sdk.DeviceFilter{
+func (s *Service) List(ctx context.Context, req ListRequest, page, pageSize int) ([]*platformsdk.Device, interface{}, error) {
+	return s.uc.List(ctx, page, pageSize, platformsdk.DeviceFilter{
 		Keyword: req.Keyword, ModelID: req.ModelID, Status: req.Status,
 		Online: req.Online, Transport: req.Transport,
 	})
@@ -44,17 +44,19 @@ type RegisterRequest struct {
 	Transport       string            `json:"transport" binding:"omitempty,oneof=socket mqtt"`
 }
 
-func (s *Service) Register(ctx context.Context, req RegisterRequest) (*sdk.Device, error) {
-	return s.uc.Register(ctx, sdk.RegisterDeviceRequest{
+func (s *Service) Register(ctx context.Context, req RegisterRequest) (*platformsdk.Device, error) {
+	return s.uc.Register(ctx, platformsdk.RegisterDeviceRequest{
 		SN: req.SN, Name: req.Name, ModelID: req.ModelID, TenantID: req.TenantID,
 		FirmwareVersion: req.FirmwareVersion, HardwareVersion: req.HardwareVersion,
 		ServiceVersions: req.ServiceVersions, Transport: req.Transport,
 	})
 }
 
-func (s *Service) Get(ctx context.Context, id uint) (*sdk.Device, error) { return s.uc.Get(ctx, id) }
+func (s *Service) Get(ctx context.Context, id uint) (*platformsdk.Device, error) {
+	return s.uc.Get(ctx, id)
+}
 
-func (s *Service) Shadow(ctx context.Context, id uint) (*sdk.Shadow, error) {
+func (s *Service) Shadow(ctx context.Context, id uint) (*platformsdk.Shadow, error) {
 	return s.uc.Shadow(ctx, id)
 }
 
@@ -66,22 +68,22 @@ type IssueCommandRequest struct {
 	IdempotencyKey string          `json:"idempotency_key" binding:"max=64"`
 }
 
-func (s *Service) IssueCommand(ctx context.Context, deviceID uint, req IssueCommandRequest) (*sdk.Command, error) {
+func (s *Service) IssueCommand(ctx context.Context, deviceID uint, req IssueCommandRequest) (*platformsdk.Command, error) {
 	priority := 3
 	if req.Priority != nil {
 		priority = *req.Priority
 	}
-	return s.uc.IssueCommand(ctx, deviceID, sdk.IssueCommandRequest{
+	return s.uc.IssueCommand(ctx, deviceID, platformsdk.IssueCommandRequest{
 		CommandType: req.CommandType, Params: req.Params,
 		Priority: priority, IdempotencyKey: req.IdempotencyKey,
 	})
 }
 
-func (s *Service) ListCommands(ctx context.Context, deviceID uint, status string, page, pageSize int) ([]*sdk.Command, interface{}, error) {
+func (s *Service) ListCommands(ctx context.Context, deviceID uint, status string, page, pageSize int) ([]*platformsdk.Command, interface{}, error) {
 	return s.uc.ListCommands(ctx, deviceID, status, page, pageSize)
 }
 
-func (s *Service) GetCommand(ctx context.Context, id uint) (*sdk.Command, error) {
+func (s *Service) GetCommand(ctx context.Context, id uint) (*platformsdk.Command, error) {
 	return s.uc.GetCommand(ctx, id)
 }
 
@@ -95,8 +97,8 @@ type TelemetryRequest struct {
 	Limit           int    `form:"limit"`
 }
 
-func (s *Service) Telemetry(ctx context.Context, deviceID uint, req TelemetryRequest) (*sdk.TelemetryHistory, error) {
-	q := sdk.TelemetryQuery{
+func (s *Service) Telemetry(ctx context.Context, deviceID uint, req TelemetryRequest) (*platformsdk.TelemetryHistory, error) {
+	q := platformsdk.TelemetryQuery{
 		Metric: req.Metric, IntervalSeconds: req.IntervalSeconds,
 		Marker: req.Marker, Limit: req.Limit,
 	}
@@ -109,6 +111,6 @@ func (s *Service) Telemetry(ctx context.Context, deviceID uint, req TelemetryReq
 	return s.uc.Telemetry(ctx, deviceID, q)
 }
 
-func (s *Service) DataEvents(ctx context.Context, deviceID, sinceID uint, limit int) ([]*sdk.DataEvent, error) {
+func (s *Service) DataEvents(ctx context.Context, deviceID, sinceID uint, limit int) ([]*platformsdk.DataEvent, error) {
 	return s.uc.DataEvents(ctx, deviceID, sinceID, limit)
 }

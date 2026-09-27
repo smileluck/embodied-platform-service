@@ -11,12 +11,7 @@ AIR ?= $(shell go env GOPATH)/bin/air
 AIR_CONF := .air.toml
 endif
 
-# 本地开发强制 -mod=mod：vendor/ 已提交（CI 与 Docker 构建的自洽依赖源），
-# 默认 vendor 模式会遮蔽 go.mod 对 ../embodied-platform/sdk 的本地 replace，
-# 联调期改 SDK 需即时生效，故 make 入口一律走真实 replace。
-export GOFLAGS := -mod=mod
-
-.PHONY: build run dev wire tidy test lint vendor web-dev web-build web-install docker-up docker-down docker-logs docker-rebuild clean
+.PHONY: build run dev wire tidy test lint web-dev web-build web-install docker-up docker-down docker-logs docker-rebuild clean
 
 build:
 	go build -o $(BIN) ./cmd/server
@@ -41,11 +36,6 @@ endif
 # 重新生成依赖注入代码（需: go install github.com/google/wire/cmd/wire@latest）
 wire:
 	wire ./cmd/server
-
-# 重新生成 vendor/（CI 与 Docker 构建的依赖源）。go.mod 变更或
-# ../embodied-platform/sdk 联调改动需同步到 CI 时执行。
-vendor:
-	go mod vendor
 
 tidy:
 	go mod tidy

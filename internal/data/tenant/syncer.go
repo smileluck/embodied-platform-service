@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
-	sdk "github.com/smilex/smilex-admin-gin/sdk"
+	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 )
 
 // Syncer 平台租户同步实现（开放面商户 HMAC，经平台 SDK）。
@@ -14,16 +14,16 @@ import (
 // 服务端注入调用方商户（无需本地解析 merchant_id），读写按商户绑定收敛——
 // 本同步器创建的租户自动进入本商户租户集，开放面设备注册随即覆盖。
 type Syncer struct {
-	client *sdk.Client
+	client *platformsdk.Client
 }
 
 // NewSyncer 构造（wire provider，绑定 biztenant.PlatformSyncer）
-func NewSyncer(client *sdk.Client) *Syncer {
+func NewSyncer(client *platformsdk.Client) *Syncer {
 	return &Syncer{client: client}
 }
 
 // toBiz SDK 租户 → 领域实体
-func toBiz(t *sdk.Tenant) *biztenant.Tenant {
+func toBiz(t *platformsdk.Tenant) *biztenant.Tenant {
 	return &biztenant.Tenant{
 		ID: t.ID, Name: t.Name, Code: t.Code,
 		ContactName: t.ContactName, ContactPhone: t.ContactPhone,
@@ -32,7 +32,7 @@ func toBiz(t *sdk.Tenant) *biztenant.Tenant {
 }
 
 func (s *Syncer) CreateOnPlatform(ctx context.Context, t *biztenant.Tenant) (uint, error) {
-	pt, err := s.client.CreateTenant(ctx, sdk.TenantCreateRequest{
+	pt, err := s.client.CreateTenant(ctx, platformsdk.TenantCreateRequest{
 		Name: t.Name, Code: t.Code, ContactName: t.ContactName,
 		ContactPhone: t.ContactPhone, Remark: t.Remark,
 	})
@@ -43,7 +43,7 @@ func (s *Syncer) CreateOnPlatform(ctx context.Context, t *biztenant.Tenant) (uin
 }
 
 func (s *Syncer) UpdateOnPlatform(ctx context.Context, t *biztenant.Tenant) error {
-	return platformGone(s.client.UpdateTenant(ctx, t.PlatformID, sdk.TenantUpdateRequest{
+	return platformGone(s.client.UpdateTenant(ctx, t.PlatformID, platformsdk.TenantUpdateRequest{
 		Name: t.Name, ContactName: t.ContactName, ContactPhone: t.ContactPhone,
 		Remark: t.Remark,
 	}))
@@ -60,7 +60,7 @@ func (s *Syncer) SetStatusOnPlatform(ctx context.Context, platformID uint, enabl
 // platformGone 平台侧 404（开放面对不存在与越权统一 404）映射为 ErrPlatformTenantGone，
 // 供用例层做幂等删除（按已删处理）与补链重建自愈；其余错误原样返回
 func platformGone(err error) error {
-	var se *sdk.Error
+	var se *platformsdk.Error
 	if errors.As(err, &se) && se.HTTPStatus == http.StatusNotFound {
 		return biztenant.ErrPlatformTenantGone
 	}
@@ -75,7 +75,7 @@ func (s *Syncer) LinkOrCreateOnPlatform(ctx context.Context, t *biztenant.Tenant
 	if pt, err := s.client.FindTenantByCode(ctx, t.Code); err != nil {
 		return 0, err
 	} else if pt != nil {
-		if uerr := s.client.UpdateTenant(ctx, pt.ID, sdk.TenantUpdateRequest{
+		if uerr := s.client.UpdateTenant(ctx, pt.ID, platformsdk.TenantUpdateRequest{
 			Name: t.Name, ContactName: t.ContactName, ContactPhone: t.ContactPhone,
 			Remark: t.Remark,
 		}); uerr != nil {

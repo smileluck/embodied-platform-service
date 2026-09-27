@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	sdk "github.com/smilex/smilex-admin-gin/sdk"
+	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 )
 
 // TestDeleteModel_PlatformGoneIdempotent 平台侧型号已删（404）→ 幂等放行返回 nil
@@ -18,7 +18,7 @@ func TestDeleteModel_PlatformGoneIdempotent(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	a := NewGatewayAdapter(sdk.NewClient(srv.URL, "mk_test", "secret-test"))
+	a := NewGatewayAdapter(platformsdk.NewClient(srv.URL, "mk_test", "secret-test"))
 	if err := a.DeleteModel(context.Background(), 404); err != nil {
 		t.Fatalf("平台 404 应幂等放行, got %v", err)
 	}

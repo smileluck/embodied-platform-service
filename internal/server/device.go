@@ -8,10 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	bizdevice "github.com/smilex/smilex-admin-gin/internal/biz/device"
+	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 	devicesvc "github.com/smilex/smilex-admin-gin/internal/service/device"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
 	"github.com/smilex/smilex-admin-gin/pkg/response"
-	sdk "github.com/smilex/smilex-admin-gin/sdk"
 )
 
 func (s *HTTPServer) listDevices(c *gin.Context) {
@@ -145,7 +145,7 @@ func (s *HTTPServer) listDeviceDataEvents(c *gin.Context) {
 	response.OK(c, gin.H{"list": events})
 }
 
-// deviceErr 设备代理错误映射：本地租户校验 400；平台错误（含 SDK *sdk.Error）透传
+// deviceErr 设备代理错误映射：本地租户校验 400；平台错误（含 SDK *platformsdk.Error）透传
 func (s *HTTPServer) deviceErr(c *gin.Context, err error) {
 	if isErr(err, bizdevice.ErrTenantNotSynced) {
 		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
@@ -154,9 +154,9 @@ func (s *HTTPServer) deviceErr(c *gin.Context, err error) {
 	s.platformErr(c, normalizeSDKError(err))
 }
 
-// normalizeSDKError 把 SDK 的 *sdk.Error 归一为平台信封错误（复用 platformErr 的透传逻辑）
+// normalizeSDKError 把 SDK 的 *platformsdk.Error 归一为平台信封错误（复用 platformErr 的透传逻辑）
 func normalizeSDKError(err error) error {
-	var se *sdk.Error
+	var se *platformsdk.Error
 	if errors.As(err, &se) {
 		return &platformError{HTTPStatus: se.HTTPStatus, Code: se.Code, Msg: se.Msg}
 	}
