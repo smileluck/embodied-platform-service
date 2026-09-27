@@ -103,7 +103,7 @@ require github.com/smilex/smilex-admin-gin/sdk v0.0.0
 replace github.com/smilex/smilex-admin-gin/sdk => ../embodied-platform/sdk
 ```
 
-正式部署经 GOPRIVATE 拉取（见 `embodied-platform/sdk/README.md`），删除 replace 即可。
+CI / Docker 构建走仓库内 `vendor/`（`make vendor` 生成），无需 GOPRIVATE。
 
 Windows 环境说明：
 
@@ -130,7 +130,7 @@ docker compose up -d          # 构建镜像并启动
 - **默认生产语义**：release 模式、登录验证码开启、日志同时输出控制台（`docker logs`）
 - **端口冲突**：宿主机 8080 已被占用（如本地开发后端）时，在 `.env` 中改 `APP_PORT` 换对外端口
 - 常用命令：`make docker-up` / `make docker-down` / `make docker-logs` / `make docker-rebuild`
-- **平台 SDK 依赖**：本服务依赖 `github.com/smilex/smilex-admin-gin/sdk`（联调期 replace 到本地 `../embodied-platform/sdk`）；镜像构建前需先移除 replace，改走 GOPRIVATE 拉取
+- **平台 SDK 依赖**：本服务依赖 `github.com/smilex/smilex-admin-gin/sdk`（联调期 replace 到本地 `../embodied-platform/sdk`）；镜像与 CI 构建依赖已提交的 `vendor/`（含 SDK 契约镜像，仅标准库），无需 GOPRIVATE。SDK 或 go.mod 变更后执行 `make vendor` 同步
 
 ## API（/api/v1，平台 token 认证）
 

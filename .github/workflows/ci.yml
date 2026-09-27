@@ -7,8 +7,8 @@ on:
     branches: [main]
   pull_request:
 
-# 注意：go.mod 中平台 SDK 的本地 replace（../embodied-platform/sdk）需在 CI 环境移除，
-# 改走 GOPRIVATE 拉取后方可构建（见 README「平台 SDK 依赖」）。
+# 依赖自洽：vendor/ 已提交（含平台 SDK 契约镜像），CI 无需 GOPRIVATE/本地 replace。
+# 改 go.mod 或 ../embodied-platform/sdk 后执行 `make vendor` 重新生成。
 jobs:
   backend:
     name: Backend (Go)
