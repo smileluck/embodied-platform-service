@@ -139,7 +139,7 @@ func (d *Data) migrateAndSeed() error {
 		&model.AgentProviderPO{}, &model.AgentModelPO{}, &model.AgentPO{},
 		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{}, &model.SysConfigPO{}, &model.NoticePO{}, &model.NoticeReadPO{}, &model.NoticeTargetPO{}, &model.JobPO{}, &model.JobLogPO{}, &model.MonitorSnapshotPO{},
 		&model.NotifyChannelPO{}, &model.NotifyRulePO{}, &model.NotifyRecordPO{},
-		&model.McpServerPO{},
+		&model.McpServerPO{}, &model.SkillPO{}, &model.SkillFilePO{},
 	); err != nil {
 		return err
 	}
@@ -206,6 +206,7 @@ var systemMenus = []systemMenuDef{
 	{Name: "聊天测试", Code: "menu:agentChat", Path: "/agent/chat", Icon: "ChatboxEllipsesOutline", Sort: 3, ParentCode: "menu:agent"},
 	{Name: "用量统计", Code: "menu:agentUsage", Path: "/agent/usage", Icon: "StatsChartOutline", Sort: 4, ParentCode: "menu:agent"},
 	{Name: "MCP 服务", Code: "menu:mcpServer", Path: "/agent/mcp", Icon: "ExtensionControllerOutline", Sort: 5, ParentCode: "menu:agent"},
+	{Name: "技能管理", Code: "menu:skill", Path: "/agent/skills", Icon: "ColorWandOutline", Sort: 6, ParentCode: "menu:agent"},
 	{Name: "通知告警", Code: "menu:notify", Type: "dir", Icon: "NotificationsOutline", Sort: 8},
 	{Name: "通知渠道", Code: "menu:notifyChannel", Path: "/notify/channels", Icon: "MailOutline", Sort: 1, ParentCode: "menu:notify"},
 	{Name: "告警规则", Code: "menu:alertRule", Path: "/notify/rules", Icon: "AlertCircleOutline", Sort: 2, ParentCode: "menu:notify"},
@@ -432,6 +433,13 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "编辑MCP服务", Code: "mcp:server:update", Menu: "menu:mcpServer", Method: "PUT", Path: "/api/v1/mcp/servers/*", Sort: 4},
 	{Name: "删除MCP服务", Code: "mcp:server:delete", Menu: "menu:mcpServer", Method: "DELETE", Path: "/api/v1/mcp/servers/*", Sort: 5},
 	{Name: "测试MCP服务", Code: "mcp:server:test", Menu: "menu:mcpServer", Method: "POST", Path: "/api/v1/mcp/servers/*/test", Sort: 6},
+
+	// 技能管理（多文件技能包；附属文件随技能整体提交，不设子资源接口）
+	{Name: "查询技能", Code: "skill:list", Menu: "menu:skill", Method: "GET", Path: "/api/v1/skills", Sort: 1},
+	{Name: "技能详情", Code: "skill:view", Menu: "menu:skill", Method: "GET", Path: "/api/v1/skills/*", Sort: 2},
+	{Name: "新增技能", Code: "skill:create", Menu: "menu:skill", Method: "POST", Path: "/api/v1/skills", Sort: 3},
+	{Name: "编辑技能", Code: "skill:update", Menu: "menu:skill", Method: "PUT", Path: "/api/v1/skills/*", Sort: 4},
+	{Name: "删除技能", Code: "skill:delete", Menu: "menu:skill", Method: "DELETE", Path: "/api/v1/skills/*", Sort: 5},
 
 	// 数据字典
 	{Name: "查询字典类型", Code: "dict:type:list", Menu: "menu:dict", Method: "GET", Path: "/api/v1/dict-types", Sort: 1},

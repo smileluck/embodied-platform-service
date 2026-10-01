@@ -242,7 +242,8 @@ func (r *Repo) UpdateAgent(ctx context.Context, a *agent.Agent) error {
 		Updates(map[string]interface{}{
 			"name": a.Name, "code": a.Code, "model_id": a.ModelID,
 			"system_prompt": a.SystemPrompt, "temperature": a.Temperature, "top_p": a.TopP,
-			"max_tokens": a.MaxTokens, "tools": model.MarshalAgentTools(a.Tools), "remark": a.Remark, "status": int(a.Status),
+			"max_tokens": a.MaxTokens, "tools": model.MarshalAgentTools(a.Tools),
+			"skills": model.MarshalAgentSkills(a.Skills), "remark": a.Remark, "status": int(a.Status),
 		}).Error
 }
 

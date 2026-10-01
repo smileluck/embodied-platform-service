@@ -21,6 +21,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/biz/notify"
 	"github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/role"
+	"github.com/smilex/smilex-admin-gin/internal/biz/skill"
 	"github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
 	"github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	"gorm.io/gorm"
@@ -258,6 +259,7 @@ type AgentPO struct {
 	TopP         float64
 	MaxTokens    int    // 0=上游默认
 	Tools        string `gorm:"size:512"` // 绑定的本地工具名 JSON 数组（空=无工具）
+	Skills       string `gorm:"size:512"` // 绑定的技能 code JSON 数组（空=无技能，聊天时注入 system prompt）
 	Remark       string `gorm:"size:200"`
 	Status       int    // 1 启用 0 禁用
 	CreatedAt    time.Time
@@ -491,7 +493,8 @@ func AgentToPO(a *agent.Agent) *AgentPO {
 	return &AgentPO{
 		ID: a.ID, Name: a.Name, Code: a.Code, ModelID: a.ModelID,
 		SystemPrompt: a.SystemPrompt, Temperature: a.Temperature, TopP: a.TopP,
-		MaxTokens: a.MaxTokens, Tools: MarshalAgentTools(a.Tools), Remark: a.Remark, Status: int(a.Status),
+		MaxTokens: a.MaxTokens, Tools: MarshalAgentTools(a.Tools), Skills: MarshalAgentSkills(a.Skills),
+		Remark: a.Remark, Status: int(a.Status),
 	}
 }
 
@@ -499,7 +502,8 @@ func AgentFromPO(p *AgentPO) *agent.Agent {
 	return &agent.Agent{
 		ID: p.ID, Name: p.Name, Code: p.Code, ModelID: p.ModelID,
 		SystemPrompt: p.SystemPrompt, Temperature: p.Temperature, TopP: p.TopP,
-		MaxTokens: p.MaxTokens, Tools: UnmarshalAgentTools(p.Tools), Remark: p.Remark, Status: agent.Status(p.Status),
+		MaxTokens: p.MaxTokens, Tools: UnmarshalAgentTools(p.Tools), Skills: UnmarshalAgentSkills(p.Skills),
+		Remark: p.Remark, Status: agent.Status(p.Status),
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
 }
@@ -525,6 +529,29 @@ func UnmarshalAgentTools(s string) []string {
 		return nil
 	}
 	return names
+}
+
+// MarshalAgentSkills / UnmarshalAgentSkills 技能 code 列表 <-> JSON 文本（与工具名同构）
+func MarshalAgentSkills(codes []string) string {
+	if len(codes) == 0 {
+		return ""
+	}
+	b, err := json.Marshal(codes)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func UnmarshalAgentSkills(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var codes []string
+	if json.Unmarshal([]byte(s), &codes) != nil {
+		return nil
+	}
+	return codes
 }
 
 func AgentConversationToPO(cv *agent.Conversation) *AgentConversationPO {
@@ -855,6 +882,33 @@ type McpServerPO struct {
 
 func (McpServerPO) TableName() string { return "mcp_servers" }
 
+// SkillFilePO 技能附属文件表（文本资源；随技能整体替换，无软删——物理替换）
+type SkillFilePO struct {
+	ID       uint   `gorm:"primaryKey"`
+	SkillID  uint   `gorm:"index;uniqueIndex:uk_skill_file_path"`
+	Path     string `gorm:"size:128;uniqueIndex:uk_skill_file_path"` // 相对路径（如 scripts/helper.py）
+	Content  string `gorm:"type:text"`
+	FileSize int    // 内容字节数（展示用）
+}
+
+func (SkillFilePO) TableName() string { return "skill_files" }
+
+// SkillPO 技能表（多文件技能包主表：主指令 + 附属文件子表）
+type SkillPO struct {
+	ID          uint   `gorm:"primaryKey"`
+	Name        string `gorm:"size:20;uniqueIndex"`
+	Code        string `gorm:"size:64;uniqueIndex"` // 稳定引用（Agent 以 code 绑定）
+	Description string `gorm:"size:200"`
+	Instruction string `gorm:"type:text"` // 主指令（SKILL.md 等价物，Markdown）
+	Remark      string `gorm:"size:200"`
+	Status      int    // 1 启用 0 禁用
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   gorm.DeletedAt `gorm:"index"`
+}
+
+func (SkillPO) TableName() string { return "skills" }
+
 func NotifyChannelToPO(c *notify.Channel) *NotifyChannelPO {
 	recipients, _ := json.Marshal(c.Recipients)
 	return &NotifyChannelPO{
@@ -943,4 +997,36 @@ func McpServerFromPO(p *McpServerPO) *mcp.Server {
 		s.Headers = []mcp.Header{}
 	}
 	return s
+}
+
+func SkillToPO(s *skill.Skill) *SkillPO {
+	return &SkillPO{
+		ID: s.ID, Name: s.Name, Code: s.Code, Description: s.Description,
+		Instruction: s.Instruction, Remark: s.Remark, Status: s.Status,
+	}
+}
+
+func SkillFromPO(p *SkillPO) *skill.Skill {
+	return &skill.Skill{
+		ID: p.ID, Name: p.Name, Code: p.Code, Description: p.Description,
+		Instruction: p.Instruction, Files: []skill.SkillFile{}, Remark: p.Remark, Status: p.Status,
+		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+}
+
+// SkillFilePOs 附属文件实体 -> PO（批量插入用）
+func SkillFilePOs(skillID uint, files []skill.SkillFile) []SkillFilePO {
+	out := make([]SkillFilePO, 0, len(files))
+	for _, f := range files {
+		out = append(out, SkillFilePO{SkillID: skillID, Path: f.Path, Content: f.Content, FileSize: f.Size()})
+	}
+	return out
+}
+
+// AttachSkillFiles 回填附属文件（repo 装载子表后调用）
+func AttachSkillFiles(s *skill.Skill, pos []SkillFilePO) {
+	s.Files = make([]skill.SkillFile, 0, len(pos))
+	for _, p := range pos {
+		s.Files = append(s.Files, skill.SkillFile{Path: p.Path, Content: p.Content})
+	}
 }

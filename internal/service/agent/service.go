@@ -142,8 +142,9 @@ type AgentCreateRequest struct {
 	SystemPrompt string   `json:"system_prompt" binding:"max=4000"`
 	Temperature  float64  `json:"temperature" binding:"gte=0,lte=2"`
 	TopP         float64  `json:"top_p" binding:"gte=0,lte=1"`
-	MaxTokens    int      `json:"max_tokens" binding:"gte=0,lte=131072"`        // 0=上游默认
-	Tools        []string `json:"tools" binding:"omitempty,max=10,dive,max=64"` // 绑定的本地工具（function calling）
+	MaxTokens    int      `json:"max_tokens" binding:"gte=0,lte=131072"`         // 0=上游默认
+	Tools        []string `json:"tools" binding:"omitempty,max=10,dive,max=64"`  // 绑定的本地工具（function calling）
+	Skills       []string `json:"skills" binding:"omitempty,max=10,dive,max=64"` // 绑定的技能 code（聊天注入 system prompt）
 	Remark       string   `json:"remark" binding:"max=200"`
 	Status       *int     `json:"status" binding:"omitempty,gte=0,lte=1"`
 }
@@ -156,7 +157,8 @@ type AgentUpdateRequest struct {
 	Temperature  float64  `json:"temperature" binding:"gte=0,lte=2"`
 	TopP         float64  `json:"top_p" binding:"gte=0,lte=1"`
 	MaxTokens    int      `json:"max_tokens" binding:"gte=0,lte=131072"`
-	Tools        []string `json:"tools" binding:"omitempty,max=10,dive,max=64"` // nil=保持原绑定；空数组=清空
+	Tools        []string `json:"tools" binding:"omitempty,max=10,dive,max=64"`  // nil=保持原绑定；空数组=清空
+	Skills       []string `json:"skills" binding:"omitempty,max=10,dive,max=64"` // nil=保持原绑定；空数组=清空
 	Remark       string   `json:"remark" binding:"max=200"`
 	Status       *int     `json:"status" binding:"omitempty,gte=0,lte=1"`
 }
@@ -165,7 +167,7 @@ func (s *Service) CreateAgent(ctx context.Context, req AgentCreateRequest) (*biz
 	return s.uc.CreateAgent(ctx, bizagent.AgentInput{
 		Name: req.Name, Code: req.Code, ModelID: req.ModelID,
 		SystemPrompt: req.SystemPrompt, Temperature: req.Temperature, TopP: req.TopP,
-		MaxTokens: req.MaxTokens, Tools: req.Tools, Remark: req.Remark, Status: statusOf(req.Status),
+		MaxTokens: req.MaxTokens, Tools: req.Tools, Skills: req.Skills, Remark: req.Remark, Status: statusOf(req.Status),
 	})
 }
 
@@ -173,7 +175,7 @@ func (s *Service) UpdateAgent(ctx context.Context, id uint, req AgentUpdateReque
 	return s.uc.UpdateAgent(ctx, id, bizagent.AgentInput{
 		Name: req.Name, Code: req.Code, ModelID: req.ModelID,
 		SystemPrompt: req.SystemPrompt, Temperature: req.Temperature, TopP: req.TopP,
-		MaxTokens: req.MaxTokens, Tools: req.Tools, Remark: req.Remark, Status: statusOf(req.Status),
+		MaxTokens: req.MaxTokens, Tools: req.Tools, Skills: req.Skills, Remark: req.Remark, Status: statusOf(req.Status),
 	})
 }
 

@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-10-02T08:51:55.644Z",
+  "generatedAt": "2026-10-02T08:53:35.308Z",
   "commits": [
+    {
+      "hash": "7180ad638",
+      "date": "2026-10-01",
+      "type": "feat",
+      "scope": "",
+      "message": "新增 MCP 服务管理，智能体可绑定 MCP 工具参与 function calling"
+    },
     {
       "hash": "f9364ccc4",
       "date": "2026-09-27",

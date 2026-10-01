@@ -24,6 +24,7 @@ import notice from './notice'
 import job from './job'
 import notify from './notify'
 import mcp from './mcp'
+import skill from './skill'
 import errorPage from './errorPage'
 
 export default {
@@ -53,5 +54,6 @@ export default {
   job,
   notify,
   mcp,
+  skill,
   errorPage,
 }

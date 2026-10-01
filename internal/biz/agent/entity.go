@@ -72,6 +72,7 @@ type Agent struct {
 	TopP         float64   `json:"top_p"`       // 0~1；0 表示未设置
 	MaxTokens    int       `json:"max_tokens"`  // 0=上游默认
 	Tools        []string  `json:"tools"`       // 绑定的本地工具名（function calling；模型不支持时忽略）
+	Skills       []string  `json:"skills"`      // 绑定的技能 code（聊天时拼接进 system prompt）
 	Remark       string    `json:"remark"`
 	Status       Status    `json:"status"`
 	CreatedAt    time.Time `json:"created_at"`

@@ -29,6 +29,7 @@ import (
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	bizrole "github.com/smilex/smilex-admin-gin/internal/biz/role"
 
+	bizskill "github.com/smilex/smilex-admin-gin/internal/biz/skill"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	dataadmission "github.com/smilex/smilex-admin-gin/internal/data/admission"
@@ -54,6 +55,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/data/platform"
 	datarole "github.com/smilex/smilex-admin-gin/internal/data/role"
 
+	dataskill "github.com/smilex/smilex-admin-gin/internal/data/skill"
 	datasys "github.com/smilex/smilex-admin-gin/internal/data/sysconfig"
 	datatenant "github.com/smilex/smilex-admin-gin/internal/data/tenant"
 	"github.com/smilex/smilex-admin-gin/internal/server"
@@ -81,6 +83,7 @@ import (
 	permsvc "github.com/smilex/smilex-admin-gin/internal/service/permission"
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
 
+	skillsvc "github.com/smilex/smilex-admin-gin/internal/service/skill"
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
 )
 
@@ -104,6 +107,7 @@ var bizSet = wire.NewSet(
 	bizagent.NewUsecase,
 	biznotify.NewUsecase,
 	bizmcp.NewUsecase,
+	bizskill.NewUsecase,
 	bizexport.NewUsecase,
 	bizexport.NewRegistry,
 	bizexport.NewUserExporter,
@@ -116,6 +120,7 @@ var bizSet = wire.NewSet(
 	// 智能体内置只读工具：服务器状态查询复用 monitor 用例
 	wire.Bind(new(bizagent.ServerStatusReader), new(*bizmonitor.Usecase)),
 	wire.Bind(new(bizagent.MCPToolSource), new(*bizmcp.Usecase)),
+	wire.Bind(new(bizagent.SkillSource), new(*bizskill.Usecase)),
 	wire.Bind(new(biznotify.SnapshotReader), new(*bizmonitor.Usecase)),
 	wire.Bind(new(bizjob.NotifyCleaner), new(*biznotify.Usecase)),
 )
@@ -148,6 +153,7 @@ var dataRepoSet = wire.NewSet(
 
 	datanotify.NewRepo,
 	datamcp.NewRepo,
+	dataskill.NewRepo,
 	datajob.NewRepo,
 	dataexport.NewRepo,
 	dataexport.NewWorker,
@@ -200,6 +206,7 @@ var serviceSet = wire.NewSet(
 	monitorsvc.NewService,
 	agentsvc.NewService,
 	mcpsvc.NewService,
+	skillsvc.NewService,
 	dictsvc.NewService,
 	dashsvc.NewService,
 	syssvc.NewService,

@@ -75,6 +75,8 @@ export default {
     tools: '绑定工具',
     toolsPlaceholder: '选择内置工具或 MCP 工具（模型需支持工具调用）',
     builtinTools: '内置工具',
+    skills: '绑定技能',
+    skillsPlaceholder: '选择技能，聊天时注入系统提示词（可选）',
     params: '采样参数',
     debug: '调试',
     form: {

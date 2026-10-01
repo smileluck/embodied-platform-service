@@ -37,6 +37,7 @@ import (
 	notifysvc "github.com/smilex/smilex-admin-gin/internal/service/notify"
 	permsvc "github.com/smilex/smilex-admin-gin/internal/service/permission"
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
+	skillsvc "github.com/smilex/smilex-admin-gin/internal/service/skill"
 	syssvc "github.com/smilex/smilex-admin-gin/internal/service/sysconfig"
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
 	"github.com/smilex/smilex-admin-gin/pkg/cache"
@@ -68,6 +69,7 @@ type HTTPServer struct {
 	dashboard     *dashsvc.Service
 	notify        *notifysvc.Service
 	mcp           *mcpsvc.Service
+	skill         *skillsvc.Service
 	tenant        *tenantsvc.Service
 	appuser       *appusersvc.Service
 	appuserUC     *bizappuser.Usecase    // AppJWT 中间件直连领域用例（校验用户启用状态）
@@ -90,7 +92,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	appIssuer bizappuser.TokenIssuer, device *devicesvc.Service, devmodel *devmodelsvc.Service,
 	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service, syscfg *syssvc.Service,
 	notice *noticesvc.Service, job *jobsvc.Service, dashboard *dashsvc.Service, notify *notifysvc.Service,
-	mcp *mcpsvc.Service,
+	mcp *mcpsvc.Service, skill *skillsvc.Service,
 	rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
 	gin.SetMode(cfg.Server.Mode)
 	e := gin.New()
@@ -365,6 +367,16 @@ func (s *HTTPServer) registerRoutes() {
 		mcpServers.POST("/:id/test", middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
 			KeyPrefix: "rl:mcp-test:", Max: 10, Window: time.Minute, ByUser: true, MessageKey: "security.rate_limited",
 		}), s.testMcpServer)
+	}
+
+	// ---- 技能管理（多文件技能包：附属文件随技能整体提交） ----
+	skills := protected.Group("/skills")
+	{
+		skills.GET("", s.listSkills)
+		skills.POST("", s.createSkill)
+		skills.GET("/:id", s.getSkill)
+		skills.PUT("/:id", s.updateSkill)
+		skills.DELETE("/:id", s.deleteSkill)
 	}
 
 	// ---- 定时任务 ----

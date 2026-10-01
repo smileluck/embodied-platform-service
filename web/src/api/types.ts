@@ -293,6 +293,7 @@ export interface AgentInfo {
   top_p: number // 0~1；0=上游默认
   max_tokens: number // 0=上游默认
   tools: string[] // 绑定的本地工具名（function calling）
+  skills: string[] // 绑定的技能 code（聊天注入 system prompt）
   remark: string
   status: number
   created_at: string
@@ -670,3 +671,27 @@ export interface AgentToolGroups {
   builtin: string[]
   mcp: { server_code: string; server_name: string; tools: { name: string; description: string }[] }[]
 }
+
+// ---- 技能（多文件技能包） ----
+
+// 附属文件（回显含内容；列表场景内容仅作元信息展示）
+export interface SkillFile {
+  path: string
+  content: string
+}
+
+export interface SkillInfo {
+  id: number
+  name: string
+  code: string // 稳定引用（Agent 绑定用）
+  description: string
+  instruction: string // 主指令（SKILL.md 等价物，Markdown）
+  files: SkillFile[]
+  remark: string
+  status: number
+  created_at: string
+  updated_at: string
+}
+
+// 写入参数（files 随技能整体提交替换）
+export type SkillInput = Partial<Omit<SkillInfo, 'files'>> & { files?: SkillFile[] }

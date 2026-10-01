@@ -224,3 +224,35 @@ CREATE TABLE IF NOT EXISTS `mcp_servers` (
   UNIQUE KEY `uk_mcp_servers_code` (`code`),
   KEY `idx_mcp_servers_deleted_at` (`deleted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- 技能表（多文件技能包主表）
+CREATE TABLE IF NOT EXISTS `skills` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(20) NOT NULL,
+  `code` VARCHAR(64) NOT NULL COMMENT '稳定引用（Agent 以 code 绑定）',
+  `description` VARCHAR(200) DEFAULT '',
+  `instruction` TEXT NOT NULL COMMENT '主指令（SKILL.md 等价物，Markdown）',
+  `remark` VARCHAR(200) DEFAULT '',
+  `status` TINYINT DEFAULT 1 COMMENT '1 启用 0 禁用',
+  `created_at` DATETIME(3),
+  `updated_at` DATETIME(3),
+  `deleted_at` DATETIME(3),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_skills_name` (`name`),
+  UNIQUE KEY `uk_skills_code` (`code`),
+  KEY `idx_skills_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- 技能附属文件表（随技能整体替换，物理删插）
+CREATE TABLE IF NOT EXISTS `skill_files` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `skill_id` BIGINT UNSIGNED NOT NULL,
+  `path` VARCHAR(128) NOT NULL COMMENT '相对路径',
+  `content` TEXT,
+  `file_size` INT DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_skill_files_skill_id` (`skill_id`),
+  UNIQUE KEY `uk_skill_file_path` (`skill_id`, `path`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ALTER TABLE `agents` ADD COLUMN `skills` VARCHAR(512); -- 由 AutoMigrate 自动完成，此处仅参考

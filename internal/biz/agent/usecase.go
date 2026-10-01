@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -20,15 +21,16 @@ type Usecase struct {
 	crypto *Crypto
 	tools  *ToolRegistry
 	mcp    MCPToolSource // MCP 远程工具源（智能体可绑定 mcp:<code>:<tool> 参与工具调用）
+	skills SkillSource   // 技能源（绑定的技能拼接进 system prompt）
 }
 
 // NewUsecase 构建用例并注册内置工具（mon 为 nil 时不注册 get_server_status）
-func NewUsecase(repo Repo, cfg *conf.Bootstrap, mon ServerStatusReader, mcp MCPToolSource) *Usecase {
+func NewUsecase(repo Repo, cfg *conf.Bootstrap, mon ServerStatusReader, mcp MCPToolSource, skills SkillSource) *Usecase {
 	builtin := []Tool{newNowTool()}
 	if mon != nil {
 		builtin = append(builtin, newServerStatusTool(mon))
 	}
-	return &Usecase{repo: repo, crypto: NewCrypto(cfg.Agent.CryptoKey, cfg.JWT.Secret), tools: NewToolRegistry(builtin...), mcp: mcp}
+	return &Usecase{repo: repo, crypto: NewCrypto(cfg.Agent.CryptoKey, cfg.JWT.Secret), tools: NewToolRegistry(builtin...), mcp: mcp, skills: skills}
 }
 
 // ToolNames 可绑定的本地工具清单（仅内置注册表；完整可绑定分组见 ToolGroups）
@@ -270,6 +272,7 @@ type AgentInput struct {
 	TopP         float64
 	MaxTokens    int
 	Tools        []string
+	Skills       []string // 绑定的技能 code（聊天时注入 system prompt）
 	Remark       string
 	Status       Status
 }
@@ -300,6 +303,32 @@ func (uc *Usecase) validateTools(ctx context.Context, names []string) ([]string,
 	return out, nil
 }
 
+// validateSkills 技能绑定清洗：存在且启用、去重、上限 10 个
+func (uc *Usecase) validateSkills(ctx context.Context, codes []string) ([]string, error) {
+	if len(codes) == 0 {
+		return nil, nil
+	}
+	if len(codes) > maxAgentSkills {
+		return nil, ErrTooManySkills
+	}
+	if uc.skills == nil {
+		return nil, ErrUnknownSkill
+	}
+	seen := make(map[string]struct{}, len(codes))
+	out := make([]string, 0, len(codes))
+	for _, c := range codes {
+		if err := uc.skills.CheckEnabled(ctx, c); err != nil {
+			return nil, err
+		}
+		if _, dup := seen[c]; dup {
+			continue
+		}
+		seen[c] = struct{}{}
+		out = append(out, c)
+	}
+	return out, nil
+}
+
 func (uc *Usecase) CreateAgent(ctx context.Context, in AgentInput) (*Agent, error) {
 	if _, err := uc.repo.FindModelByID(ctx, in.ModelID); err != nil {
 		return nil, err
@@ -313,10 +342,14 @@ func (uc *Usecase) CreateAgent(ctx context.Context, in AgentInput) (*Agent, erro
 	if err != nil {
 		return nil, err
 	}
+	skills, err := uc.validateSkills(ctx, in.Skills)
+	if err != nil {
+		return nil, err
+	}
 	a := &Agent{
 		Name: in.Name, Code: in.Code, ModelID: in.ModelID,
 		SystemPrompt: in.SystemPrompt, Temperature: in.Temperature, TopP: in.TopP,
-		MaxTokens: in.MaxTokens, Tools: tools, Remark: in.Remark, Status: in.Status,
+		MaxTokens: in.MaxTokens, Tools: tools, Skills: skills, Remark: in.Remark, Status: in.Status,
 	}
 	if err := uc.repo.CreateAgent(ctx, a); err != nil {
 		return nil, err
@@ -358,6 +391,13 @@ func (uc *Usecase) UpdateAgent(ctx context.Context, id uint, in AgentInput) erro
 			return err
 		}
 		a.Tools = tools
+	}
+	if in.Skills != nil { // nil=保持原绑定；空数组=清空
+		skills, err := uc.validateSkills(ctx, in.Skills)
+		if err != nil {
+			return err
+		}
+		a.Skills = skills
 	}
 	if in.Remark != "" {
 		a.Remark = in.Remark
@@ -495,8 +535,8 @@ func (uc *Usecase) ChatStream(ctx context.Context, agentID uint, userID, convers
 	}
 
 	msgs := make([]Message, 0, len(history)+1)
-	if a.SystemPrompt != "" {
-		msgs = append(msgs, Message{Role: "system", Content: a.SystemPrompt})
+	if sys := uc.buildSystemPrompt(ctx, a); sys != "" {
+		msgs = append(msgs, Message{Role: "system", Content: sys})
 	}
 	msgs = append(msgs, history...)
 
@@ -531,6 +571,40 @@ func (uc *Usecase) ChatStream(ctx context.Context, agentID uint, userID, convers
 		meta.ConversationID = conv.ID
 	}
 	return ch, meta, nil
+}
+
+// systemPromptMax 注入总量上限（Agent 提示词 + 全部技能内容；超出截断防呆）
+const systemPromptMax = 60000
+
+// buildSystemPrompt 组装 system prompt：Agent 自身提示词 + 绑定技能块
+// （# 技能：{name}\n{description}\n{instruction} + 每个附属文件 ## 附：{path}\n{content}）。
+// 技能拉取失败或禁用跳过，不阻断对话；总量超上限截断并告警。
+func (uc *Usecase) buildSystemPrompt(ctx context.Context, a *Agent) string {
+	var sb strings.Builder
+	sb.WriteString(a.SystemPrompt)
+	if uc.skills != nil && len(a.Skills) > 0 {
+		contents, err := uc.skills.Contents(ctx, a.Skills)
+		if err != nil {
+			logger.Warn("load skill contents failed, skip injection", zap.Strings("skills", a.Skills), zap.Error(err))
+		}
+		for _, c := range contents {
+			fmt.Fprintf(&sb, "\n\n# 技能：%s\n", c.Name)
+			if c.Description != "" {
+				sb.WriteString(c.Description)
+				sb.WriteByte('\n')
+			}
+			sb.WriteString(c.Instruction)
+			for _, f := range c.Files {
+				fmt.Fprintf(&sb, "\n\n## 附：%s\n%s", f.Path, f.Content)
+			}
+		}
+	}
+	out := sb.String()
+	if len(out) > systemPromptMax {
+		out = out[:systemPromptMax] + "\n…（技能内容过长已截断）"
+		logger.Warn("system prompt exceeds budget, truncated", zap.Int("size", sb.Len()), zap.Int("max", systemPromptMax))
+	}
+	return strings.TrimLeft(out, "\n") // Agent 无自身提示词且技能为空时得到空串
 }
 
 // recordUserMessage 落库本轮 user 消息；默认标题的会话用消息前 20 字命名

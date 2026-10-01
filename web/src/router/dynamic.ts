@@ -32,6 +32,7 @@ const viewModules: Record<string, () => Promise<any>> = {
   'menu:agentChat': () => import('../views/agent/Chat.vue'),
   'menu:agentUsage': () => import('../views/agent/Usage.vue'),
   'menu:mcpServer': () => import('../views/mcp/Servers.vue'),
+  'menu:skill': () => import('../views/skill/Skills.vue'),
   'menu:notifyChannel': () => import('../views/notify/Channels.vue'),
   'menu:alertRule': () => import('../views/notify/Rules.vue'),
   'menu:notifyRecord': () => import('../views/notify/Records.vue'),

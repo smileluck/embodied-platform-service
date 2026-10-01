@@ -75,6 +75,8 @@ export default {
     tools: 'Bound Tools',
     toolsPlaceholder: 'Select built-in or MCP tools (model must support tool calling)',
     builtinTools: 'Built-in Tools',
+    skills: 'Bound Skills',
+    skillsPlaceholder: 'Select skills to inject into the system prompt (optional)',
     params: 'Sampling',
     debug: 'Debug',
     form: {

@@ -205,3 +205,34 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
 CREATE UNIQUE INDEX IF NOT EXISTS uk_mcp_servers_name ON mcp_servers (name);
 CREATE UNIQUE INDEX IF NOT EXISTS uk_mcp_servers_code ON mcp_servers (code);
 CREATE INDEX IF NOT EXISTS idx_mcp_servers_deleted_at ON mcp_servers (deleted_at);
+
+-- 技能表（多文件技能包主表：主指令；Agent 绑定后聊天注入 system prompt，软删留痕）
+CREATE TABLE IF NOT EXISTS skills (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  code TEXT NOT NULL,                  -- 稳定引用（Agent 以 code 绑定）
+  description TEXT DEFAULT '',
+  instruction TEXT NOT NULL,           -- 主指令（SKILL.md 等价物，Markdown）
+  remark TEXT DEFAULT '',
+  status INTEGER DEFAULT 1,            -- 1 启用 0 禁用
+  created_at DATETIME,
+  updated_at DATETIME,
+  deleted_at DATETIME
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_skills_name ON skills (name);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_skills_code ON skills (code);
+CREATE INDEX IF NOT EXISTS idx_skills_deleted_at ON skills (deleted_at);
+
+-- 技能附属文件表（文本资源；随技能整体替换，无软删——物理替换）
+CREATE TABLE IF NOT EXISTS skill_files (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  skill_id INTEGER NOT NULL,
+  path TEXT NOT NULL,                  -- 相对路径（如 scripts/helper.py）
+  content TEXT,
+  file_size INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_skill_files_skill_id ON skill_files (skill_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_skill_file_path ON skill_files (skill_id, path);
+
+-- 智能体表加列：绑定的技能 code JSON 数组（空=无技能）
+-- ALTER TABLE agents ADD COLUMN skills TEXT; -- 由 AutoMigrate 自动完成，此处仅参考

@@ -60,6 +60,12 @@
           :max-tag-count="5" :placeholder="t('agent.agent.toolsPlaceholder')"
         />
       </n-form-item>
+      <n-form-item :label="t('agent.agent.skills')">
+        <n-select
+          v-model:value="form.skills" :options="skillOptions" multiple clearable filterable
+          :max-tag-count="5" :placeholder="t('agent.agent.skillsPlaceholder')"
+        />
+      </n-form-item>
       <n-form-item :label="t('common.remark')">
         <n-input v-model:value="form.remark" :maxlength="200" show-word-limit :placeholder="t('role.remarkPlaceholder')" />
       </n-form-item>
@@ -97,7 +103,7 @@ import { useI18n } from 'vue-i18n'
 import { usePagination } from '../../utils/pagination'
 import { useUserStore } from '../../stores/user'
 import {
-  createAgent, deleteAgent, listAgentModels, listAgentProviders, listAgentToolGroups, listAgents, updateAgent,
+  createAgent, deleteAgent, listAgentModels, listAgentProviders, listAgentToolGroups, listAgents, listSkills, updateAgent,
 } from '../../api'
 import type { AgentInfo, AgentModel, AgentProvider, AgentToolGroups } from '../../api/types'
 import ChatPanel from './ChatPanel.vue'
@@ -157,6 +163,7 @@ const form = reactive({
   name: '', code: '',
   // null 表示未选择：n-select 值为 0 时无对应选项会直接显示"0"
   provider_id: null as number | null, model_id: null as number | null, tools: [] as string[],
+  skills: [] as string[],
   system_prompt: '', temperature: 0.7, top_p: 0, max_tokens: 0, remark: '', status: 1,
 })
 const formRef = ref<FormInst | null>(null)
@@ -186,7 +193,7 @@ const modelOptions = computed(() =>
 function openCreate() {
   editing.value = false
   Object.assign(form, {
-    name: '', code: '', provider_id: null, model_id: null, tools: [],
+    name: '', code: '', provider_id: null, model_id: null, tools: [], skills: [],
     system_prompt: '', temperature: 0.7, top_p: 0, max_tokens: 0, remark: '', status: 1,
   })
   showModal.value = true
@@ -198,7 +205,8 @@ function openEdit(row: AgentInfo) {
   const m = modelById.value.get(row.model_id)
   Object.assign(form, {
     name: row.name, code: row.code,
-    provider_id: m?.provider_id ?? null, model_id: row.model_id || null, tools: row.tools ?? [],
+    provider_id: m?.provider_id ?? null, model_id: row.model_id || null,
+    tools: row.tools ?? [], skills: row.skills ?? [],
     system_prompt: row.system_prompt, temperature: row.temperature || 0.7,
     top_p: row.top_p, max_tokens: row.max_tokens, remark: row.remark, status: row.status,
   })
@@ -214,7 +222,8 @@ async function save() {
   saving.value = true
   try {
     const payload = {
-      name: form.name.trim(), code: form.code.trim(), model_id: form.model_id as number, tools: form.tools,
+      name: form.name.trim(), code: form.code.trim(), model_id: form.model_id as number,
+      tools: form.tools, skills: form.skills,
       system_prompt: form.system_prompt.trim(), temperature: form.temperature, top_p: form.top_p,
       max_tokens: form.max_tokens, remark: form.remark.trim(), status: form.status,
     }
@@ -336,6 +345,9 @@ const toolOptions = computed<SelectGroupOption[]>(() => {
   return groups
 })
 
+// 绑定技能选项（启用技能；值=code，label 显示名称，描述作副文本）
+const skillOptions = ref<{ label: string; value: string }[]>([])
+
 onMounted(async () => {
   await loadRefs()
   load()
@@ -344,6 +356,14 @@ onMounted(async () => {
       const res = await listAgentToolGroups()
       toolGroups.value = res.data.data ?? { builtin: [], mcp: [] }
     } catch { /* 工具清单加载失败不阻断页面 */ }
+  }
+  if (userStore.has('skill:list')) {
+    try {
+      const res = await listSkills({ page: 1, page_size: 0, status: 1 })
+      skillOptions.value = (res.data.data.list ?? []).map((s) => ({
+        label: s.description ? `${s.name}（${s.description}）` : s.name, value: s.code,
+      }))
+    } catch { /* 技能清单加载失败不阻断页面 */ }
   }
 })
 </script>

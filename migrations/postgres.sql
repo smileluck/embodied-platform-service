@@ -200,3 +200,33 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
 CREATE UNIQUE INDEX IF NOT EXISTS uk_mcp_servers_name ON mcp_servers (name);
 CREATE UNIQUE INDEX IF NOT EXISTS uk_mcp_servers_code ON mcp_servers (code);
 CREATE INDEX IF NOT EXISTS idx_mcp_servers_deleted_at ON mcp_servers (deleted_at);
+
+-- 技能表（多文件技能包主表）
+CREATE TABLE IF NOT EXISTS skills (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(20) NOT NULL,
+  code VARCHAR(64) NOT NULL,           -- 稳定引用（Agent 以 code 绑定）
+  description VARCHAR(200) DEFAULT '',
+  instruction TEXT NOT NULL,           -- 主指令（SKILL.md 等价物，Markdown）
+  remark VARCHAR(200) DEFAULT '',
+  status SMALLINT DEFAULT 1,           -- 1 启用 0 禁用
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ,
+  deleted_at TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_skills_name ON skills (name);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_skills_code ON skills (code);
+CREATE INDEX IF NOT EXISTS idx_skills_deleted_at ON skills (deleted_at);
+
+-- 技能附属文件表（随技能整体替换，物理删插）
+CREATE TABLE IF NOT EXISTS skill_files (
+  id BIGSERIAL PRIMARY KEY,
+  skill_id BIGINT NOT NULL,
+  path VARCHAR(128) NOT NULL,          -- 相对路径
+  content TEXT,
+  file_size INT DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_skill_files_skill_id ON skill_files (skill_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_skill_file_path ON skill_files (skill_id, path);
+
+-- ALTER TABLE agents ADD COLUMN skills VARCHAR(512); -- 由 AutoMigrate 自动完成，此处仅参考

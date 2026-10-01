@@ -60,7 +60,7 @@ func newUsecaseWithMCP(repo Repo, mcp MCPToolSource) *Usecase {
 	return NewUsecase(repo, &conf.Bootstrap{
 		Agent: conf.Agent{CryptoKey: "unit-test-key"},
 		JWT:   conf.JWT{Secret: "jwt-secret"},
-	}, nil, mcp)
+	}, nil, mcp, nil)
 }
 
 func TestParseMCPRef(t *testing.T) {

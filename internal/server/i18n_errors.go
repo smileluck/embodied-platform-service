@@ -18,6 +18,7 @@ import (
 	biznotify "github.com/smilex/smilex-admin-gin/internal/biz/notify"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/role"
+	bizskill "github.com/smilex/smilex-admin-gin/internal/biz/skill"
 	bizsys "github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	"github.com/smilex/smilex-admin-gin/pkg/response"
@@ -134,6 +135,15 @@ var errKeys = []struct {
 	{bizmcp.ErrTimeout, "mcp.timeout"},
 	{bizmcp.ErrDecryptFailed, "mcp.decrypt_failed"},
 	{bizmcp.ErrProtocol, "mcp.protocol_error"},
+	// 技能
+	{bizskill.ErrNotFound, "skill.not_found"},
+	{bizskill.ErrCodeExists, "skill.code_exists"},
+	{bizskill.ErrNameExists, "skill.name_exists"},
+	{bizskill.ErrInvalidCode, "skill.code_invalid"},
+	{bizskill.ErrInvalidFilePath, "skill.file_path_invalid"},
+	{bizskill.ErrDuplicatePath, "skill.file_path_duplicated"},
+	{bizskill.ErrSkillInUse, "skill.in_use"},
+	{bizskill.ErrSkillDisabled, "skill.disabled"},
 	// 定时任务
 	{bizjob.ErrNotFound, "job.not_found"},
 	{bizjob.ErrNameExists, "job.name_exists"},
