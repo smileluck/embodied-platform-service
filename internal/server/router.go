@@ -31,6 +31,7 @@ import (
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
 	jobsvc "github.com/smilex/smilex-admin-gin/internal/service/job"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
+	mcpsvc "github.com/smilex/smilex-admin-gin/internal/service/mcp"
 	monitorsvc "github.com/smilex/smilex-admin-gin/internal/service/monitor"
 	noticesvc "github.com/smilex/smilex-admin-gin/internal/service/notice"
 	notifysvc "github.com/smilex/smilex-admin-gin/internal/service/notify"
@@ -66,6 +67,7 @@ type HTTPServer struct {
 	job           *jobsvc.Service
 	dashboard     *dashsvc.Service
 	notify        *notifysvc.Service
+	mcp           *mcpsvc.Service
 	tenant        *tenantsvc.Service
 	appuser       *appusersvc.Service
 	appuserUC     *bizappuser.Usecase    // AppJWT 中间件直连领域用例（校验用户启用状态）
@@ -88,6 +90,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	appIssuer bizappuser.TokenIssuer, device *devicesvc.Service, devmodel *devmodelsvc.Service,
 	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service, syscfg *syssvc.Service,
 	notice *noticesvc.Service, job *jobsvc.Service, dashboard *dashsvc.Service, notify *notifysvc.Service,
+	mcp *mcpsvc.Service,
 	rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
 	gin.SetMode(cfg.Server.Mode)
 	e := gin.New()
@@ -348,6 +351,20 @@ func (s *HTTPServer) registerRoutes() {
 		agentModels.PUT("/:id", s.updateAgentModel)
 		agentModels.DELETE("/:id", s.deleteAgentModel)
 		agentModels.POST("/:id/test", s.testAgentModel)
+	}
+
+	// ---- MCP 服务（智能体工具源）：配置 CRUD + 连通测试 ----
+	mcpServers := protected.Group("/mcp/servers")
+	{
+		mcpServers.GET("", s.listMcpServers)
+		mcpServers.POST("", s.createMcpServer)
+		mcpServers.GET("/:id", s.getMcpServer)
+		mcpServers.PUT("/:id", s.updateMcpServer)
+		mcpServers.DELETE("/:id", s.deleteMcpServer)
+		// 连通测试：真实握手远端（外呼请求，按用户限流防滥用）
+		mcpServers.POST("/:id/test", middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
+			KeyPrefix: "rl:mcp-test:", Max: 10, Window: time.Minute, ByUser: true, MessageKey: "security.rate_limited",
+		}), s.testMcpServer)
 	}
 
 	// ---- 定时任务 ----

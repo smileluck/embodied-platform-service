@@ -72,6 +72,9 @@ export default {
     topP: 'Top P',
     maxTokens: 'Max Tokens',
     maxTokensPlaceholder: '0 for upstream default',
+    tools: 'Bound Tools',
+    toolsPlaceholder: 'Select built-in or MCP tools (model must support tool calling)',
+    builtinTools: 'Built-in Tools',
     params: 'Sampling',
     debug: 'Debug',
     form: {

@@ -7,6 +7,7 @@ import type {
   AgentModel,
   AgentProvider,
   AgentTestResult,
+  AgentToolGroups,
   AppUser,
   BlacklistItem,
   DashboardStats,
@@ -23,6 +24,9 @@ import type {
   JobInfo,
   JobLog,
   LogPageResult,
+  McpServer,
+  McpServerInput,
+  McpTestResult,
   MemberRow,
   MenuHit,
   MenuNode,
@@ -49,7 +53,6 @@ import type {
   UsageStats,
   UserInfo,
 } from './types'
-
 export const getProfile = () =>
   request.get<R<{ user: UserInfo; permissions: Permission[] }>>('/auth/profile')
 export const getMenus = () => request.get<R<MenuNode[]>>('/menus')
@@ -281,7 +284,7 @@ export const listAgentConversationMessages = (id: number, params: { page: number
 
 export const getAgentUsage = (days = 7) => request.get<R<UsageStats>>('/agent/usage', { params: { days } })
 
-export const listAgentTools = () => request.get<R<string[]>>('/agent/tools')
+export const listAgentToolGroups = () => request.get<R<AgentToolGroups>>('/agent/tools')
 
 // ---- 数据字典 ----
 
@@ -372,3 +375,13 @@ export const getDashboardStats = () => request.get<R<DashboardStats>>('/dashboar
 
 export const getMonitorHistory = (hours = 24) =>
   request.get<R<MonitorHistoryPoint[]>>('/monitor/history', { params: { hours } })
+
+// ---- MCP 服务 ----
+
+export const listMcpServers = (params?: { page: number; page_size: number; kw?: string; transport?: string; status?: number }) =>
+  request.get<R<PageResult<McpServer>>>('/mcp/servers', { params })
+export const createMcpServer = (data: McpServerInput) => request.post<R<McpServer>>('/mcp/servers', data)
+export const getMcpServer = (id: number) => request.get<R<McpServer>>(`/mcp/servers/${id}`)
+export const updateMcpServer = (id: number, data: McpServerInput) => request.put<R<null>>(`/mcp/servers/${id}`, data)
+export const deleteMcpServer = (id: number) => request.delete<R<null>>(`/mcp/servers/${id}`)
+export const testMcpServer = (id: number) => request.post<R<McpTestResult>>(`/mcp/servers/${id}/test`)

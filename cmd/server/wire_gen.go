@@ -21,6 +21,7 @@ import (
 	file2 "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	job2 "github.com/smilex/smilex-admin-gin/internal/biz/job"
 	log2 "github.com/smilex/smilex-admin-gin/internal/biz/log"
+	mcp2 "github.com/smilex/smilex-admin-gin/internal/biz/mcp"
 	monitor2 "github.com/smilex/smilex-admin-gin/internal/biz/monitor"
 	notice2 "github.com/smilex/smilex-admin-gin/internal/biz/notice"
 	notify2 "github.com/smilex/smilex-admin-gin/internal/biz/notify"
@@ -42,6 +43,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/data/file"
 	"github.com/smilex/smilex-admin-gin/internal/data/job"
 	"github.com/smilex/smilex-admin-gin/internal/data/log"
+	"github.com/smilex/smilex-admin-gin/internal/data/mcp"
 	"github.com/smilex/smilex-admin-gin/internal/data/monitor"
 	"github.com/smilex/smilex-admin-gin/internal/data/notice"
 	"github.com/smilex/smilex-admin-gin/internal/data/notify"
@@ -64,6 +66,7 @@ import (
 	file3 "github.com/smilex/smilex-admin-gin/internal/service/file"
 	job3 "github.com/smilex/smilex-admin-gin/internal/service/job"
 	log3 "github.com/smilex/smilex-admin-gin/internal/service/log"
+	mcp3 "github.com/smilex/smilex-admin-gin/internal/service/mcp"
 	monitor3 "github.com/smilex/smilex-admin-gin/internal/service/monitor"
 	notice3 "github.com/smilex/smilex-admin-gin/internal/service/notice"
 	notify3 "github.com/smilex/smilex-admin-gin/internal/service/notify"
@@ -161,7 +164,9 @@ func wireApp() (*server.HTTPServer, func(), error) {
 	monitorUsecase, cleanup5 := monitor2.NewUsecase(snapshotRepo)
 	monitorService := monitor3.NewService(monitorUsecase)
 	agentRepo := agent.NewRepo(dataData, bootstrap)
-	agentUsecase := agent2.NewUsecase(agentRepo, bootstrap, monitorUsecase)
+	mcpRepo := mcp.NewRepo(dataData)
+	mcpUsecase := mcp2.NewUsecase(mcpRepo, bootstrap)
+	agentUsecase := agent2.NewUsecase(agentRepo, bootstrap, monitorUsecase, mcpUsecase)
 	agentService := agent3.NewService(agentUsecase)
 	dictRepo := dict.NewRepo(dataData)
 	dictUsecase := dict2.NewUsecase(dictRepo)
@@ -181,7 +186,8 @@ func wireApp() (*server.HTTPServer, func(), error) {
 	dashboardUsecase := dashboard2.NewUsecase(dashboardRepo)
 	dashboardService := dashboard3.NewService(dashboardUsecase)
 	notifyService := notify3.NewService(notifyUsecase)
-	httpServer := server.NewHTTPServer(bootstrap, service, admissionService, usecase, roleService, permissionService, logService, fileService, exportService, blacklistService, tenantService, appuserService, appuserUsecase, tokenIssuer, deviceService, devmodelService, monitorService, agentService, dictService, sysconfigService, noticeService, jobService, dashboardService, notifyService, rbacCache, redisClient)
+	mcpService := mcp3.NewService(mcpUsecase)
+	httpServer := server.NewHTTPServer(bootstrap, service, admissionService, usecase, roleService, permissionService, logService, fileService, exportService, blacklistService, tenantService, appuserService, appuserUsecase, tokenIssuer, deviceService, devmodelService, monitorService, agentService, dictService, sysconfigService, noticeService, jobService, dashboardService, notifyService, mcpService, rbacCache, redisClient)
 	return httpServer, func() {
 		cleanup6()
 		cleanup5()
@@ -194,10 +200,10 @@ func wireApp() (*server.HTTPServer, func(), error) {
 
 // wire.go:
 
-var bizSet = wire.NewSet(admission2.NewUsecase, role2.NewUsecase, permission2.NewUsecase, log2.NewUsecase, file2.NewUsecase, blacklist2.NewUsecase, tenant2.NewUsecase, appuser2.NewUsecase, device2.NewUsecase, devmodel2.NewUsecase, dict2.NewUsecase, dashboard2.NewUsecase, sysconfig2.NewUsecase, notice2.NewUsecase, job2.NewUsecase, monitor2.NewUsecase, agent2.NewUsecase, notify2.NewUsecase, export2.NewUsecase, export2.NewRegistry, export2.NewUserExporter, export2.NewOpLogExporter, auth2.NewUsecase, wire.Bind(new(auth2.AdmissionReader), new(*admission2.Usecase)), wire.Bind(new(device2.TenantRelinker), new(*tenant2.Usecase)), wire.Bind(new(agent2.ServerStatusReader), new(*monitor2.Usecase)), wire.Bind(new(notify2.SnapshotReader), new(*monitor2.Usecase)), wire.Bind(new(job2.NotifyCleaner), new(*notify2.Usecase)))
+var bizSet = wire.NewSet(admission2.NewUsecase, role2.NewUsecase, permission2.NewUsecase, log2.NewUsecase, file2.NewUsecase, blacklist2.NewUsecase, tenant2.NewUsecase, appuser2.NewUsecase, device2.NewUsecase, devmodel2.NewUsecase, dict2.NewUsecase, dashboard2.NewUsecase, sysconfig2.NewUsecase, notice2.NewUsecase, job2.NewUsecase, monitor2.NewUsecase, agent2.NewUsecase, notify2.NewUsecase, mcp2.NewUsecase, export2.NewUsecase, export2.NewRegistry, export2.NewUserExporter, export2.NewOpLogExporter, auth2.NewUsecase, wire.Bind(new(auth2.AdmissionReader), new(*admission2.Usecase)), wire.Bind(new(device2.TenantRelinker), new(*tenant2.Usecase)), wire.Bind(new(agent2.ServerStatusReader), new(*monitor2.Usecase)), wire.Bind(new(agent2.MCPToolSource), new(*mcp2.Usecase)), wire.Bind(new(notify2.SnapshotReader), new(*monitor2.Usecase)), wire.Bind(new(job2.NotifyCleaner), new(*notify2.Usecase)))
 
-var dataRepoSet = wire.NewSet(data.NewData, data.NewRedisClient, data.NewAppTokenIssuer, data.NewRBACCache, admission.NewRepo, role.NewRepo, permission.NewRepo, log.NewRepo, file.NewRepo, file.NewStorageManager, blacklist.NewRepo, tenant.NewRepo, appuser.NewRepo, agent.NewRepo, dict.NewRepo, dashboard.NewRepo, monitor.NewSnapshotRepo, wire.Bind(new(monitor2.SnapshotRepo), new(*monitor.SnapshotRepo)), sysconfig.NewRepo, notice.NewRepo, notify.NewRepo, job.NewRepo, export.NewRepo, export.NewWorker, platform.NewIdentityClient, platform.NewStorageClient, platform.NewOpenAPIClient, platform.NewMerchantIdentity, device.NewGatewayAdapter, devmodel.NewGatewayAdapter, tenant.NewSyncer, tenant.NewTenantAvailability, admission.NewPlatformGateway, auth.NewIdentityAdapter, wire.Bind(new(auth2.IdentitySource), new(*auth.IdentityAdapter)), wire.Bind(new(job2.LogCleaner), new(*log.Repo)), wire.Bind(new(job2.ExportCleaner), new(*export.Worker)), wire.Bind(new(agent2.Repo), new(*agent.Repo)), wire.Bind(new(job2.UsageCleaner), new(*agent.Repo)), wire.Bind(new(auth2.RoleNameReader), new(role2.Repo)), wire.Bind(new(auth2.PermissionReader), new(permission2.Repo)), wire.Bind(new(log2.Repo), new(*log.Repo)), wire.Bind(new(blacklist2.Repo), new(*blacklist.Repo)), wire.Bind(new(blacklist2.LoginProtector), new(*blacklist.Repo)), wire.Bind(new(export2.Enqueuer), new(*export.Worker)), wire.Bind(new(tenant2.PlatformSyncer), new(*tenant.Syncer)), wire.Bind(new(device2.Gateway), new(*device.GatewayAdapter)), wire.Bind(new(devmodel2.Gateway), new(*devmodel.GatewayAdapter)), wire.Bind(new(admission2.MemberGateway), new(*admission.PlatformGateway)), wire.Bind(new(admission2.MerchantIdentity), new(*platform.MerchantIdentity)), wire.Bind(new(admission2.DecisionCache), new(*data.RBACCache)), wire.Bind(new(role2.DecisionCache), new(*data.RBACCache)))
+var dataRepoSet = wire.NewSet(data.NewData, data.NewRedisClient, data.NewAppTokenIssuer, data.NewRBACCache, admission.NewRepo, role.NewRepo, permission.NewRepo, log.NewRepo, file.NewRepo, file.NewStorageManager, blacklist.NewRepo, tenant.NewRepo, appuser.NewRepo, agent.NewRepo, dict.NewRepo, dashboard.NewRepo, monitor.NewSnapshotRepo, wire.Bind(new(monitor2.SnapshotRepo), new(*monitor.SnapshotRepo)), sysconfig.NewRepo, notice.NewRepo, notify.NewRepo, mcp.NewRepo, job.NewRepo, export.NewRepo, export.NewWorker, platform.NewIdentityClient, platform.NewStorageClient, platform.NewOpenAPIClient, platform.NewMerchantIdentity, device.NewGatewayAdapter, devmodel.NewGatewayAdapter, tenant.NewSyncer, tenant.NewTenantAvailability, admission.NewPlatformGateway, auth.NewIdentityAdapter, wire.Bind(new(auth2.IdentitySource), new(*auth.IdentityAdapter)), wire.Bind(new(job2.LogCleaner), new(*log.Repo)), wire.Bind(new(job2.ExportCleaner), new(*export.Worker)), wire.Bind(new(agent2.Repo), new(*agent.Repo)), wire.Bind(new(job2.UsageCleaner), new(*agent.Repo)), wire.Bind(new(auth2.RoleNameReader), new(role2.Repo)), wire.Bind(new(auth2.PermissionReader), new(permission2.Repo)), wire.Bind(new(log2.Repo), new(*log.Repo)), wire.Bind(new(blacklist2.Repo), new(*blacklist.Repo)), wire.Bind(new(blacklist2.LoginProtector), new(*blacklist.Repo)), wire.Bind(new(export2.Enqueuer), new(*export.Worker)), wire.Bind(new(tenant2.PlatformSyncer), new(*tenant.Syncer)), wire.Bind(new(device2.Gateway), new(*device.GatewayAdapter)), wire.Bind(new(devmodel2.Gateway), new(*devmodel.GatewayAdapter)), wire.Bind(new(admission2.MemberGateway), new(*admission.PlatformGateway)), wire.Bind(new(admission2.MerchantIdentity), new(*platform.MerchantIdentity)), wire.Bind(new(admission2.DecisionCache), new(*data.RBACCache)), wire.Bind(new(role2.DecisionCache), new(*data.RBACCache)))
 
-var serviceSet = wire.NewSet(auth3.NewService, admission3.NewService, role3.NewService, permission3.NewService, log3.NewService, file3.NewService, blacklist3.NewService, export3.NewService, tenant3.NewService, appuser3.NewService, device3.NewService, devmodel3.NewService, monitor3.NewService, agent3.NewService, dict3.NewService, dashboard3.NewService, sysconfig3.NewService, notice3.NewService, notify3.NewService, job3.NewService)
+var serviceSet = wire.NewSet(auth3.NewService, admission3.NewService, role3.NewService, permission3.NewService, log3.NewService, file3.NewService, blacklist3.NewService, export3.NewService, tenant3.NewService, appuser3.NewService, device3.NewService, devmodel3.NewService, monitor3.NewService, agent3.NewService, mcp3.NewService, dict3.NewService, dashboard3.NewService, sysconfig3.NewService, notice3.NewService, notify3.NewService, job3.NewService)
 
 var providerSet = wire.NewSet(bizSet, dataRepoSet, serviceSet, ProvideConfig, server.NewHTTPServer)

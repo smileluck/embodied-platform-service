@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	bizmcp "github.com/smilex/smilex-admin-gin/internal/biz/mcp"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
@@ -18,19 +19,56 @@ type Usecase struct {
 	repo   Repo
 	crypto *Crypto
 	tools  *ToolRegistry
+	mcp    MCPToolSource // MCP 远程工具源（智能体可绑定 mcp:<code>:<tool> 参与工具调用）
 }
 
 // NewUsecase 构建用例并注册内置工具（mon 为 nil 时不注册 get_server_status）
-func NewUsecase(repo Repo, cfg *conf.Bootstrap, mon ServerStatusReader) *Usecase {
+func NewUsecase(repo Repo, cfg *conf.Bootstrap, mon ServerStatusReader, mcp MCPToolSource) *Usecase {
 	builtin := []Tool{newNowTool()}
 	if mon != nil {
 		builtin = append(builtin, newServerStatusTool(mon))
 	}
-	return &Usecase{repo: repo, crypto: NewCrypto(cfg.Agent.CryptoKey, cfg.JWT.Secret), tools: NewToolRegistry(builtin...)}
+	return &Usecase{repo: repo, crypto: NewCrypto(cfg.Agent.CryptoKey, cfg.JWT.Secret), tools: NewToolRegistry(builtin...), mcp: mcp}
 }
 
-// ToolNames 可绑定的工具清单（Agent 表单多选用）
+// ToolNames 可绑定的本地工具清单（仅内置注册表；完整可绑定分组见 ToolGroups）
 func (uc *Usecase) ToolNames() []string { return uc.tools.Names() }
+
+// ToolGroups Agent 表单可绑定工具分组：本地内置 + 各启用 MCP 服务（MCP 拉取失败该组工具为空）
+type ToolGroups struct {
+	Builtin []string   `json:"builtin"`
+	MCP     []MCPGroup `json:"mcp"`
+}
+
+// MCPGroup 单个 MCP 服务的工具分组
+type MCPGroup struct {
+	ServerCode string            `json:"server_code"`
+	ServerName string            `json:"server_name"`
+	Tools      []bizmcp.ToolInfo `json:"tools"`
+}
+
+// ToolGroups 拉取完整分组（Agent 表单数据源；单服务失败不影响其他组）
+func (uc *Usecase) ToolGroups(ctx context.Context) *ToolGroups {
+	g := &ToolGroups{Builtin: uc.tools.Names(), MCP: []MCPGroup{}}
+	if uc.mcp == nil {
+		return g
+	}
+	servers, err := uc.mcp.EnabledServers(ctx)
+	if err != nil {
+		logger.Warn("list enabled mcp servers failed", zap.Error(err))
+		return g
+	}
+	for _, s := range servers {
+		group := MCPGroup{ServerCode: s.Code, ServerName: s.Name, Tools: []bizmcp.ToolInfo{}}
+		if tools, err := uc.mcp.ToolDefs(ctx, s.Code); err == nil {
+			group.Tools = tools
+		} else {
+			logger.Warn("list mcp tools failed", zap.String("server", s.Code), zap.Error(err))
+		}
+		g.MCP = append(g.MCP, group)
+	}
+	return g
+}
 
 // ---- 供应商 ----
 
@@ -237,11 +275,20 @@ type AgentInput struct {
 }
 
 // validateTools 校验绑定的工具均已注册（去重保序）
-func (uc *Usecase) validateTools(names []string) ([]string, error) {
+// validateTools 绑定清洗：本地工具须已注册，MCP 引用（mcp:<code>:<tool>）须服务存在且启用
+// （工具存在性动态，不做强校验——服务器临时不可用不应卡死配置）
+func (uc *Usecase) validateTools(ctx context.Context, names []string) ([]string, error) {
 	seen := make(map[string]struct{}, len(names))
 	out := make([]string, 0, len(names))
 	for _, n := range names {
-		if _, ok := uc.tools.Get(n); !ok {
+		if ref, ok := parseMCPRef(n); ok {
+			if uc.mcp == nil {
+				return nil, ErrUnknownTool
+			}
+			if err := uc.mcp.CheckServer(ctx, ref.serverCode); err != nil {
+				return nil, err
+			}
+		} else if _, ok := uc.tools.Get(n); !ok {
 			return nil, ErrUnknownTool
 		}
 		if _, dup := seen[n]; dup {
@@ -262,7 +309,7 @@ func (uc *Usecase) CreateAgent(ctx context.Context, in AgentInput) (*Agent, erro
 	} else if !errors.Is(err, ErrAgentNotFound) {
 		return nil, err
 	}
-	tools, err := uc.validateTools(in.Tools)
+	tools, err := uc.validateTools(ctx, in.Tools)
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +353,7 @@ func (uc *Usecase) UpdateAgent(ctx context.Context, id uint, in AgentInput) erro
 	a.TopP = in.TopP
 	a.MaxTokens = in.MaxTokens
 	if in.Tools != nil { // nil=保持原绑定；空数组=清空
-		tools, err := uc.validateTools(in.Tools)
+		tools, err := uc.validateTools(ctx, in.Tools)
 		if err != nil {
 			return err
 		}
@@ -453,14 +500,15 @@ func (uc *Usecase) ChatStream(ctx context.Context, agentID uint, userID, convers
 	}
 	msgs = append(msgs, history...)
 
+	defs, resolver := uc.toolDefsFor(ctx, a, m)
 	req := ChatRequest{
 		Model: m.Name, Messages: msgs,
 		Temperature: a.Temperature, TopP: a.TopP, MaxTokens: a.MaxTokens,
-		Tools: uc.toolDefsFor(a, m),
+		Tools: defs,
 	}
 	var ch <-chan StreamEvent
 	if len(req.Tools) > 0 {
-		ch = uc.runToolLoop(ctx, cli, req)
+		ch = uc.runToolLoop(ctx, cli, req, resolver)
 	} else {
 		var err2 error
 		ch, err2 = cli.StreamCompletion(ctx, req)
@@ -765,15 +813,19 @@ func (uc *Usecase) UsageStats(ctx context.Context, days int) (*UsageStats, error
 
 // 工具执行防护参数
 const (
-	toolExecTimeout = 10 * time.Second // 单个工具执行超时
+	toolExecTimeout = 10 * time.Second // 单个本地工具执行超时
+	mcpToolTimeout  = 60 * time.Second // 单个 MCP 工具执行超时（远端网络操作，宽于本地）
+	mcpDefsBudget   = 10 * time.Second // chat 前拉取单个 MCP 服务工具定义的预算（超时跳过该服务）
 	toolResultMax   = 8 << 10          // 工具结果回传上限（超出截断，防撑爆上下文）
 	maxToolRounds   = 5                // 最大调用轮数（防工具调用死循环）
 )
 
-// toolDefsFor 下发工具定义：Agent 绑定且已注册、模型声明支持工具调用（不支持时上游会拒绝）
-func (uc *Usecase) toolDefsFor(a *Agent, m *Model) []ToolDef {
+// toolDefsFor 下发工具定义：Agent 绑定且可用（本地注册 / MCP 引用）、模型声明支持工具调用。
+// 同时返回函数名 -> MCP 引用映射（执行与回显反查）；MCP 定义拉取失败跳过该工具（warn 日志，不阻断对话）
+func (uc *Usecase) toolDefsFor(ctx context.Context, a *Agent, m *Model) ([]ToolDef, mcpResolver) {
+	resolver := mcpResolver{}
 	if !m.SupportsTools || len(a.Tools) == 0 {
-		return nil
+		return nil, resolver
 	}
 	names := uc.tools.Names()
 	defs := make([]ToolDef, 0, len(a.Tools))
@@ -786,12 +838,51 @@ func (uc *Usecase) toolDefsFor(a *Agent, m *Model) []ToolDef {
 			}
 		}
 	}
-	return defs
+	if uc.mcp == nil {
+		return defs, resolver
+	}
+	// 按服务分组，同服务多工具共享一次 tools/list
+	byServer := make(map[string][]mcpToolRef)
+	for _, want := range a.Tools {
+		if ref, ok := parseMCPRef(want); ok {
+			byServer[ref.serverCode] = append(byServer[ref.serverCode], ref)
+		}
+	}
+	for code, refs := range byServer {
+		dctx, cancel := context.WithTimeout(ctx, mcpDefsBudget)
+		tools, err := uc.mcp.ToolDefs(dctx, code)
+		cancel()
+		if err != nil {
+			logger.Warn("mcp tools unavailable, skip", zap.String("server", code), zap.Error(err))
+			continue
+		}
+		byName := make(map[string]bizmcp.ToolInfo, len(tools))
+		for _, t := range tools {
+			byName[t.Name] = t
+		}
+		for _, ref := range refs {
+			t, ok := byName[ref.toolName]
+			if !ok {
+				logger.Warn("mcp tool missing on server, skip", zap.String("server", code), zap.String("tool", ref.toolName))
+				continue
+			}
+			params := t.InputSchema
+			if params == nil {
+				params = map[string]any{"type": "object"}
+			}
+			safe := ref.safeName()
+			resolver[safe] = ref
+			defs = append(defs, ToolDef{Type: "function", Function: ToolFunc{
+				Name: safe, Description: t.Description, Parameters: params,
+			}})
+		}
+	}
+	return defs, resolver
 }
 
-// runToolLoop 工具调用编排：转发每轮增量文本；模型请求工具时本地执行并把结果回传续答，
+// runToolLoop 工具调用编排：转发每轮增量文本；模型请求工具时执行（本地/MCP）并把结果回传续答，
 // 直到模型不再调用工具或达到轮数上限。多轮 usage 合并后在末尾以单帧下发（外层计量按此记账）。
-func (uc *Usecase) runToolLoop(ctx context.Context, cli LLMClient, req ChatRequest) <-chan StreamEvent {
+func (uc *Usecase) runToolLoop(ctx context.Context, cli LLMClient, req ChatRequest, resolver mcpResolver) <-chan StreamEvent {
 	out := make(chan StreamEvent)
 	go func() {
 		defer close(out)
@@ -843,10 +934,10 @@ func (uc *Usecase) runToolLoop(ctx context.Context, cli LLMClient, req ChatReque
 				}
 				return
 			}
-			// 本地执行全部调用（含失败结果，交模型自行处置），以 tool 帧下发过程
+			// 执行全部调用（本地/MCP，含失败结果，交模型自行处置），以 tool 帧下发过程
 			results := make([]ToolCallResult, 0, len(calls))
 			for _, c := range calls {
-				results = append(results, uc.execTool(c))
+				results = append(results, uc.execTool(c, resolver))
 			}
 			if !emit(StreamEvent{ToolCalls: results}) {
 				return
@@ -865,26 +956,38 @@ func (uc *Usecase) runToolLoop(ctx context.Context, cli LLMClient, req ChatReque
 	return out
 }
 
-// execTool 执行单个工具调用（超时与结果大小防护；失败不中断流，错误回传模型）
-func (uc *Usecase) execTool(c ToolCall) ToolCallResult {
+// execTool 执行单个工具调用（本地注册表优先，其次 MCP 引用反查；超时与结果大小防护；失败不中断流，错误回传模型）
+func (uc *Usecase) execTool(c ToolCall, resolver mcpResolver) ToolCallResult {
 	r := ToolCallResult{ID: c.ID, Name: c.Function.Name, Arguments: c.Function.Arguments}
-	tool, ok := uc.tools.Get(c.Function.Name)
-	if !ok {
-		r.Error = "unknown tool: " + c.Function.Name
+	if tool, ok := uc.tools.Get(c.Function.Name); ok {
+		tctx, cancel := context.WithTimeout(context.Background(), toolExecTimeout)
+		defer cancel()
+		out, err := tool.Execute(tctx, c.Function.Arguments)
+		applyToolResult(&r, out, err)
 		return r
 	}
-	tctx, cancel := context.WithTimeout(context.Background(), toolExecTimeout)
-	defer cancel()
-	out, err := tool.Execute(tctx, c.Function.Arguments)
+	if ref, ok := resolver[c.Function.Name]; ok && uc.mcp != nil {
+		r.Name = ref.origin // 回显还原可读引用名（mcp:<code>:<tool>）
+		tctx, cancel := context.WithTimeout(context.Background(), mcpToolTimeout)
+		defer cancel()
+		out, err := uc.mcp.CallTool(tctx, ref.serverCode, ref.toolName, c.Function.Arguments)
+		applyToolResult(&r, out, err)
+		return r
+	}
+	r.Error = "unknown tool: " + c.Function.Name
+	return r
+}
+
+// applyToolResult 回填执行结果（超长截断；失败记录原因，仍回传模型自查）
+func applyToolResult(r *ToolCallResult, out string, err error) {
 	if err != nil {
 		r.Error = err.Error()
-		return r
+		return
 	}
 	if len(out) > toolResultMax {
 		out = out[:toolResultMax] + "…（已截断）"
 	}
 	r.Result = out
-	return r
 }
 
 // toolResultContent 回传给上游的工具结果文本

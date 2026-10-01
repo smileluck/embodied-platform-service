@@ -15,6 +15,8 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/biz/file"
 	"github.com/smilex/smilex-admin-gin/internal/biz/job"
 	"github.com/smilex/smilex-admin-gin/internal/biz/log"
+	"github.com/smilex/smilex-admin-gin/internal/biz/mcp"
+
 	"github.com/smilex/smilex-admin-gin/internal/biz/notice"
 	"github.com/smilex/smilex-admin-gin/internal/biz/notify"
 	"github.com/smilex/smilex-admin-gin/internal/biz/permission"
@@ -834,6 +836,25 @@ type NotifyRecordPO struct {
 
 func (NotifyRecordPO) TableName() string { return "notify_records" }
 
+// McpServerPO MCP 服务器配置表（智能体工具源；token 只存 AES-GCM 密文，掩码仅展示用）
+type McpServerPO struct {
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"size:20;uniqueIndex"`
+	Code      string `gorm:"size:64;uniqueIndex"` // 稳定引用（Agent 以 mcp:<code>:<tool> 绑定）
+	Transport string `gorm:"size:20"`             // streamable_http | sse
+	BaseURL   string `gorm:"size:255"`
+	Headers   string `gorm:"type:text"` // 自定义请求头 JSON 数组（明文非敏感头）
+	TokenEnc  string `gorm:"size:512"`  // AES-GCM 密文（base64），永不输出
+	TokenMask string `gorm:"size:32"`   // 展示掩码
+	Remark    string `gorm:"size:200"`
+	Status    int    // 1 启用 0 禁用
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+func (McpServerPO) TableName() string { return "mcp_servers" }
+
 func NotifyChannelToPO(c *notify.Channel) *NotifyChannelPO {
 	recipients, _ := json.Marshal(c.Recipients)
 	return &NotifyChannelPO{
@@ -900,4 +921,26 @@ func NotifyRecordFromPO(p *NotifyRecordPO) *notify.Record {
 		Title: p.Title, Content: p.Content, Status: p.Status, Error: p.Error,
 		DurationMs: p.DurationMs, CreatedAt: p.CreatedAt,
 	}
+}
+
+func McpServerToPO(s *mcp.Server) *McpServerPO {
+	headers, _ := json.Marshal(s.Headers)
+	return &McpServerPO{
+		ID: s.ID, Name: s.Name, Code: s.Code, Transport: string(s.Transport), BaseURL: s.BaseURL,
+		Headers: string(headers), TokenEnc: s.TokenEnc, TokenMask: s.TokenMask,
+		Remark: s.Remark, Status: s.Status,
+	}
+}
+
+func McpServerFromPO(p *McpServerPO) *mcp.Server {
+	s := &mcp.Server{
+		ID: p.ID, Name: p.Name, Code: p.Code, Transport: mcp.Transport(p.Transport), BaseURL: p.BaseURL,
+		Headers: []mcp.Header{}, TokenEnc: p.TokenEnc, TokenMask: p.TokenMask,
+		Remark: p.Remark, Status: p.Status, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+	_ = json.Unmarshal([]byte(p.Headers), &s.Headers)
+	if s.Headers == nil {
+		s.Headers = []mcp.Header{}
+	}
+	return s
 }

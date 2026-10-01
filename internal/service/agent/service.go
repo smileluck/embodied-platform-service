@@ -256,5 +256,5 @@ func (s *Service) UsageStats(ctx context.Context, days int) (*bizagent.UsageStat
 	return s.uc.UsageStats(ctx, days)
 }
 
-// ToolNames 可绑定的工具清单（Agent 表单多选）
-func (s *Service) ToolNames() []string { return s.uc.ToolNames() }
+// ToolGroups 可绑定工具分组（本地内置 + 各启用 MCP 服务；Agent 表单多选）
+func (s *Service) ToolGroups(ctx context.Context) *bizagent.ToolGroups { return s.uc.ToolGroups(ctx) }

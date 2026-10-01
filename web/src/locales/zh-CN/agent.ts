@@ -73,7 +73,8 @@ export default {
     maxTokens: '最大输出',
     maxTokensPlaceholder: '0 表示用上游默认',
     tools: '绑定工具',
-    toolsPlaceholder: '选择本地工具（模型需支持工具调用）',
+    toolsPlaceholder: '选择内置工具或 MCP 工具（模型需支持工具调用）',
+    builtinTools: '内置工具',
     params: '采样参数',
     debug: '调试',
     form: {

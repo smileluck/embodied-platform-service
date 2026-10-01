@@ -626,3 +626,47 @@ export interface MonitorHistoryPoint {
   net_send_rate: number
   net_recv_rate: number
 }
+
+// ---- MCP 服务 ----
+
+// 自定义请求头（明文非敏感；敏感凭证走 token 加密通道）
+export interface McpHeader {
+  key: string
+  value: string
+}
+
+export interface McpServer {
+  id: number
+  name: string
+  code: string // 稳定引用（Agent 以 mcp:<code>:<tool> 绑定工具）
+  transport: 'streamable_http' | 'sse'
+  base_url: string
+  headers: McpHeader[]
+  token_mask: string // 展示掩码；空=未配置凭证
+  remark: string
+  status: number
+  created_at: string
+  updated_at: string
+}
+
+// 写入参数（token 明文仅写入链路；编辑时留空=保持不变）
+export type McpServerInput = Partial<Omit<McpServer, 'headers' | 'token_mask'>> & {
+  headers?: McpHeader[]
+  token?: string
+}
+
+export interface McpTestResult {
+  ok: boolean
+  server_name: string
+  server_version: string
+  protocol_version: string
+  tools: { name: string; description: string }[]
+  latency_ms: number
+  error?: string
+}
+
+// 可绑定工具分组（本地内置 + 各启用 MCP 服务）
+export interface AgentToolGroups {
+  builtin: string[]
+  mcp: { server_code: string; server_name: string; tools: { name: string; description: string }[] }[]
+}

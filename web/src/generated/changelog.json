@@ -1,6 +1,20 @@
 {
-  "generatedAt": "2026-09-27T07:33:30.458Z",
+  "generatedAt": "2026-10-02T08:51:55.644Z",
   "commits": [
+    {
+      "hash": "f9364ccc4",
+      "date": "2026-09-27",
+      "type": "refactor",
+      "scope": "sdk",
+      "message": "平台 SDK 内联为 internal/platformsdk，移除 replace 与 vendor"
+    },
+    {
+      "hash": "8c239ff41",
+      "date": "2026-09-27",
+      "type": "build",
+      "scope": "ci",
+      "message": "提交 vendor 依赖使 CI/Docker 构建自洽"
+    },
     {
       "hash": "5611280ab",
       "date": "2026-09-25",

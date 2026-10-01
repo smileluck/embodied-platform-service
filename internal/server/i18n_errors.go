@@ -12,6 +12,7 @@ import (
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	bizjob "github.com/smilex/smilex-admin-gin/internal/biz/job"
+	bizmcp "github.com/smilex/smilex-admin-gin/internal/biz/mcp"
 	bizmonitor "github.com/smilex/smilex-admin-gin/internal/biz/monitor"
 	biznotice "github.com/smilex/smilex-admin-gin/internal/biz/notice"
 	biznotify "github.com/smilex/smilex-admin-gin/internal/biz/notify"
@@ -120,6 +121,19 @@ var errKeys = []struct {
 	{biznotify.ErrRuleNotFound, "notify.rule_not_found"},
 	{biznotify.ErrRuleNameExists, "notify.rule_name_exists"},
 	{biznotify.ErrInvalidRule, "notify.rule_invalid"},
+	// MCP 服务
+	{bizmcp.ErrNotFound, "mcp.not_found"},
+	{bizmcp.ErrCodeExists, "mcp.code_exists"},
+	{bizmcp.ErrNameExists, "mcp.name_exists"},
+	{bizmcp.ErrInvalidCode, "mcp.code_invalid"},
+	{bizmcp.ErrInvalidTransport, "mcp.transport_invalid"},
+	{bizmcp.ErrInvalidURL, "mcp.url_invalid"},
+	{bizmcp.ErrServerInUse, "mcp.in_use"},
+	{bizmcp.ErrServerDisabled, "mcp.disabled"},
+	{bizmcp.ErrConnectFailed, "mcp.connect_failed"},
+	{bizmcp.ErrTimeout, "mcp.timeout"},
+	{bizmcp.ErrDecryptFailed, "mcp.decrypt_failed"},
+	{bizmcp.ErrProtocol, "mcp.protocol_error"},
 	// 定时任务
 	{bizjob.ErrNotFound, "job.not_found"},
 	{bizjob.ErrNameExists, "job.name_exists"},

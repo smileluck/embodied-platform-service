@@ -19,10 +19,12 @@ import (
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
 	bizjob "github.com/smilex/smilex-admin-gin/internal/biz/job"
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
+
+	bizmcp "github.com/smilex/smilex-admin-gin/internal/biz/mcp"
+	bizmonitor "github.com/smilex/smilex-admin-gin/internal/biz/monitor"
 	biznotice "github.com/smilex/smilex-admin-gin/internal/biz/notice"
 	bizsys "github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
 
-	bizmonitor "github.com/smilex/smilex-admin-gin/internal/biz/monitor"
 	biznotify "github.com/smilex/smilex-admin-gin/internal/biz/notify"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	bizrole "github.com/smilex/smilex-admin-gin/internal/biz/role"
@@ -44,6 +46,7 @@ import (
 	datajob "github.com/smilex/smilex-admin-gin/internal/data/job"
 	datalog "github.com/smilex/smilex-admin-gin/internal/data/log"
 
+	datamcp "github.com/smilex/smilex-admin-gin/internal/data/mcp"
 	datamonitor "github.com/smilex/smilex-admin-gin/internal/data/monitor"
 	datanotice "github.com/smilex/smilex-admin-gin/internal/data/notice"
 	datanotify "github.com/smilex/smilex-admin-gin/internal/data/notify"
@@ -68,10 +71,12 @@ import (
 	filesvc "github.com/smilex/smilex-admin-gin/internal/service/file"
 	jobsvc "github.com/smilex/smilex-admin-gin/internal/service/job"
 	logsvc "github.com/smilex/smilex-admin-gin/internal/service/log"
+
+	mcpsvc "github.com/smilex/smilex-admin-gin/internal/service/mcp"
+	monitorsvc "github.com/smilex/smilex-admin-gin/internal/service/monitor"
 	noticesvc "github.com/smilex/smilex-admin-gin/internal/service/notice"
 	syssvc "github.com/smilex/smilex-admin-gin/internal/service/sysconfig"
 
-	monitorsvc "github.com/smilex/smilex-admin-gin/internal/service/monitor"
 	notifysvc "github.com/smilex/smilex-admin-gin/internal/service/notify"
 	permsvc "github.com/smilex/smilex-admin-gin/internal/service/permission"
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
@@ -98,6 +103,7 @@ var bizSet = wire.NewSet(
 	bizmonitor.NewUsecase,
 	bizagent.NewUsecase,
 	biznotify.NewUsecase,
+	bizmcp.NewUsecase,
 	bizexport.NewUsecase,
 	bizexport.NewRegistry,
 	bizexport.NewUserExporter,
@@ -109,6 +115,7 @@ var bizSet = wire.NewSet(
 	wire.Bind(new(bizdevice.TenantRelinker), new(*biztenant.Usecase)),
 	// 智能体内置只读工具：服务器状态查询复用 monitor 用例
 	wire.Bind(new(bizagent.ServerStatusReader), new(*bizmonitor.Usecase)),
+	wire.Bind(new(bizagent.MCPToolSource), new(*bizmcp.Usecase)),
 	wire.Bind(new(biznotify.SnapshotReader), new(*bizmonitor.Usecase)),
 	wire.Bind(new(bizjob.NotifyCleaner), new(*biznotify.Usecase)),
 )
@@ -140,6 +147,7 @@ var dataRepoSet = wire.NewSet(
 	datanotice.NewRepo,
 
 	datanotify.NewRepo,
+	datamcp.NewRepo,
 	datajob.NewRepo,
 	dataexport.NewRepo,
 	dataexport.NewWorker,
@@ -191,6 +199,7 @@ var serviceSet = wire.NewSet(
 	devmodelsvc.NewService,
 	monitorsvc.NewService,
 	agentsvc.NewService,
+	mcpsvc.NewService,
 	dictsvc.NewService,
 	dashsvc.NewService,
 	syssvc.NewService,

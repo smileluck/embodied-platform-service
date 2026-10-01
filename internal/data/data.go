@@ -139,6 +139,7 @@ func (d *Data) migrateAndSeed() error {
 		&model.AgentProviderPO{}, &model.AgentModelPO{}, &model.AgentPO{},
 		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{}, &model.SysConfigPO{}, &model.NoticePO{}, &model.NoticeReadPO{}, &model.NoticeTargetPO{}, &model.JobPO{}, &model.JobLogPO{}, &model.MonitorSnapshotPO{},
 		&model.NotifyChannelPO{}, &model.NotifyRulePO{}, &model.NotifyRecordPO{},
+		&model.McpServerPO{},
 	); err != nil {
 		return err
 	}
@@ -204,6 +205,7 @@ var systemMenus = []systemMenuDef{
 	{Name: "Agent 配置", Code: "menu:agentList", Path: "/agent/agents", Icon: "ChatbubblesOutline", Sort: 2, ParentCode: "menu:agent"},
 	{Name: "聊天测试", Code: "menu:agentChat", Path: "/agent/chat", Icon: "ChatboxEllipsesOutline", Sort: 3, ParentCode: "menu:agent"},
 	{Name: "用量统计", Code: "menu:agentUsage", Path: "/agent/usage", Icon: "StatsChartOutline", Sort: 4, ParentCode: "menu:agent"},
+	{Name: "MCP 服务", Code: "menu:mcpServer", Path: "/agent/mcp", Icon: "ExtensionControllerOutline", Sort: 5, ParentCode: "menu:agent"},
 	{Name: "通知告警", Code: "menu:notify", Type: "dir", Icon: "NotificationsOutline", Sort: 8},
 	{Name: "通知渠道", Code: "menu:notifyChannel", Path: "/notify/channels", Icon: "MailOutline", Sort: 1, ParentCode: "menu:notify"},
 	{Name: "告警规则", Code: "menu:alertRule", Path: "/notify/rules", Icon: "AlertCircleOutline", Sort: 2, ParentCode: "menu:notify"},
@@ -422,6 +424,14 @@ var systemButtonPerms = []systemButtonPermDef{
 
 	// 用量统计
 	{Name: "查询用量统计", Code: "agent:usage", Menu: "menu:agentUsage", Method: "GET", Path: "/api/v1/agent/usage", Sort: 1},
+
+	// MCP 服务（智能体工具源；test 为子资源单列权限点）
+	{Name: "查询MCP服务", Code: "mcp:server:list", Menu: "menu:mcpServer", Method: "GET", Path: "/api/v1/mcp/servers", Sort: 1},
+	{Name: "MCP服务详情", Code: "mcp:server:view", Menu: "menu:mcpServer", Method: "GET", Path: "/api/v1/mcp/servers/*", Sort: 2},
+	{Name: "新增MCP服务", Code: "mcp:server:create", Menu: "menu:mcpServer", Method: "POST", Path: "/api/v1/mcp/servers", Sort: 3},
+	{Name: "编辑MCP服务", Code: "mcp:server:update", Menu: "menu:mcpServer", Method: "PUT", Path: "/api/v1/mcp/servers/*", Sort: 4},
+	{Name: "删除MCP服务", Code: "mcp:server:delete", Menu: "menu:mcpServer", Method: "DELETE", Path: "/api/v1/mcp/servers/*", Sort: 5},
+	{Name: "测试MCP服务", Code: "mcp:server:test", Menu: "menu:mcpServer", Method: "POST", Path: "/api/v1/mcp/servers/*/test", Sort: 6},
 
 	// 数据字典
 	{Name: "查询字典类型", Code: "dict:type:list", Menu: "menu:dict", Method: "GET", Path: "/api/v1/dict-types", Sort: 1},

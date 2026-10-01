@@ -180,3 +180,23 @@ CREATE TABLE IF NOT EXISTS app_user_tenants (
 CREATE UNIQUE INDEX IF NOT EXISTS uk_app_user_tenant ON app_user_tenants (app_user_id, tenant_id);
 CREATE INDEX IF NOT EXISTS idx_app_user_tenants_tenant_id ON app_user_tenants (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_app_user_tenants_deleted_at ON app_user_tenants (deleted_at);
+
+-- MCP 服务器配置表（智能体工具源；token 只存 AES-GCM 密文，软删留痕；name/code 唯一）
+CREATE TABLE IF NOT EXISTS mcp_servers (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(20) NOT NULL,
+  code VARCHAR(64) NOT NULL,           -- 稳定引用（Agent 以 mcp:<code>:<tool> 绑定）
+  transport VARCHAR(20) NOT NULL,      -- streamable_http | sse
+  base_url VARCHAR(255) NOT NULL,
+  headers TEXT,                        -- 自定义请求头 JSON 数组（明文非敏感头）
+  token_enc VARCHAR(512),              -- AES-GCM 密文（base64），永不输出
+  token_mask VARCHAR(32),              -- 展示掩码
+  remark VARCHAR(200) DEFAULT '',
+  status SMALLINT DEFAULT 1,           -- 1 启用 0 禁用
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ,
+  deleted_at TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_mcp_servers_name ON mcp_servers (name);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_mcp_servers_code ON mcp_servers (code);
+CREATE INDEX IF NOT EXISTS idx_mcp_servers_deleted_at ON mcp_servers (deleted_at);

@@ -439,7 +439,7 @@ func (s *HTTPServer) getAgentUsage(c *gin.Context) {
 	response.OK(c, stats)
 }
 
-// listAgentTools 可绑定的本地工具清单（Agent 表单多选）
+// listAgentTools 可绑定工具分组（本地内置 + 各启用 MCP 服务；Agent 表单多选）
 func (s *HTTPServer) listAgentTools(c *gin.Context) {
-	response.OK(c, s.agent.ToolNames())
+	response.OK(c, s.agent.ToolGroups(c.Request.Context()))
 }

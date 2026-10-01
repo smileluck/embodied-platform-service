@@ -56,8 +56,8 @@
       </n-form-item>
       <n-form-item :label="t('agent.agent.tools')">
         <n-select
-          v-model:value="form.tools" :options="toolOptions" multiple clearable
-          :placeholder="t('agent.agent.toolsPlaceholder')"
+          v-model:value="form.tools" :options="toolOptions" multiple clearable filterable
+          :max-tag-count="5" :placeholder="t('agent.agent.toolsPlaceholder')"
         />
       </n-form-item>
       <n-form-item :label="t('common.remark')">
@@ -89,7 +89,7 @@ import { computed, h, onMounted, reactive, ref } from 'vue'
 import {
   NButton, NCard, NDataTable, NDrawer, NDrawerContent, NForm, NFormItem, NInput, NInputNumber,
   NModal, NSelect, NSlider, NSwitch, NTag, useDialog, useMessage,
-  type DataTableColumns, type FormInst, type FormRules,
+  type DataTableColumns, type FormInst, type FormRules, type SelectGroupOption,
 } from 'naive-ui'
 import { renderActions, type TableAction } from '../../utils/tableActions'
 import SearchCard from '../../components/SearchCard.vue'
@@ -97,9 +97,9 @@ import { useI18n } from 'vue-i18n'
 import { usePagination } from '../../utils/pagination'
 import { useUserStore } from '../../stores/user'
 import {
-  createAgent, deleteAgent, listAgentModels, listAgentProviders, listAgentTools, listAgents, updateAgent,
+  createAgent, deleteAgent, listAgentModels, listAgentProviders, listAgentToolGroups, listAgents, updateAgent,
 } from '../../api'
-import type { AgentInfo, AgentModel, AgentProvider } from '../../api/types'
+import type { AgentInfo, AgentModel, AgentProvider, AgentToolGroups } from '../../api/types'
 import ChatPanel from './ChatPanel.vue'
 
 const { t } = useI18n()
@@ -313,16 +313,36 @@ function openPlayground(row: AgentInfo) {
   showPlayground.value = true
 }
 
-// 可绑定的本地工具清单（function calling）
-const toolOptions = ref<{ label: string; value: string }[]>([])
+// 可绑定工具分组（function calling）：本地内置 + 各启用 MCP 服务（组内 value 为稳定引用 mcp:<code>:<tool>）
+const toolGroups = ref<AgentToolGroups>({ builtin: [], mcp: [] })
+const toolOptions = computed<SelectGroupOption[]>(() => {
+  const groups: SelectGroupOption[] = []
+  if (toolGroups.value.builtin.length) {
+    groups.push({
+      type: 'group', label: t('agent.agent.builtinTools'), key: 'builtin',
+      children: toolGroups.value.builtin.map((n) => ({ label: n, value: n })),
+    })
+  }
+  for (const g of toolGroups.value.mcp) {
+    if (!g.tools.length) continue
+    groups.push({
+      type: 'group', label: g.server_name, key: `mcp:${g.server_code}`,
+      children: g.tools.map((tool) => ({
+        label: tool.description ? `${tool.name} — ${tool.description}` : tool.name,
+        value: `mcp:${g.server_code}:${tool.name}`,
+      })),
+    })
+  }
+  return groups
+})
 
 onMounted(async () => {
   await loadRefs()
   load()
   if (userStore.has('agent:tool:list')) {
     try {
-      const res = await listAgentTools()
-      toolOptions.value = (res.data.data ?? []).map((n: string) => ({ label: n, value: n }))
+      const res = await listAgentToolGroups()
+      toolGroups.value = res.data.data ?? { builtin: [], mcp: [] }
     } catch { /* 工具清单加载失败不阻断页面 */ }
   }
 })

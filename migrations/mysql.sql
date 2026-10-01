@@ -203,3 +203,24 @@ CREATE TABLE IF NOT EXISTS app_user_tenants (
   KEY idx_tenant_id (tenant_id),
   KEY idx_deleted (deleted_at)
 );
+
+-- MCP 服务器配置表（智能体工具源；token 只存 AES-GCM 密文，软删留痕；name/code 唯一）
+CREATE TABLE IF NOT EXISTS `mcp_servers` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(20) NOT NULL,
+  `code` VARCHAR(64) NOT NULL COMMENT '稳定引用（Agent 以 mcp:<code>:<tool> 绑定）',
+  `transport` VARCHAR(20) NOT NULL COMMENT 'streamable_http | sse',
+  `base_url` VARCHAR(255) NOT NULL,
+  `headers` TEXT COMMENT '自定义请求头 JSON 数组（明文非敏感头）',
+  `token_enc` VARCHAR(512) COMMENT 'AES-GCM 密文（base64），永不输出',
+  `token_mask` VARCHAR(32) COMMENT '展示掩码',
+  `remark` VARCHAR(200) DEFAULT '',
+  `status` TINYINT DEFAULT 1 COMMENT '1 启用 0 禁用',
+  `created_at` DATETIME(3),
+  `updated_at` DATETIME(3),
+  `deleted_at` DATETIME(3),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_mcp_servers_name` (`name`),
+  UNIQUE KEY `uk_mcp_servers_code` (`code`),
+  KEY `idx_mcp_servers_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

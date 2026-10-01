@@ -87,6 +87,11 @@ notify: # 告警通知模块（通知渠道/告警规则/发送记录，均存�
   # 更换 jwt.secret 后需到「通知渠道」重新保存一次密钥
   cryptoKey: ""
 
+mcp: # MCP 服务模块（MCP 服务器接入与智能体工具调用）
+  # MCP 服务鉴权 Token 的 AES 加密密钥；留空则从 jwt.secret 派生（域前缀与 agent/notify 隔离），
+  # 更换 jwt.secret 后需到「MCP 服务」重新保存一次 Token
+  cryptoKey: ""
+
 log:
   retentionDays: 90 # 登录/操作日志保留天数，超期每日自动清理；0 表示永久保留
   # 应用运行日志：按日期滚动落盘（dir/filename-2006-01-02.log）
