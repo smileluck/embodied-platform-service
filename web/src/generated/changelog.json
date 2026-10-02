@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-10-02T08:53:35.308Z",
+  "generatedAt": "2026-10-02T08:54:35.040Z",
   "commits": [
+    {
+      "hash": "099e5f5cd",
+      "date": "2026-10-01",
+      "type": "feat",
+      "scope": "",
+      "message": "新增技能管理（多文件技能包），智能体绑定后聊天注入 system prompt"
+    },
     {
       "hash": "7180ad638",
       "date": "2026-10-01",
