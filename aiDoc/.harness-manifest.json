@@ -1,0 +1,112 @@
+{
+  "harness_version": "unknown",
+  "project_name": "embodied-platform-service",
+  "lang": "zh",
+  "generated": "2026-10-03",
+  "files": {
+    ".agents/skills/project-code-review/SKILL.md": {
+      "sha256": "85e629c77d5e4a31fb3336e49b89ac893a4276f13bb6edc68bdd83e958fc4bad",
+      "template": "agents-skills/project-code-review/SKILL.md"
+    },
+    ".agents/skills/project-pre-push-checks/SKILL.md": {
+      "sha256": "b736e76d80eda2c6d5d63b931bd556b8c34852f139fc81a2f215a4a37888f1af",
+      "template": "agents-skills/project-pre-push-checks/SKILL.md"
+    },
+    "AGENTS.md": {
+      "sha256": "30d9ae26748c35bfbe148e5a85e9563de0b3e808a183ffb45a09d49edd5ecbdc",
+      "template": "AGENTS.md.tmpl"
+    },
+    "CLAUDE.md": {
+      "sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
+      "template": "CLAUDE.md"
+    },
+    "aiDoc/README.md": {
+      "sha256": "b2dd0afb307c85891cd24fb73658bfe434457d3f169b90c11ffa303fd9f9d9b0",
+      "template": "aidoc/README.md"
+    },
+    "aiDoc/contracts/boundary.md": {
+      "sha256": "24556358893e8627ec648b4c88bba8c7497fd4bc73cb050d22069cdd0cc07c65",
+      "template": "aidoc/contracts/boundary.md"
+    },
+    "aiDoc/examples/README.md": {
+      "sha256": "41ca933eb91adeb936b1c06b82c315d20cda56cb60b84a450cfb0af8a941614c",
+      "template": "aidoc/examples/README.md"
+    },
+    "aiDoc/frontend/frontend-rules.md": {
+      "sha256": "f0d89aabbc0b5ec0501557839c1dfeae7d373ce1318d8da65f099e2e0f506de9",
+      "template": "aidoc/frontend/frontend-rules.md"
+    },
+    "aiDoc/frontend/frontend-utils.md": {
+      "sha256": "6554b76e0e4fa6aaa3a16611aec2d9a1efe435f4704a001ac227ca5dae477ca6",
+      "template": "aidoc/frontend/frontend-utils.md"
+    },
+    "aiDoc/memory/README.md": {
+      "sha256": "26e6f321bf075c2fb94d811afa4e9c21c39c920f617043d7f13d7823c16ab004",
+      "template": "aidoc/memory/README.md"
+    },
+    "aiDoc/memory/business/README.md": {
+      "sha256": "78ef9334ff5ebac3be577c935bb94c294b9a78ffaf6246617401d90a2ac0b362",
+      "template": "aidoc/memory/business/README.md"
+    },
+    "aiDoc/memory/business/TEMPLATE.md": {
+      "sha256": "8585a2c8903cf0ae14bf3d99bf6f6d360213208aec1e456066794f9637f97e78",
+      "template": "aidoc/memory/business/TEMPLATE.md"
+    },
+    "aiDoc/memory/lessons/README.md": {
+      "sha256": "45b0665296a185f02d439d1ba0bd20d89f8cee046aecedf48d68906ee1127a6f",
+      "template": "aidoc/memory/lessons/README.md"
+    },
+    "aiDoc/memory/lessons/TEMPLATE.md": {
+      "sha256": "cbdeaea84eca3475fdb46ba2238bab48a924d3083cd3596b5ae851eb52406903",
+      "template": "aidoc/memory/lessons/TEMPLATE.md"
+    },
+    "aiDoc/memory/long-term/README.md": {
+      "sha256": "d363e09cba158a3f0278e1d3389b8634a744309bc40e08946d4ce89a96f25d7a",
+      "template": "aidoc/memory/long-term/README.md"
+    },
+    "aiDoc/memory/project-memory.md": {
+      "sha256": "9513e0976e1669b5aad7f54a7a69aa80e75ae23e1f31cad7dc5201b6af59a092",
+      "template": "aidoc/memory/project-memory.md"
+    },
+    "aiDoc/modules/architecture-rules.md": {
+      "sha256": "68f9944d7d0f05ec4a4d5c90783535e55ea6ab5007dfe94797c98f3640377b71",
+      "template": "aidoc/modules/architecture-rules.md"
+    },
+    "aiDoc/modules/module-development.md": {
+      "sha256": "cb138bacb4e70f618064bef98b622981e4bba1c26a2d4e2940d72f1660aa192a",
+      "template": "aidoc/modules/module-development.md"
+    },
+    "aiDoc/notes/README.md": {
+      "sha256": "590d51e41833fc34d484cae704b297106de72c4750f36f53c875a5547e1891fa",
+      "template": "aidoc/notes/README.md"
+    },
+    "aiDoc/notes/TEMPLATE.md": {
+      "sha256": "dc03dcfe7ed62afb747f4c2a24d94d89b85d6b35ffeafb34df24e142ff97cde7",
+      "template": "aidoc/notes/TEMPLATE.md"
+    },
+    "aiDoc/plans/README.md": {
+      "sha256": "7016323abd6019a5ef52ddc1eeccf94e2b1055f2d33c8066bea84e9fa60b3874",
+      "template": "aidoc/plans/README.md"
+    },
+    "aiDoc/plans/change-plan.TEMPLATE.md": {
+      "sha256": "ea0787f3cbadb52bd212f4cb4cfc90c5afd87680be7f3c89b3b02b0bd764c519",
+      "template": "aidoc/plans/change-plan.TEMPLATE.md"
+    },
+    "aiDoc/plans/handoff.TEMPLATE.md": {
+      "sha256": "6f55fea0d05c67e2719f2fcb50ecb6b49fbf9d9d9fa3ae1bfcf7b979a5be7906",
+      "template": "aidoc/plans/handoff.TEMPLATE.md"
+    },
+    "aiDoc/relations/development-workflow.md": {
+      "sha256": "ffe82a9ec137db2f2c4eb562608ea367a92fa5efff0ea09658a25a2600e1d9bf",
+      "template": "aidoc/relations/development-workflow.md"
+    },
+    "aiDoc/relations/repo-profile.md": {
+      "sha256": "4d26b6d1f01497a13c1f0668ccc209a204c87b112ab5a1df87e9c6b5e531886d",
+      "template": "aidoc/relations/repo-profile.md"
+    },
+    "aiDoc/relations/system-map.md": {
+      "sha256": "dc94ae9778893157afaa3702346213d375f94b5cbb15dbb3f733363cb0636f94",
+      "template": "aidoc/relations/system-map.md"
+    }
+  }
+}
