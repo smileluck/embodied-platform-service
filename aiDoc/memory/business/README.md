@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-03 -->
+<!-- last-updated: 2026-10-04 -->
 # 业务需求记忆
 
 存放每次用户提出的业务需求记录。需求索引唯一维护于 [../project-memory.md](../project-memory.md)，本文件不重复记录。

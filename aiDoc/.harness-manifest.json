@@ -2,7 +2,7 @@
   "harness_version": "unknown",
   "project_name": "embodied-platform-service",
   "lang": "zh",
-  "generated": "2026-10-03",
+  "generated": "2026-10-04",
   "files": {
     ".agents/skills/project-code-review/SKILL.md": {
       "sha256": "85e629c77d5e4a31fb3336e49b89ac893a4276f13bb6edc68bdd83e958fc4bad",
@@ -41,31 +41,31 @@
       "template": "aidoc/frontend/frontend-utils.md"
     },
     "aiDoc/memory/README.md": {
-      "sha256": "26e6f321bf075c2fb94d811afa4e9c21c39c920f617043d7f13d7823c16ab004",
+      "sha256": "0bf3620c215988e2cf2500b7b5e06b6e310db02680a3efd067e200fad7afda59",
       "template": "aidoc/memory/README.md"
     },
     "aiDoc/memory/business/README.md": {
-      "sha256": "78ef9334ff5ebac3be577c935bb94c294b9a78ffaf6246617401d90a2ac0b362",
+      "sha256": "b49b0a3a954095f01e2844406557860b6d7f3382289ca0803d6daf84b971d3fa",
       "template": "aidoc/memory/business/README.md"
     },
     "aiDoc/memory/business/TEMPLATE.md": {
-      "sha256": "8585a2c8903cf0ae14bf3d99bf6f6d360213208aec1e456066794f9637f97e78",
+      "sha256": "ff263cef743662d2672ac3076ec0c16a6cb5094f2de21f4936634664e6d14da4",
       "template": "aidoc/memory/business/TEMPLATE.md"
     },
     "aiDoc/memory/lessons/README.md": {
-      "sha256": "45b0665296a185f02d439d1ba0bd20d89f8cee046aecedf48d68906ee1127a6f",
+      "sha256": "8629287689fe583d7f7d4d30ddd2f3c02a29507b392f129824839bc220651fcc",
       "template": "aidoc/memory/lessons/README.md"
     },
     "aiDoc/memory/lessons/TEMPLATE.md": {
-      "sha256": "cbdeaea84eca3475fdb46ba2238bab48a924d3083cd3596b5ae851eb52406903",
+      "sha256": "950d9979e117a1a9812f98152e46eb4687d15f3310882777e05a37902e002c6b",
       "template": "aidoc/memory/lessons/TEMPLATE.md"
     },
     "aiDoc/memory/long-term/README.md": {
-      "sha256": "d363e09cba158a3f0278e1d3389b8634a744309bc40e08946d4ce89a96f25d7a",
+      "sha256": "97e60add235f4012558dbb562e65a57fdf1796d1bc69721bd8442342625a0cb5",
       "template": "aidoc/memory/long-term/README.md"
     },
     "aiDoc/memory/project-memory.md": {
-      "sha256": "9513e0976e1669b5aad7f54a7a69aa80e75ae23e1f31cad7dc5201b6af59a092",
+      "sha256": "fbf2811c6188dd6dc3a21348fb3ffa7db182e71af991afbf3977a2701af60b8e",
       "template": "aidoc/memory/project-memory.md"
     },
     "aiDoc/modules/architecture-rules.md": {
@@ -77,23 +77,23 @@
       "template": "aidoc/modules/module-development.md"
     },
     "aiDoc/notes/README.md": {
-      "sha256": "590d51e41833fc34d484cae704b297106de72c4750f36f53c875a5547e1891fa",
+      "sha256": "b8d0d4c3eaed91d221a97a325fbfe0532675d1ff826a71100afe01c3f88f8a79",
       "template": "aidoc/notes/README.md"
     },
     "aiDoc/notes/TEMPLATE.md": {
-      "sha256": "dc03dcfe7ed62afb747f4c2a24d94d89b85d6b35ffeafb34df24e142ff97cde7",
+      "sha256": "4e6a737d449c7158ef6390ef7c8c3a88c87433f02af75dfd4ef7ad04a5721398",
       "template": "aidoc/notes/TEMPLATE.md"
     },
     "aiDoc/plans/README.md": {
-      "sha256": "7016323abd6019a5ef52ddc1eeccf94e2b1055f2d33c8066bea84e9fa60b3874",
+      "sha256": "e5b26ecb44bfbff263b004ee400f98995e722722aaf891fa62f62d0f1fb984c4",
       "template": "aidoc/plans/README.md"
     },
     "aiDoc/plans/change-plan.TEMPLATE.md": {
-      "sha256": "ea0787f3cbadb52bd212f4cb4cfc90c5afd87680be7f3c89b3b02b0bd764c519",
+      "sha256": "05df4fefaf986e003aeb396d5e55b245611379207466d61c3c815e0a756edf48",
       "template": "aidoc/plans/change-plan.TEMPLATE.md"
     },
     "aiDoc/plans/handoff.TEMPLATE.md": {
-      "sha256": "6f55fea0d05c67e2719f2fcb50ecb6b49fbf9d9d9fa3ae1bfcf7b979a5be7906",
+      "sha256": "ec47f7d78158431dd7a75e14753bc3c2624eea3be1024422d8e4b289bb1d54eb",
       "template": "aidoc/plans/handoff.TEMPLATE.md"
     },
     "aiDoc/relations/development-workflow.md": {

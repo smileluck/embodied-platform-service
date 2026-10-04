@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-03 -->
+<!-- last-updated: 2026-10-04 -->
 # 变更计划模板
 
 > 路径：`aiDoc/plans/active/yyyy-mm-dd-topic.md`；完成后补交付摘要并移入 `completed/`
