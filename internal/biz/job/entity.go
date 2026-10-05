@@ -16,6 +16,7 @@ var (
 	ErrBadCron        = errors.New("cron 表达式不合法（5 段：分 时 日 月 周）")
 	ErrUnknownHandler = errors.New("任务处理器不存在，请重新选择")
 	ErrDisabled       = errors.New("任务已停用")
+	ErrJobRunning     = errors.New("任务上轮仍在执行，请稍后再试")
 )
 
 // Status 任务状态

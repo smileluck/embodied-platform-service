@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
 	"go.uber.org/zap"
+	"runtime/debug"
 )
 
 // 内置处理器键（种子任务按此引用）
@@ -53,6 +55,7 @@ type Usecase struct {
 	mu       sync.Mutex
 	cron     *cron.Cron
 	entryIDs map[uint]cron.EntryID
+	running  map[uint]struct{} // 同任务在跑标记（cron tick 与手动 RunOnce 共用互斥）
 }
 
 func NewUsecase(repo Repo, lc LogCleaner, ec ExportCleaner, uc UsageCleaner, nc NotifyCleaner, tr TenantReconciler) *Usecase {
@@ -100,7 +103,7 @@ func NewUsecase(repo Repo, lc LogCleaner, ec ExportCleaner, uc UsageCleaner, nc 
 			},
 		},
 	}
-	return &Usecase{repo: repo, handlers: handlers, entryIDs: map[uint]cron.EntryID{}}
+	return &Usecase{repo: repo, handlers: handlers, entryIDs: map[uint]cron.EntryID{}, running: map[uint]struct{}{}}
 }
 
 // HandlerInfo 处理器元信息（表单展示；Run 闭包不出域）
@@ -143,7 +146,12 @@ func (uc *Usecase) Stop() {
 	defer uc.mu.Unlock()
 	if uc.cron != nil {
 		ctx := uc.cron.Stop() // 返回等待 ctx
-		<-ctx.Done()
+		// 有界等待：任务幂等（下次启动重跑），不因单个慢任务阻塞停机
+		select {
+		case <-ctx.Done():
+		case <-time.After(15 * time.Second):
+			logger.Warn("job stop timeout, abandon in-flight jobs（幂等语义，下次启动重跑）")
+		}
 		uc.cron = nil
 		uc.entryIDs = map[uint]cron.EntryID{}
 	}
@@ -293,6 +301,9 @@ func (uc *Usecase) RunOnce(ctx context.Context, id uint) error {
 	if err != nil {
 		return err
 	}
+	if uc.isRunning(j.ID) {
+		return ErrJobRunning
+	}
 	go uc.execute(j)
 	return nil
 }
@@ -354,18 +365,28 @@ const (
 	notifyRecordKeepDays = 30 // 告警发送记录保留期
 )
 
-// execute 执行任务并落执行日志（顺带清理过期日志）
+// execute 执行任务并落执行日志（顺带清理过期日志）。
+// 同任务互斥：cron 的 SkipIfStillRunning 只覆盖调度触发，手动 RunOnce 会绕过——
+// 在跑标记统一兜底（对账类任务重叠会双拉双写）；handler panic 在此隔离
+// （goroutine panic 会打死整个进程）
 func (uc *Usecase) execute(j *Job) {
 	h, ok := uc.handlers[j.HandlerKey]
 	if !ok {
 		logger.Warn("job handler missing", zap.String("job", j.Name), zap.String("handler", j.HandlerKey))
 		return
 	}
+	if !uc.tryMarkRunning(j.ID) {
+		logger.Warn("job still running, skip trigger", zap.Uint("job_id", j.ID), zap.String("job", j.Name))
+		return
+	}
+	defer uc.unmarkRunning(j.ID)
+
 	start := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), execTimeout)
 	defer cancel()
 
-	out, err := h.Run(ctx, j.Params)
+	out, err := runHandler(ctx, h, j)
+
 	status := RunSuccess
 	if err != nil {
 		status = RunFailed
@@ -392,4 +413,38 @@ func (uc *Usecase) execute(j *Job) {
 	_ = uc.repo.CleanupLogsBefore(context.Background(), now.AddDate(0, 0, -logKeepDays))
 	j.LastRunAt = &now
 	_ = uc.repo.Update(context.Background(), j)
+}
+
+// runHandler 隔离 handler panic：转为失败日志而非进程崩溃
+func runHandler(ctx context.Context, h Handler, j *Job) (out string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			out, err = "", fmt.Errorf("panic: %v\n%s", r, debug.Stack())
+		}
+	}()
+	return h.Run(ctx, j.Params)
+}
+
+func (uc *Usecase) tryMarkRunning(jobID uint) bool {
+	uc.mu.Lock()
+	defer uc.mu.Unlock()
+	if _, ok := uc.running[jobID]; ok {
+		return false
+	}
+	uc.running[jobID] = struct{}{}
+	return true
+}
+
+func (uc *Usecase) unmarkRunning(jobID uint) {
+	uc.mu.Lock()
+	defer uc.mu.Unlock()
+	delete(uc.running, jobID)
+}
+
+// isRunning 任务是否在跑（RunOnce 预检提示用；原子占位仍由 execute 兜底）
+func (uc *Usecase) isRunning(jobID uint) bool {
+	uc.mu.Lock()
+	defer uc.mu.Unlock()
+	_, ok := uc.running[jobID]
+	return ok
 }
