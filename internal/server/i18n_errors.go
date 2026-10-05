@@ -73,11 +73,11 @@ var errKeys = []struct {
 	{biztenant.ErrDuplicateTenantName, "tenant.name_exists"},
 	{biztenant.ErrDuplicateTenantCode, "tenant.code_exists"},
 	{biztenant.ErrTenantInUse, "tenant.in_use"},
-	// 应用用户（凭证/禁用语义与后台认证一致，复用其文案）
+	// 应用用户（开放面消费；凭证/禁用由平台侧处置，本地不再有登录面）
 	{bizappuser.ErrAppUserNotFound, "appuser.not_found"},
 	{bizappuser.ErrDuplicateUsername, "appuser.name_exists"},
-	{bizappuser.ErrAppUserDisabled, "auth.account_disabled"},
-	{bizappuser.ErrBadCredentials, "auth.invalid_credentials"},
+	{bizappuser.ErrTenantNotInScope, "tenant.not_in_scope"},
+	{bizappuser.ErrCrossMerchantDelete, "appuser.cross_merchant_delete"},
 	// 服务器监控
 	{bizmonitor.ErrCollectFailed, "monitor.collect_failed"},
 	// 智能体（LLM 配置底座）

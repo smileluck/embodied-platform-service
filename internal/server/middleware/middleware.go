@@ -13,7 +13,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
-	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
@@ -210,52 +209,6 @@ func Token(c *gin.Context) string {
 		}
 	}
 	return ""
-}
-
-const ctxAppSubjectKey = "app.subject"
-
-// appSubject 应用用户认证主体（app-access token 载荷，无会话 ID）
-type appSubject struct {
-	UserID   uint
-	Username string
-}
-
-// AppJWT 应用用户认证：Bearer token -> 校验 app-access typ -> 用户存在且启用 -> 注入 context。
-// 不做 RBAC、不查 Redis 会话（应用用户无服务端会话状态，禁用即时生效依赖每次查库）。
-func AppJWT(issuer bizappuser.TokenIssuer, uc *bizappuser.Usecase) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		h := c.GetHeader("Authorization")
-		token, ok := strings.CutPrefix(h, "Bearer ")
-		if !ok || token == "" {
-			response.Unauthorized(c, "missing bearer token")
-			c.Abort()
-			return
-		}
-		uid, username, err := issuer.ParseAppAccessToken(token)
-		if err != nil {
-			response.Unauthorized(c, "invalid or expired token")
-			c.Abort()
-			return
-		}
-		u, err := uc.Profile(c.Request.Context(), uid)
-		if err != nil || !u.Enabled() {
-			response.Unauthorized(c, "account disabled or not found")
-			c.Abort()
-			return
-		}
-		c.Set(ctxAppSubjectKey, &appSubject{UserID: uid, Username: username})
-		c.Next()
-	}
-}
-
-// AppSubject 从 context 取应用用户认证主体（AppJWT 中间件之后可用）
-func AppSubject(c *gin.Context) *appSubject {
-	if v, ok := c.Get(ctxAppSubjectKey); ok {
-		if s, ok := v.(*appSubject); ok {
-			return s
-		}
-	}
-	return nil
 }
 
 const (

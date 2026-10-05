@@ -12,9 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
-	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
-	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
@@ -74,8 +72,6 @@ type HTTPServer struct {
 	skill            *skillsvc.Service
 	tenant           *tenantsvc.Service
 	appuser          *appusersvc.Service
-	appuserUC        *bizappuser.Usecase       // AppJWT 中间件直连领域用例（校验用户启用状态）
-	appIssuer        bizappuser.TokenIssuer    // AppJWT 中间件解析 app-access token
 	appIds           bizauth.AppIdentitySource // AppAuth 中间件的平台应用用户身份源
 	tenantUC         *biztenant.Usecase        // AppAuth 租户闸门（按平台租户 ID 只读定位本地租户）
 	appIdentityCache *cache.TwoLevel           // App token 自省缓存（pat: 前缀）
@@ -93,8 +89,8 @@ type HTTPServer struct {
 func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admissionsvc.Service,
 	admissionUC *bizadmission.Usecase, role *rolesvc.Service, perm *permsvc.Service, log *logsvc.Service,
 	file *filesvc.Service, export *exportsvc.Service, blacklist *blacklistsvc.Service,
-	tenant *tenantsvc.Service, appuser *appusersvc.Service, appuserUC *bizappuser.Usecase,
-	appIssuer bizappuser.TokenIssuer, appIds bizauth.AppIdentitySource, tenantUC *biztenant.Usecase,
+	tenant *tenantsvc.Service, appuser *appusersvc.Service,
+	appIds bizauth.AppIdentitySource, tenantUC *biztenant.Usecase,
 	device *devicesvc.Service, devmodel *devmodelsvc.Service,
 	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service, syscfg *syssvc.Service,
 	notice *noticesvc.Service, job *jobsvc.Service, dashboard *dashsvc.Service, notify *notifysvc.Service,
@@ -123,8 +119,8 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 		cfg: cfg, auth: auth, admission: admission, admissionUC: admissionUC,
 		role: role, perm: perm, log: log,
 		file: file, export: export, blacklist: blacklist, tenant: tenant,
-		appuser: appuser, appuserUC: appuserUC, appIssuer: appIssuer,
-		appIds: appIds, tenantUC: tenantUC, appIdentityCache: appIdentityCache,
+		appuser: appuser,
+		appIds:  appIds, tenantUC: tenantUC, appIdentityCache: appIdentityCache,
 		device: device, devmodel: devmodel, monitor: monitor, agent: agent, dict: dict, syscfg: syscfg,
 		notice:    notice,
 		rdb:       rdb,
@@ -143,28 +139,6 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 func (s *HTTPServer) registerRoutes() {
 	// 持久化 IP 黑名单在认证之前拦截全部 /api/ 请求（静态前端资源不经过此组）
 	v1 := s.engine.Group("/api/v1", middleware.IPBlacklist(s.blacklist.Checker()))
-
-	// ---- 公开接口 ----
-	// 登录限流（应用用户登录）：IP 固定窗口计数，沿用 bl:rl: 前缀，
-	// 黑名单提前解封时联动清零；参数见 biz/blacklist 常量
-	loginRateLimit := middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
-		KeyPrefix: "bl:rl:", Max: bizblacklist.LoginRateMax, Window: bizblacklist.LoginRateWindow, MessageKey: "security.login_frequent",
-	})
-
-	// ---- 应用用户认证（本地体系，与平台身份 typ 隔离；无验证码、无服务端会话） ----
-	// 登录接口挂 IP 临时封禁 + 频率限制防护，防口令爆破
-	appauthg := v1.Group("/app-auth")
-	{
-		appauthg.POST("/login", middleware.LoginIPGuard(s.blacklist.LoginGuard()), loginRateLimit, s.appLogin)
-		appauthg.POST("/refresh", s.appRefresh)
-	}
-
-	// 应用用户自身数据接口：仅 AppJWT 认证（查库校验启用状态），不做 RBAC
-	appAuth := v1.Group("/app-auth", middleware.AppJWT(s.appIssuer, s.appuserUC))
-	{
-		appAuth.GET("/profile", s.appProfile)
-		appAuth.PUT("/password", s.appChangePassword)
-	}
 
 	// ---- App 面（/app-api/v1）：App（C 端）直调本系统的业务接口 ----
 	// App 直连平台 /app-auth 登录（token 双用）；AppAuth 自省平台 app profile + 租户闸门

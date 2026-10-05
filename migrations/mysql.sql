@@ -176,33 +176,6 @@ CREATE TABLE IF NOT EXISTS tenants (
   KEY idx_deleted (deleted_at)
 );
 
--- 应用用户表（多租户终端用户；username 唯一，密码只存 bcrypt 哈希，软删留痕）
-CREATE TABLE IF NOT EXISTS app_users (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  username VARCHAR(64) NOT NULL,
-  password_hash VARCHAR(128) NOT NULL,  -- bcrypt 哈希，永不输出
-  nickname VARCHAR(64) DEFAULT '',
-  phone VARCHAR(32) DEFAULT '',
-  email VARCHAR(128) DEFAULT '',
-  status INT DEFAULT 1,                 -- 1 启用 0 禁用
-  created_at DATETIME,
-  updated_at DATETIME,
-  deleted_at DATETIME,
-  UNIQUE KEY uk_username (username),
-  KEY idx_deleted (deleted_at)
-);
-
--- 应用用户-租户关联表（复合唯一索引；替换关联时物理删除）
-CREATE TABLE IF NOT EXISTS app_user_tenants (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  app_user_id BIGINT UNSIGNED NOT NULL,
-  tenant_id BIGINT UNSIGNED NOT NULL,
-  created_at DATETIME,
-  deleted_at DATETIME,
-  UNIQUE KEY uk_app_user_tenant (app_user_id, tenant_id),
-  KEY idx_tenant_id (tenant_id),
-  KEY idx_deleted (deleted_at)
-);
 
 -- MCP 服务器配置表（智能体工具源；token 只存 AES-GCM 密文，软删留痕；name/code 唯一）
 CREATE TABLE IF NOT EXISTS `mcp_servers` (

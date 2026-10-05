@@ -154,31 +154,6 @@ CREATE TABLE IF NOT EXISTS tenants (
 );
 CREATE INDEX IF NOT EXISTS idx_tenants_deleted_at ON tenants (deleted_at);
 
--- 应用用户表（多租户终端用户；username 唯一，密码只存 bcrypt 哈希，软删留痕）
-CREATE TABLE IF NOT EXISTS app_users (
-  id BIGSERIAL PRIMARY KEY,
-  username VARCHAR(64) UNIQUE NOT NULL,
-  password_hash VARCHAR(128) NOT NULL,  -- bcrypt 哈希，永不输出
-  nickname VARCHAR(64) DEFAULT '',
-  phone VARCHAR(32) DEFAULT '',
-  email VARCHAR(128) DEFAULT '',
-  status INT DEFAULT 1,                 -- 1 启用 0 禁用
-  created_at TIMESTAMPTZ,
-  updated_at TIMESTAMPTZ,
-  deleted_at TIMESTAMPTZ
-);
-CREATE INDEX IF NOT EXISTS idx_app_users_deleted_at ON app_users (deleted_at);
-
--- 应用用户-租户关联表（复合唯一索引；替换关联时物理删除）
-CREATE TABLE IF NOT EXISTS app_user_tenants (
-  id BIGSERIAL PRIMARY KEY,
-  app_user_id BIGINT NOT NULL,
-  tenant_id BIGINT NOT NULL,
-  created_at TIMESTAMPTZ,
-  deleted_at TIMESTAMPTZ
-);
-CREATE UNIQUE INDEX IF NOT EXISTS uk_app_user_tenant ON app_user_tenants (app_user_id, tenant_id);
-CREATE INDEX IF NOT EXISTS idx_app_user_tenants_tenant_id ON app_user_tenants (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_app_user_tenants_deleted_at ON app_user_tenants (deleted_at);
 
 -- MCP 服务器配置表（智能体工具源；token 只存 AES-GCM 密文，软删留痕；name/code 唯一）

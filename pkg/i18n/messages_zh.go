@@ -93,13 +93,15 @@ var messagesZh = map[string]string{
 	"merchant.disabled":     "商户已被禁用",
 	"merchant.sign_invalid": "签名校验失败",
 	// 租户
-	"tenant.not_found":   "租户不存在",
-	"tenant.name_exists": "租户名称已存在，请更换",
-	"tenant.code_exists": "租户编码已存在，请更换",
-	"tenant.in_use":      "该租户下存在应用用户，请先移除关联",
+	"tenant.not_found":    "租户不存在",
+	"tenant.name_exists":  "租户名称已存在，请更换",
+	"tenant.code_exists":  "租户编码已存在，请更换",
+	"tenant.in_use":       "该租户下存在应用用户，请先移除关联",
+	"tenant.not_in_scope": "租户不在商户绑定范围内",
 	// 应用用户
-	"appuser.not_found":   "应用用户不存在",
-	"appuser.name_exists": "用户名已存在，请更换",
+	"appuser.not_found":             "应用用户不存在",
+	"appuser.cross_merchant_delete": "应用用户仍挂靠其他商户的租户，请先解除其在本商户外的归属",
+	"appuser.name_exists":           "用户名已存在，请更换",
 	// 服务器监控
 	"monitor.collect_failed": "服务器指标采集失败，请稍后重试",
 	// 智能体（LLM 配置底座）

@@ -2,13 +2,12 @@
 // 2026-10-05 起管理面（列表/创建/更新/删除/重置密码）经平台开放面实时消费——
 // 平台（/open-api/v1/app-users）为唯一事实源，本地不再落 app_users 数据，
 // tenant_ids 全链路为平台租户 ID（tenant_names 由本地租户按 platform_id 映射补齐）。
-// app-auth（Login/Refresh/Profile/ChangePassword）为本地遗留登录面，随统一收尾删除，
-// 届时 App 直连平台 /api/v1/app-auth（token 双用 + service AppAuth 自省）。
+// App 登录/刷新/改密一律直连平台 /api/v1/app-auth（token 双用）；App 直调本系统
+// 走 /app-api/v1（AppAuth 中间件自省 + 租户闸门）。
 package appuser
 
 import (
 	"context"
-	"time"
 
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
@@ -21,13 +20,12 @@ type TenantNameResolver interface {
 }
 
 type Service struct {
-	gw      bizappuser.Gateway  // 平台开放面应用用户网关（唯一事实源）
-	tenants TenantNameResolver  // tenant_names 本地映射（展示用，解析失败仅缺名不阻断）
-	uc      *bizappuser.Usecase // 遗留本地登录面（app-auth；统一收尾时移除）
+	gw      bizappuser.Gateway // 平台开放面应用用户网关（唯一事实源）
+	tenants TenantNameResolver // tenant_names 本地映射（展示用，解析失败仅缺名不阻断）
 }
 
-func NewService(gw bizappuser.Gateway, tenants TenantNameResolver, uc *bizappuser.Usecase) *Service {
-	return &Service{gw: gw, tenants: tenants, uc: uc}
+func NewService(gw bizappuser.Gateway, tenants TenantNameResolver) *Service {
+	return &Service{gw: gw, tenants: tenants}
 }
 
 // ---- 管理面（经平台开放面实时消费） ----
@@ -126,73 +124,4 @@ func (s *Service) Delete(ctx context.Context, id uint) error { return s.gw.Delet
 
 func (s *Service) ResetPassword(ctx context.Context, id uint, req ResetPasswordRequest) error {
 	return s.gw.ResetPassword(ctx, id, req.Password)
-}
-
-// ---- 应用用户独立认证（本地遗留登录面；统一收尾删除，App 改直连平台 /app-auth） ----
-
-// LoginRequest 应用用户登录入参（无验证码、无设备端会话概念）
-type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
-}
-
-// RefreshRequest 刷新入参
-type RefreshRequest struct {
-	RefreshToken string `json:"refresh_token" binding:"required"`
-}
-
-// ChangePasswordRequest 本人修改密码入参
-type ChangePasswordRequest struct {
-	OldPassword string `json:"old_password" binding:"required,min=6,max=64"`
-	NewPassword string `json:"new_password" binding:"required,min=6,max=20"`
-}
-
-// LoginVO 登录响应：令牌对 + 用户信息（字段命名与后台登录响应风格一致）
-type LoginVO struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	User         *VO       `json:"user"`
-}
-
-// Login 应用用户登录（防爆破由传输层 LoginIPGuard 中间件负责）
-func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginVO, error) {
-	u, tp, err := s.uc.Login(ctx, req.Username, req.Password)
-	if err != nil {
-		return nil, err
-	}
-	vo := &VO{
-		ID: u.ID, Username: u.Username, Nickname: u.Nickname,
-		Phone: u.Phone, Email: u.Email, Status: int(u.Status),
-		TenantIDs: u.TenantIDs, TenantNames: []string{},
-	}
-	return &LoginVO{
-		AccessToken: tp.AccessToken, RefreshToken: tp.RefreshToken, ExpiresAt: tp.ExpiresAt,
-		User: vo,
-	}, nil
-}
-
-// Refresh 刷新令牌（typ 隔离：只接受 app-refresh token）
-func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*bizappuser.TokenPair, error) {
-	return s.uc.Refresh(ctx, req.RefreshToken)
-}
-
-// Profile 当前应用用户信息（含租户关联）
-func (s *Service) Profile(ctx context.Context, id uint) (*VO, error) {
-	u, err := s.uc.Profile(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	vo := &VO{
-		ID: u.ID, Username: u.Username, Nickname: u.Nickname,
-		Phone: u.Phone, Email: u.Email, Status: int(u.Status),
-		TenantIDs: u.TenantIDs, TenantNames: u.TenantNames,
-		CreatedAt: u.CreatedAt.Format("2006-01-02 15:04:05"), UpdatedAt: u.UpdatedAt.Format("2006-01-02 15:04:05"),
-	}
-	return vo, nil
-}
-
-// ChangePassword 本人修改密码（校验旧密码）
-func (s *Service) ChangePassword(ctx context.Context, username string, req ChangePasswordRequest) error {
-	return s.uc.ChangePassword(ctx, username, req.OldPassword, req.NewPassword)
 }

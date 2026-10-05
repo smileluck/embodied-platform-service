@@ -74,18 +74,11 @@ func (r *repo) Update(ctx context.Context, t *biztenant.Tenant) error {
 	return nil
 }
 
-// Delete 删除租户：存在关联应用用户（app_user_tenants 有直接计数，避免跨上下文依赖）时拒绝。
+// Delete 删除租户。关联应用用户的守卫职责在平台侧（开放面 ErrTenantInUse 拒删，
+// 2026-10-05 起本地无 app_user 数据面）；本地仅处理软删槽位释放。
 // 软删行仍占用本地唯一索引（name/code 单列唯一）——删除时改写释放槽位（后缀 #del#<id>），
 // 否则本地重建同 code/name 租户会误报重复（进而触发 Create 回滚平台侧的连锁）
 func (r *repo) Delete(ctx context.Context, id uint) error {
-	var refCnt int64
-	if err := r.data.DB.WithContext(ctx).Model(&model.AppUserTenantPO{}).
-		Where("tenant_id = ?", id).Count(&refCnt).Error; err != nil {
-		return err
-	}
-	if refCnt > 0 {
-		return biztenant.ErrTenantInUse
-	}
 	var po model.TenantPO
 	if err := r.data.DB.WithContext(ctx).First(&po, id).Error; err != nil {
 		return mapErr(err)

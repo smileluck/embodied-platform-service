@@ -93,13 +93,15 @@ var messagesEn = map[string]string{
 	"merchant.disabled":     "Merchant has been disabled",
 	"merchant.sign_invalid": "Signature verification failed",
 	// Tenant
-	"tenant.not_found":   "Tenant not found",
-	"tenant.name_exists": "Tenant name already exists, please choose another one",
-	"tenant.code_exists": "Tenant code already exists, please choose another one",
-	"tenant.in_use":      "App users are still assigned to this tenant; remove the associations first",
+	"tenant.not_found":    "Tenant not found",
+	"tenant.name_exists":  "Tenant name already exists, please choose another one",
+	"tenant.code_exists":  "Tenant code already exists, please choose another one",
+	"tenant.in_use":       "App users are still assigned to this tenant; remove the associations first",
+	"tenant.not_in_scope": "Tenant is outside the merchant bound tenant set",
 	// App user
-	"appuser.not_found":   "App user not found",
-	"appuser.name_exists": "Username already exists, please choose another one",
+	"appuser.not_found":             "App user not found",
+	"appuser.cross_merchant_delete": "The app user is still attached to tenants of another merchant; detach those first",
+	"appuser.name_exists":           "Username already exists, please choose another one",
 	// Server monitor
 	"monitor.collect_failed": "Failed to collect server metrics, please try again later",
 	// Agent (LLM configuration base)

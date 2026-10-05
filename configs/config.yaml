@@ -35,9 +35,10 @@ db:
     path: ./data/smilex.db
 
 jwt:
-  # 签名密钥：仓库不再保存任何可用密钥。本地开发留空即可启动（debug 模式仅告警）；
-  # 生产/部署必须注入强随机值：APP_JWT_SECRET（openssl rand -base64 32），release 模式下空/过短将拒绝启动。
-  # 更换后所有已签发 token 失效需重新登录；agent 供应商密钥如未单独配置 cryptoKey 也需重新保存一次
+  # 密钥材料：本地登录面已于 2026-10-05 下线（B 端登录直调平台、C 端走平台 /app-auth），
+  # 本系统不再签发任何 token；jwt.secret 仅作为 agent/notify/mcp cryptoKey 未显式配置时的
+  # 派生源——更换会使已存密钥不可解密，需到对应页面重新保存一次。生产仍建议注入强随机值
+  # （APP_JWT_SECRET）
   secret: ""
   issuer: smilex-admin
   expireHours: 2 # access token 有效期

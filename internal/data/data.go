@@ -135,13 +135,26 @@ func (d *Data) migrateAndSeed() error {
 		&model.RolePO{}, &model.PermissionPO{}, &model.RolePermissionPO{},
 		&model.OperationLogPO{},
 		&model.FilePO{}, &model.ExportRecordPO{}, &model.IPBlacklistPO{},
-		&model.TenantPO{}, &model.AppUserPO{}, &model.AppUserTenantPO{},
+		&model.TenantPO{},
 		&model.AgentProviderPO{}, &model.AgentModelPO{}, &model.AgentPO{},
 		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{}, &model.SysConfigPO{}, &model.NoticePO{}, &model.NoticeReadPO{}, &model.NoticeTargetPO{}, &model.JobPO{}, &model.JobLogPO{}, &model.MonitorSnapshotPO{},
 		&model.NotifyChannelPO{}, &model.NotifyRulePO{}, &model.NotifyRecordPO{},
 		&model.McpServerPO{}, &model.SkillPO{}, &model.SkillFilePO{},
 	); err != nil {
 		return err
+	}
+
+	// 本地应用用户体系下线（2026-10-05，平台为唯一事实源）：幂等清理存量表。
+	// 开发期无生产数据、无需迁移；DropTable 幂等可重放
+	if d.DB.Migrator().HasTable("app_user_tenants") {
+		if err := d.DB.Migrator().DropTable("app_user_tenants"); err != nil {
+			return err
+		}
+	}
+	if d.DB.Migrator().HasTable("app_users") {
+		if err := d.DB.Migrator().DropTable("app_users"); err != nil {
+			return err
+		}
 	}
 
 	if err := d.migrateLegacy(); err != nil {

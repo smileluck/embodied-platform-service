@@ -6,9 +6,9 @@ package main
 import (
 	"github.com/google/wire"
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
+	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	bizagent "github.com/smilex/smilex-admin-gin/internal/biz/agent"
 
-	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
 	bizdash "github.com/smilex/smilex-admin-gin/internal/biz/dashboard"
@@ -35,7 +35,6 @@ import (
 	dataadmission "github.com/smilex/smilex-admin-gin/internal/data/admission"
 	dataagent "github.com/smilex/smilex-admin-gin/internal/data/agent"
 
-	dataappuser "github.com/smilex/smilex-admin-gin/internal/data/appuser"
 	dataauth "github.com/smilex/smilex-admin-gin/internal/data/auth"
 	datablacklist "github.com/smilex/smilex-admin-gin/internal/data/blacklist"
 	datadash "github.com/smilex/smilex-admin-gin/internal/data/dashboard"
@@ -95,7 +94,6 @@ var bizSet = wire.NewSet(
 	bizfile.NewUsecase,
 	bizblacklist.NewUsecase,
 	biztenant.NewUsecase,
-	bizappuser.NewUsecase,
 	bizdevice.NewUsecase,
 	bizdevmodel.NewUsecase,
 	bizdict.NewUsecase,
@@ -129,7 +127,6 @@ var bizSet = wire.NewSet(
 var dataRepoSet = wire.NewSet(
 	data.NewData,
 	data.NewRedisClient,
-	data.NewAppTokenIssuer,
 	data.NewRBACCache,
 	dataadmission.NewRepo,
 	datarole.NewRepo,
@@ -139,7 +136,6 @@ var dataRepoSet = wire.NewSet(
 	datafile.NewStorageManager,
 	datablacklist.NewRepo,
 	datatenant.NewRepo,
-	dataappuser.NewRepo,
 
 	dataagent.NewRepo,
 

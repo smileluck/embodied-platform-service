@@ -8,7 +8,6 @@ import (
 
 	"github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/agent"
-	"github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
 	"github.com/smilex/smilex-admin-gin/internal/biz/dict"
 	"github.com/smilex/smilex-admin-gin/internal/biz/export"
@@ -183,32 +182,7 @@ type TenantPO struct {
 
 func (TenantPO) TableName() string { return "tenants" }
 
-// AppUserPO 应用用户表（多租户终端用户；username 唯一，软删留痕；密码只存 bcrypt 哈希）
-type AppUserPO struct {
-	ID           uint   `gorm:"primaryKey"`
-	Username     string `gorm:"size:64;uniqueIndex"`
-	PasswordHash string `gorm:"size:128"` // bcrypt 哈希，列表/详情查询不输出
-	Nickname     string `gorm:"size:64"`
-	Phone        string `gorm:"size:32"`
-	Email        string `gorm:"size:128"`
-	Status       int    // 1 启用 0 禁用
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	DeletedAt    gorm.DeletedAt `gorm:"index"`
-}
-
-func (AppUserPO) TableName() string { return "app_users" }
-
-// AppUserTenantPO 应用用户-租户关联表（复合唯一索引；替换关联时物理删除避免软删残留阻碍重绑）
-type AppUserTenantPO struct {
-	ID        uint `gorm:"primaryKey"`
-	AppUserID uint `gorm:"uniqueIndex:uk_app_user_tenant"`
-	TenantID  uint `gorm:"uniqueIndex:uk_app_user_tenant"`
-	CreatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
-}
-
-func (AppUserTenantPO) TableName() string { return "app_user_tenants" }
+// 应用用户本地表自 2026-10-05 起移除（平台为唯一事实源；存量经 migrateLegacy 幂等 DropTable）
 
 // AgentProviderPO LLM 供应商配置表（智能体底座；api_key 只存 AES-GCM 密文，掩码仅展示用）
 type AgentProviderPO struct {
@@ -434,21 +408,6 @@ func TenantFromPO(p *TenantPO) *tenant.Tenant {
 		ID: p.ID, PlatformID: p.PlatformID, Name: p.Name, Code: p.Code,
 		ContactName: p.ContactName, ContactPhone: p.ContactPhone,
 		Remark: p.Remark, Status: tenant.Status(p.Status),
-		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
-	}
-}
-
-func AppUserToPO(u *appuser.AppUser) *AppUserPO {
-	return &AppUserPO{
-		ID: u.ID, Username: u.Username, PasswordHash: u.PasswordHash,
-		Nickname: u.Nickname, Phone: u.Phone, Email: u.Email, Status: int(u.Status),
-	}
-}
-
-func AppUserFromPO(p *AppUserPO) *appuser.AppUser {
-	return &appuser.AppUser{
-		ID: p.ID, Username: p.Username, PasswordHash: p.PasswordHash,
-		Nickname: p.Nickname, Phone: p.Phone, Email: p.Email, Status: appuser.Status(p.Status),
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
 }
