@@ -41,6 +41,23 @@
   - 租户删除遇关联用户 409 守卫（平台侧 ErrTenantInUse 链路）。
 - [x] `make test`/`go vet`/gofmt 全绿；冒烟数据已清理。
 
+## 补充：job 执行链健壮性收口（同日）
+
+激活 job 体系后审计发现并修复三处执行链缺陷：
+
+1. **panic 无隔离**：handler panic 发生在 cron/手动触发的 goroutine 内，会打死整个进程
+   （cron 链只挂了 SkipIfStillRunning，未挂 cron.Recover；RunOnce 是裸 `go execute`）。
+   修复：`runHandler` defer-recover，转失败日志（含堆栈）。
+2. **RunOnce 绕过互斥**：cron 的 SkipIfStillRunning 只对调度触发生效，手动触发可与
+   cron tick/彼此重叠——对账类任务重叠会双拉双写。修复：Usecase 内 `running` 原子占位
+   （cron/手动共用），在跑时调度跳过并记日志、手动返回 `ErrJobRunning`。
+3. **Stop 无界等待**：cron.Stop 的等待 ctx 在跑任务不结束就不返回（最坏卡到 10 分钟
+   执行超时）。修复：有界等待 15s 后放弃（任务幂等，下次启动重跑）。
+
+已确认无需处理：job_logs 无限增长（execute 每次顺带 CleanupLogsBefore 30 天，started_at 有索引）、
+执行超时（execTimeout=10min 全局约束）、种子 cron 后续调整不回写存量库（按需手动改任务，
+幂等跳过是设计行为）、多实例部署无分布式锁（entity.go 已声明单机语义，扩副本时需另立决策）。
+
 ## 风险与后果
 
 - 漂移上界 = 对账周期（5 分钟）+ 平台侧无变更事件推送（若将来要秒级，需平台出变更通知，另立决策）。
