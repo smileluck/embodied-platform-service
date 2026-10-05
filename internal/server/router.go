@@ -497,11 +497,6 @@ func (s *HTTPServer) registerRoutes() {
 		}), s.chatAgent)
 	}
 
-	{
-		dictItems.PUT("/:id", s.updateDictItem)
-		dictItems.DELETE("/:id", s.deleteDictItem)
-	}
-
 	// 设备（纯代理平台开放面；租户范围由平台按商户绑定服务端收敛）
 	devices := protected.Group("/devices")
 	{
