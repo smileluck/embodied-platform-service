@@ -52,12 +52,11 @@ func (s *HTTPServer) appApiProfile(c *gin.Context) {
 	if tn := middleware.AppAuthTenant(c); tn != nil {
 		vo.Tenant = newAppAPITenantVO(tn.PlatformID, tn.ID, tn.Name, tn.Code, int(tn.Status))
 	}
-	for _, pid := range sub.TenantIDs {
-		tn, err := s.tenantUC.GetByPlatformID(c.Request.Context(), pid)
-		if err != nil || tn == nil {
-			continue // 本地未同步的归属租户不出现在本地视图
+	// 归属租户批量解析（一次查询；本地未同步的不出现在本地视图）
+	if tenants, err := s.tenantUC.GetByPlatformIDs(c.Request.Context(), sub.TenantIDs); err == nil {
+		for _, tn := range tenants {
+			vo.Accessible = append(vo.Accessible, newAppAPITenantVO(tn.PlatformID, tn.ID, tn.Name, tn.Code, int(tn.Status)))
 		}
-		vo.Accessible = append(vo.Accessible, newAppAPITenantVO(tn.PlatformID, tn.ID, tn.Name, tn.Code, int(tn.Status)))
 	}
 	response.OK(c, vo)
 }

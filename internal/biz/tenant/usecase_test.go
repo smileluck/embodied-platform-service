@@ -97,6 +97,21 @@ func (r *memRepo) GetByPlatformID(ctx context.Context, platformID uint) (*Tenant
 	}
 	return nil, ErrTenantNotFound
 }
+
+func (r *memRepo) GetByPlatformIDs(ctx context.Context, platformIDs []uint) ([]*Tenant, error) {
+	want := make(map[uint]struct{}, len(platformIDs))
+	for _, id := range platformIDs {
+		want[id] = struct{}{}
+	}
+	out := []*Tenant{}
+	for _, t := range r.tenants {
+		if _, ok := want[t.PlatformID]; ok {
+			cp := *t
+			out = append(out, &cp)
+		}
+	}
+	return out, nil
+}
 func (r *memRepo) List(ctx context.Context, q Query, page, pageSize int) ([]*Tenant, int64, error) {
 	return nil, 0, nil
 }

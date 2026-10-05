@@ -116,6 +116,22 @@ func (r *repo) GetByPlatformID(ctx context.Context, platformID uint) (*biztenant
 	return model.TenantFromPO(&po), nil
 }
 
+// GetByPlatformIDs 批量版（platform_id IN；空集直接返回空，不发起查询）
+func (r *repo) GetByPlatformIDs(ctx context.Context, platformIDs []uint) ([]*biztenant.Tenant, error) {
+	if len(platformIDs) == 0 {
+		return []*biztenant.Tenant{}, nil
+	}
+	var pos []model.TenantPO
+	if err := r.data.DB.WithContext(ctx).Where("platform_id IN ?", platformIDs).Find(&pos).Error; err != nil {
+		return nil, err
+	}
+	out := make([]*biztenant.Tenant, 0, len(pos))
+	for i := range pos {
+		out = append(out, model.TenantFromPO(&pos[i]))
+	}
+	return out, nil
+}
+
 func (r *repo) List(ctx context.Context, q biztenant.Query, page, pageSize int) ([]*biztenant.Tenant, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.TenantPO{})
 	// 按字段独立全模糊匹配；转义用户输入中的 LIKE 通配符，防止 %/_ 改变匹配语义（通配符注入）

@@ -14,9 +14,11 @@ import (
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
 )
 
-// TenantNameResolver 本地租户名解析（按平台租户 ID 只读定位；*biztenant.Usecase 满足）
+// TenantNameResolver 本地租户名解析（按平台租户 ID；*biztenant.Usecase 满足）。
+// 列表走批量方法（整页一次查询消除 N+1），单个定位用于 AppAuth 闸门等场景
 type TenantNameResolver interface {
 	GetByPlatformID(ctx context.Context, platformID uint) (*biztenant.Tenant, error)
+	GetByPlatformIDs(ctx context.Context, platformIDs []uint) ([]*biztenant.Tenant, error)
 }
 
 type Service struct {
@@ -70,8 +72,8 @@ type VO struct {
 	UpdatedAt   string   `json:"updated_at"`
 }
 
-// toVO 平台视图 → 对外 VO（tenant_names 本地映射补齐）
-func (s *Service) toVO(ctx context.Context, u *bizappuser.AppUserView) *VO {
+// toVO 平台视图 → 对外 VO（tenant_names 由 nameMap 补齐；未同步的租户缺名不阻断）
+func (s *Service) toVO(u *bizappuser.AppUserView, nameMap map[uint]string) *VO {
 	vo := &VO{
 		ID: u.ID, Username: u.Username, Nickname: u.Nickname,
 		Phone: u.Phone, Email: u.Email, Status: u.Status,
@@ -82,11 +84,37 @@ func (s *Service) toVO(ctx context.Context, u *bizappuser.AppUserView) *VO {
 		vo.TenantIDs = []uint{}
 	}
 	for _, pid := range u.TenantIDs {
-		if tn, err := s.tenants.GetByPlatformID(ctx, pid); err == nil && tn != nil {
-			vo.TenantNames = append(vo.TenantNames, tn.Name)
+		if name, ok := nameMap[pid]; ok {
+			vo.TenantNames = append(vo.TenantNames, name)
 		}
 	}
 	return vo
+}
+
+// tenantNameMap 批量解析平台租户 ID → 本地租户名（一次查询；空集不发查询）
+func (s *Service) tenantNameMap(ctx context.Context, views []*bizappuser.AppUserView) map[uint]string {
+	seen := make(map[uint]struct{})
+	ids := make([]uint, 0, len(views)*2)
+	for _, u := range views {
+		for _, pid := range u.TenantIDs {
+			if _, ok := seen[pid]; !ok {
+				seen[pid] = struct{}{}
+				ids = append(ids, pid)
+			}
+		}
+	}
+	m := make(map[uint]string, len(ids))
+	if len(ids) == 0 {
+		return m
+	}
+	tenants, err := s.tenants.GetByPlatformIDs(ctx, ids)
+	if err != nil {
+		return m // 解析失败仅缺名，不阻断列表
+	}
+	for _, tn := range tenants {
+		m[tn.PlatformID] = tn.Name
+	}
+	return m
 }
 
 // List 本商户可见应用用户列表（实时来自平台开放面；本地无数据面）
@@ -95,9 +123,10 @@ func (s *Service) List(ctx context.Context, q bizappuser.ListParams, page, pageS
 	if err != nil {
 		return nil, pagination.Page{}, err
 	}
+	nameMap := s.tenantNameMap(ctx, list)
 	out := make([]*VO, 0, len(list))
 	for _, u := range list {
-		out = append(out, s.toVO(ctx, u))
+		out = append(out, s.toVO(u, nameMap))
 	}
 	return out, pg, nil
 }
@@ -110,7 +139,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*VO, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.toVO(ctx, u), nil
+	return s.toVO(u, s.tenantNameMap(ctx, []*bizappuser.AppUserView{u})), nil
 }
 
 func (s *Service) Update(ctx context.Context, id uint, req UpdateRequest) error {
