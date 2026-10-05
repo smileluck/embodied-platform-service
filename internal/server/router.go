@@ -13,8 +13,10 @@ import (
 	"github.com/redis/go-redis/v9"
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
+	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
+	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	"github.com/smilex/smilex-admin-gin/internal/server/middleware"
@@ -50,37 +52,40 @@ import (
 
 // HTTPServer 聚合全部应用服务
 type HTTPServer struct {
-	cfg           *conf.Bootstrap
-	auth          *authsvc.Service
-	admission     *admissionsvc.Service
-	admissionUC   *bizadmission.Usecase // PlatformAuth 中间件直连领域用例（首登引导/准入判定）
-	role          *rolesvc.Service
-	perm          *permsvc.Service
-	log           *logsvc.Service
-	file          *filesvc.Service
-	export        *exportsvc.Service
-	blacklist     *blacklistsvc.Service
-	monitor       *monitorsvc.Service
-	agent         *agentsvc.Service
-	dict          *dictsvc.Service
-	syscfg        *syssvc.Service
-	notice        *noticesvc.Service
-	job           *jobsvc.Service
-	dashboard     *dashsvc.Service
-	notify        *notifysvc.Service
-	mcp           *mcpsvc.Service
-	skill         *skillsvc.Service
-	tenant        *tenantsvc.Service
-	appuser       *appusersvc.Service
-	appuserUC     *bizappuser.Usecase    // AppJWT 中间件直连领域用例（校验用户启用状态）
-	appIssuer     bizappuser.TokenIssuer // AppJWT 中间件解析 app-access token
-	device        *devicesvc.Service
-	devmodel      *devmodelsvc.Service
-	rdb           *redis.Client // 通用限流（固定窗口计数）
-	rbacCache     *cache.TwoLevel
-	identityCache *cache.TwoLevel
-	engine        *gin.Engine
-	srv           *http.Server
+	cfg              *conf.Bootstrap
+	auth             *authsvc.Service
+	admission        *admissionsvc.Service
+	admissionUC      *bizadmission.Usecase // PlatformAuth 中间件直连领域用例（首登引导/准入判定）
+	role             *rolesvc.Service
+	perm             *permsvc.Service
+	log              *logsvc.Service
+	file             *filesvc.Service
+	export           *exportsvc.Service
+	blacklist        *blacklistsvc.Service
+	monitor          *monitorsvc.Service
+	agent            *agentsvc.Service
+	dict             *dictsvc.Service
+	syscfg           *syssvc.Service
+	notice           *noticesvc.Service
+	job              *jobsvc.Service
+	dashboard        *dashsvc.Service
+	notify           *notifysvc.Service
+	mcp              *mcpsvc.Service
+	skill            *skillsvc.Service
+	tenant           *tenantsvc.Service
+	appuser          *appusersvc.Service
+	appuserUC        *bizappuser.Usecase       // AppJWT 中间件直连领域用例（校验用户启用状态）
+	appIssuer        bizappuser.TokenIssuer    // AppJWT 中间件解析 app-access token
+	appIds           bizauth.AppIdentitySource // AppAuth 中间件的平台应用用户身份源
+	tenantUC         *biztenant.Usecase        // AppAuth 租户闸门（按平台租户 ID 只读定位本地租户）
+	appIdentityCache *cache.TwoLevel           // App token 自省缓存（pat: 前缀）
+	device           *devicesvc.Service
+	devmodel         *devmodelsvc.Service
+	rdb              *redis.Client // 通用限流（固定窗口计数）
+	rbacCache        *cache.TwoLevel
+	identityCache    *cache.TwoLevel
+	engine           *gin.Engine
+	srv              *http.Server
 }
 
 // NewHTTPServer 构造并注册路由。
@@ -89,7 +94,8 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	admissionUC *bizadmission.Usecase, role *rolesvc.Service, perm *permsvc.Service, log *logsvc.Service,
 	file *filesvc.Service, export *exportsvc.Service, blacklist *blacklistsvc.Service,
 	tenant *tenantsvc.Service, appuser *appusersvc.Service, appuserUC *bizappuser.Usecase,
-	appIssuer bizappuser.TokenIssuer, device *devicesvc.Service, devmodel *devmodelsvc.Service,
+	appIssuer bizappuser.TokenIssuer, appIds bizauth.AppIdentitySource, tenantUC *biztenant.Usecase,
+	device *devicesvc.Service, devmodel *devmodelsvc.Service,
 	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service, syscfg *syssvc.Service,
 	notice *noticesvc.Service, job *jobsvc.Service, dashboard *dashsvc.Service, notify *notifysvc.Service,
 	mcp *mcpsvc.Service, skill *skillsvc.Service,
@@ -109,12 +115,16 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	// 平台身份自省缓存（token 哈希 → 平台身份）：L1 30s + L2 60s，
 	// 平台侧吊销/改密在 TTL 内感知（与平台统一账号决策一致）
 	identityCache := cache.NewTwoLevel(rdb, "pid:", 30*time.Second, 60*time.Second, cfg.Cache.L2Enabled)
+	// 应用用户（C 端）自省缓存独立前缀（app-access token 哈希 → App 主体），
+	// 禁用生效延迟 = 平台查库即时 + 本缓存 TTL（30-60s），与 B 端同一权衡
+	appIdentityCache := cache.NewTwoLevel(rdb, "pat:", 30*time.Second, 60*time.Second, cfg.Cache.L2Enabled)
 
 	s := &HTTPServer{
 		cfg: cfg, auth: auth, admission: admission, admissionUC: admissionUC,
 		role: role, perm: perm, log: log,
 		file: file, export: export, blacklist: blacklist, tenant: tenant,
 		appuser: appuser, appuserUC: appuserUC, appIssuer: appIssuer,
+		appIds: appIds, tenantUC: tenantUC, appIdentityCache: appIdentityCache,
 		device: device, devmodel: devmodel, monitor: monitor, agent: agent, dict: dict, syscfg: syscfg,
 		notice:    notice,
 		rdb:       rdb,
@@ -154,6 +164,26 @@ func (s *HTTPServer) registerRoutes() {
 	{
 		appAuth.GET("/profile", s.appProfile)
 		appAuth.PUT("/password", s.appChangePassword)
+	}
+
+	// ---- App 面（/app-api/v1）：App（C 端）直调本系统的业务接口 ----
+	// App 直连平台 /app-auth 登录（token 双用）；AppAuth 自省平台 app profile + 租户闸门
+	// （X-Tenant-ID = 平台租户 ID，须∈用户归属集且本地已同步）；per-uid 限流。
+	// 不挂 IPBlacklist/OpLog（管理端语义），业务端点后续按需求挂入本组。
+	appAPI := s.engine.Group("/app-api/v1",
+		middleware.AppAuth(s.appIds, s.tenantUC, s.appIdentityCache),
+		middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
+			KeyPrefix: "rl:app-api:", Max: 120, Window: time.Minute,
+			SubjectFunc: func(c *gin.Context) string {
+				if sub := middleware.AppAuthSubject(c); sub != nil {
+					return strconv.FormatUint(uint64(sub.UserID), 10)
+				}
+				return ""
+			},
+			MessageKey: "security.rate_limited",
+		}))
+	{
+		appAPI.GET("/profile", s.appApiProfile)
 	}
 
 	// ---- 自身数据接口：仅平台认证（token 自省 + 本地准入），不做 RBAC ----

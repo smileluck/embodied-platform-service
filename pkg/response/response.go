@@ -51,3 +51,8 @@ func Forbidden(c *gin.Context, msg string)       { Fail(c, http.StatusForbidden,
 func NotFound(c *gin.Context, msg string)        { Fail(c, http.StatusNotFound, CodeErr, msg) }
 func ServerError(c *gin.Context, msg string)     { Fail(c, http.StatusInternalServerError, CodeErr, msg) }
 func TooManyRequests(c *gin.Context, msg string) { Fail(c, http.StatusTooManyRequests, CodeErr, msg) }
+
+// ServiceUnavailable 上游依赖不可达（fail-closed；App 面等外部客户端按 503 语义重试）
+func ServiceUnavailable(c *gin.Context, msg string) {
+	Fail(c, http.StatusServiceUnavailable, CodeErr, msg)
+}

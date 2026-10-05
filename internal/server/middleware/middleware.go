@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
+	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	"github.com/smilex/smilex-admin-gin/pkg/cache"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
@@ -254,6 +256,139 @@ func AppSubject(c *gin.Context) *appSubject {
 		}
 	}
 	return nil
+}
+
+const (
+	ctxAppAuthSubjectKey = "appauth.subject"
+	ctxAppAuthTenantKey  = "appauth.tenant"
+	ctxAppAuthTokenKey   = "appauth.token"
+)
+
+// TenantResolver AppAuth 租户闸门所需的最小只读接口（*biztenant.Usecase 满足）
+type TenantResolver interface {
+	GetByPlatformID(ctx context.Context, platformID uint) (*biztenant.Tenant, error)
+}
+
+// AppAuth 平台应用用户（C 端）认证：Bearer app-access token →（缓存）平台
+// /app-auth/profile 自省 → 租户闸门。与 PlatformAuth 同骨架但闸门不同：
+//   - token 由 App 直连平台 /app-auth 登录取得（双用于平台与本系统），本系统对 C 端
+//     不碰账密、不签发、不换签、无本地投影/RBAC；
+//   - 自省结果按 token 哈希缓存 30-60s：平台侧禁用按请求查库即时生效，本系统在缓存
+//     TTL 内感知（与 B 端同一权衡）；
+//   - 闸门（归属即准入）：请求头 X-Tenant-ID（平台租户 ID，全链路唯一口径）必须
+//     ∈ 用户归属集（平台 app_user_tenants）且本地租户（tenants.platform_id）已同步，
+//     否则 403；缺失/非法 400；两种 403 同文案不泄露是「未归属」还是「未同步」；
+//   - 平台不可达 fail-closed（503），不降级放行。
+func AppAuth(ids auth.AppIdentitySource, tenants TenantResolver, idCache *cache.TwoLevel) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		h := c.GetHeader("Authorization")
+		token, ok := strings.CutPrefix(h, "Bearer ")
+		if !ok || token == "" {
+			response.Unauthorized(c, "missing bearer token")
+			c.Abort()
+			return
+		}
+		sum := sha256.Sum256([]byte(token))
+		key := "t:" + hex.EncodeToString(sum[:16])
+		val, err := idCache.Load(c.Request.Context(), key, func(ctx context.Context) (string, error) {
+			sub, err := ids.AppProfile(ctx, token)
+			if err != nil {
+				return "", err
+			}
+			b, err := json.Marshal(sub)
+			if err != nil {
+				return "", err
+			}
+			return string(b), nil
+		})
+		if err != nil {
+			// loader 出错不回填缓存；按哨兵错误分类响应
+			switch {
+			case errors.Is(err, auth.ErrInvalidToken):
+				response.Unauthorized(c, "invalid or expired token")
+			case errors.Is(err, auth.ErrPlatformUnavailable):
+				response.ServiceUnavailable(c, "platform unavailable")
+			default:
+				response.ServerError(c, "authenticate failed")
+			}
+			c.Abort()
+			return
+		}
+		var sub auth.AppSubject
+		if err := json.Unmarshal([]byte(val), &sub); err != nil || sub.UserID == 0 {
+			response.Unauthorized(c, "invalid or expired token")
+			c.Abort()
+			return
+		}
+
+		// 租户闸门：X-Tenant-ID = 平台租户 ID
+		raw := strings.TrimSpace(c.GetHeader("X-Tenant-ID"))
+		tid, perr := strconv.ParseUint(raw, 10, 64)
+		if raw == "" || perr != nil || tid == 0 {
+			response.BadRequest(c, "missing or invalid X-Tenant-ID header")
+			c.Abort()
+			return
+		}
+		platformTenantID := uint(tid)
+		if !containsUint(sub.TenantIDs, platformTenantID) {
+			response.Forbidden(c, "tenant not accessible for this app user")
+			c.Abort()
+			return
+		}
+		tn, err := tenants.GetByPlatformID(c.Request.Context(), platformTenantID)
+		if err != nil || tn == nil || tn.ID == 0 {
+			// 本地未同步/已删：与未归属同语义 403（不泄露细节）
+			response.Forbidden(c, "tenant not accessible for this app user")
+			c.Abort()
+			return
+		}
+
+		c.Set(ctxAppAuthSubjectKey, &sub)
+		c.Set(ctxAppAuthTenantKey, tn)
+		c.Set(ctxAppAuthTokenKey, token)
+		c.Next()
+	}
+}
+
+// AppAuthSubject 从 context 取平台应用用户主体（AppAuth 中间件之后可用；
+// UserID 为平台 app_user ID，TenantIDs 为平台租户 ID 集）
+func AppAuthSubject(c *gin.Context) *auth.AppSubject {
+	if v, ok := c.Get(ctxAppAuthSubjectKey); ok {
+		if s, ok := v.(*auth.AppSubject); ok {
+			return s
+		}
+	}
+	return nil
+}
+
+// AppAuthTenant 从 context 取本次请求的本地租户上下文（AppAuth 中间件之后可用；
+// 由 X-Tenant-ID（平台租户 ID）解析命中）
+func AppAuthTenant(c *gin.Context) *biztenant.Tenant {
+	if v, ok := c.Get(ctxAppAuthTenantKey); ok {
+		if t, ok := v.(*biztenant.Tenant); ok {
+			return t
+		}
+	}
+	return nil
+}
+
+// AppAuthToken 从 context 取当前请求的 app-access token（代理平台 C 端接口用）
+func AppAuthToken(c *gin.Context) string {
+	if v, ok := c.Get(ctxAppAuthTokenKey); ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+func containsUint(ids []uint, id uint) bool {
+	for _, v := range ids {
+		if v == id {
+			return true
+		}
+	}
+	return false
 }
 
 // RBAC 接口鉴权（二级缓存：L1 进程内存 + L2 Redis，减少查库；一致性由短 TTL 兜底 +

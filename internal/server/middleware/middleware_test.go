@@ -17,6 +17,7 @@ import (
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	"github.com/smilex/smilex-admin-gin/internal/biz/permission"
+	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	"github.com/smilex/smilex-admin-gin/pkg/cache"
 )
@@ -272,5 +273,114 @@ func TestRateLimitRedisFailOpen(t *testing.T) {
 		if w := do(e, "GET", "/ping", "", ""); w.Code != http.StatusOK {
 			t.Fatalf("request #%d under redis failure: status = %d, want 200 (fail-open)", i+1, w.Code)
 		}
+	}
+}
+
+// ---- AppAuth（App 面：平台应用用户 token 自省 + 租户闸门） ----
+
+// fakeAppIdentitySource 平台应用用户身份源替身（计数回源次数以验证缓存命中）
+type fakeAppIdentitySource struct {
+	sub   *bizauth.AppSubject
+	err   error
+	calls int
+}
+
+func (f *fakeAppIdentitySource) AppProfile(ctx context.Context, token string) (*bizauth.AppSubject, error) {
+	f.calls++
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.sub, nil
+}
+
+// fakeTenantResolver 租户闸门替身：locals 为「平台租户 ID → 本地租户」已知集
+type fakeTenantResolver struct {
+	locals map[uint]*biztenant.Tenant
+}
+
+func (f *fakeTenantResolver) GetByPlatformID(ctx context.Context, platformID uint) (*biztenant.Tenant, error) {
+	if t, ok := f.locals[platformID]; ok {
+		return t, nil
+	}
+	return nil, biztenant.ErrTenantNotFound
+}
+
+func doApp(r http.Handler, target, bearer, tenantHeader string) *httptest.ResponseRecorder {
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, target, nil)
+	if bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+bearer)
+	}
+	if tenantHeader != "" {
+		req.Header.Set("X-Tenant-ID", tenantHeader)
+	}
+	r.ServeHTTP(w, req)
+	return w
+}
+
+func TestAppAuth(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	sub := &bizauth.AppSubject{UserID: 9, Username: "appu", Status: 1, TenantIDs: []uint{101, 102}}
+	locals := map[uint]*biztenant.Tenant{
+		101: {ID: 1, PlatformID: 101, Name: "T1", Code: "t1", Status: 1},
+	}
+	// 覆盖缓存穿透路径：主体经 JSON 往返必须可完整还原（tenant_ids 带 json tag）
+	newEngine := func(ids *fakeAppIdentitySource) *gin.Engine {
+		rdb, _ := newTestRedis(t)
+		tl := cache.NewTwoLevel(rdb, "pat:", 30*time.Second, 60*time.Second, true)
+		e := gin.New()
+		e.Use(AppAuth(ids, &fakeTenantResolver{locals: locals}, tl))
+		e.GET("/app-api/v1/profile", okHandler)
+		return e
+	}
+
+	cases := []struct {
+		name       string
+		ids        *fakeAppIdentitySource
+		bearer     string
+		tenant     string
+		wantStatus int
+	}{
+		{"缺 bearer 401", &fakeAppIdentitySource{sub: sub}, "", "101", http.StatusUnauthorized},
+		{"平台判无效 token 401", &fakeAppIdentitySource{err: bizauth.ErrInvalidToken}, "bad", "101", http.StatusUnauthorized},
+		{"平台不可达 fail-closed 503", &fakeAppIdentitySource{err: bizauth.ErrPlatformUnavailable}, "t", "101", http.StatusServiceUnavailable},
+		{"缺 X-Tenant-ID 400", &fakeAppIdentitySource{sub: sub}, "t", "", http.StatusBadRequest},
+		{"X-Tenant-ID 非法 400", &fakeAppIdentitySource{sub: sub}, "t", "abc", http.StatusBadRequest},
+		{"租户不在归属集 403", &fakeAppIdentitySource{sub: sub}, "t", "999", http.StatusForbidden},
+		{"归属租户本地未同步 403", &fakeAppIdentitySource{sub: sub}, "t", "102", http.StatusForbidden},
+		{"正例 200", &fakeAppIdentitySource{sub: sub}, "t", "101", http.StatusOK},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEngine(tc.ids)
+			if w := doApp(e, "/app-api/v1/profile", tc.bearer, tc.tenant); w.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d", w.Code, tc.wantStatus)
+			}
+		})
+	}
+
+	// 缓存命中：同 token 二次请求只回源一次（禁用/改归属在 TTL 内感知延迟）
+	ids := &fakeAppIdentitySource{sub: sub}
+	e := newEngine(ids)
+	doApp(e, "/app-api/v1/profile", "same-token", "101")
+	doApp(e, "/app-api/v1/profile", "same-token", "101")
+	if ids.calls != 1 {
+		t.Fatalf("introspection calls = %d, want 1 (cache hit)", ids.calls)
+	}
+
+	// 主体/租户上下文注入
+	e2 := newEngine(&fakeAppIdentitySource{sub: sub})
+	var gotSub *bizauth.AppSubject
+	var gotTenant *biztenant.Tenant
+	e2.GET("/inject", func(c *gin.Context) {
+		gotSub, gotTenant = AppAuthSubject(c), AppAuthTenant(c)
+		c.Status(http.StatusOK)
+	})
+	doApp(e2, "/inject", "tk", "101")
+	if gotSub == nil || gotSub.UserID != 9 || len(gotSub.TenantIDs) != 2 {
+		t.Fatalf("subject 注入异常: %+v", gotSub)
+	}
+	if gotTenant == nil || gotTenant.ID != 1 || gotTenant.PlatformID != 101 {
+		t.Fatalf("tenant 注入异常: %+v", gotTenant)
 	}
 }

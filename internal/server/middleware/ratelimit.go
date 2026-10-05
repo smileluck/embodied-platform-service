@@ -17,11 +17,14 @@ import (
 
 // RateLimitConfig 固定窗口限流配置
 type RateLimitConfig struct {
-	KeyPrefix  string        // Redis key 前缀，须以 ":" 结尾（如 "rl:agent-chat:"）
-	Max        int64         // 窗口内最大放行次数，超出返回 429
-	Window     time.Duration // 固定窗口时长
-	ByUser     bool          // true 按认证主体（UserID）计数，须挂载在 JWT 之后；false 按客户端 IP
-	MessageKey string        // 超限提示的 i18n 词条 key
+	KeyPrefix string        // Redis key 前缀，须以 ":" 结尾（如 "rl:agent-chat:"）
+	Max       int64         // 窗口内最大放行次数，超出返回 429
+	Window    time.Duration // 固定窗口时长
+	ByUser    bool          // true 按认证主体（UserID）计数，须挂载在 JWT 之后；false 按客户端 IP
+	// SubjectFunc 自定义计数主体键（优先于 ByUser；App 面按 AppAuth 主体计数用）。
+	// 返回空串视为未认证，直接 401。
+	SubjectFunc func(c *gin.Context) string
+	MessageKey  string // 超限提示的 i18n 词条 key
 }
 
 // NewRateLimit 通用限流中间件：按 IP 或认证用户做固定窗口计数。
@@ -29,7 +32,15 @@ type RateLimitConfig struct {
 func NewRateLimit(rdb *redis.Client, cfg RateLimitConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var subject string
-		if cfg.ByUser {
+		switch {
+		case cfg.SubjectFunc != nil:
+			subject = cfg.SubjectFunc(c)
+			if subject == "" {
+				response.Unauthorized(c, "unauthenticated")
+				c.Abort()
+				return
+			}
+		case cfg.ByUser:
 			s := Subject(c)
 			if s == nil {
 				response.Unauthorized(c, "unauthenticated")
@@ -37,7 +48,7 @@ func NewRateLimit(rdb *redis.Client, cfg RateLimitConfig) gin.HandlerFunc {
 				return
 			}
 			subject = strconv.FormatUint(uint64(s.UserID), 10)
-		} else {
+		default:
 			subject = c.ClientIP()
 		}
 		key := cfg.KeyPrefix + subject

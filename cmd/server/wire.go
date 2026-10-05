@@ -159,6 +159,7 @@ var dataRepoSet = wire.NewSet(
 	dataexport.NewWorker,
 	// 平台集成层（商户 HMAC 开放面 + 身份自省 + 存储）
 	platform.NewIdentityClient,
+	platform.NewAppIdentityClient,
 	platform.NewStorageClient,
 	platform.NewOpenAPIClient,
 	platform.NewMerchantIdentity,
@@ -169,8 +170,10 @@ var dataRepoSet = wire.NewSet(
 	datatenant.NewTenantAvailability,
 	dataadmission.NewPlatformGateway,
 	dataauth.NewIdentityAdapter,
+	dataauth.NewAppIdentityAdapter,
 	// 跨上下文最小依赖接口绑定（provider 与 bind 需同 set）
 	wire.Bind(new(auth.IdentitySource), new(*dataauth.IdentityAdapter)),
+	wire.Bind(new(auth.AppIdentitySource), new(*dataauth.AppIdentityAdapter)),
 	wire.Bind(new(bizjob.LogCleaner), new(*datalog.Repo)),
 	wire.Bind(new(bizjob.ExportCleaner), new(*dataexport.Worker)),
 	wire.Bind(new(bizagent.Repo), new(*dataagent.Repo)),

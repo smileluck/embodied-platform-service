@@ -4,6 +4,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"net/http"
 
 	"github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
@@ -55,4 +56,36 @@ func (a *IdentityAdapter) UpdateProfile(ctx context.Context, token, nickname, em
 
 func (a *IdentityAdapter) ChangePassword(ctx context.Context, token, oldPassword, newPassword string) error {
 	return a.c.ChangePassword(ctx, token, oldPassword, newPassword)
+}
+
+// AppIdentityAdapter 把平台 AppIdentityClient 适配为 biz 的 AppIdentitySource
+// （应用用户 C 端自省；哨兵错误映射与 IdentityAdapter 同款）
+type AppIdentityAdapter struct {
+	c *platform.AppIdentityClient
+}
+
+// NewAppIdentityAdapter 构造（wire provider，绑定 bizauth.AppIdentitySource）
+func NewAppIdentityAdapter(c *platform.AppIdentityClient) *AppIdentityAdapter {
+	return &AppIdentityAdapter{c: c}
+}
+
+func (a *AppIdentityAdapter) AppProfile(ctx context.Context, token string) (*bizauth.AppSubject, error) {
+	s, err := a.c.AppProfile(ctx, token)
+	if err != nil {
+		if errors.Is(err, platform.ErrInvalidToken) {
+			return nil, bizauth.ErrInvalidToken
+		}
+		if errors.Is(err, platform.ErrUnavailable) {
+			return nil, bizauth.ErrPlatformUnavailable
+		}
+		var perr *platform.Error
+		if errors.As(err, &perr) && perr.HTTPStatus == http.StatusUnauthorized {
+			return nil, bizauth.ErrInvalidToken
+		}
+		return nil, err
+	}
+	return &bizauth.AppSubject{
+		UserID: s.ID, Username: s.Username, Nickname: s.Nickname,
+		Status: s.Status, TenantIDs: s.TenantIDs,
+	}, nil
 }
