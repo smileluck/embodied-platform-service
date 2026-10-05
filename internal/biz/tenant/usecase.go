@@ -3,6 +3,7 @@ package tenant
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
@@ -170,4 +171,102 @@ func (uc *Usecase) RelinkByPlatformID(ctx context.Context, platformTenantID uint
 		return 0, err
 	}
 	return t.PlatformID, nil
+}
+
+// ReconcileFromPlatform 对账回流：分页拉取平台商户租户全量，本地投影跟随平台真相
+// （平台为事实端；平台侧直接变更经此回流，漂移上界=任务周期）。语义：
+//   - 平台有、本地无（含平台侧直接新建）→ 本地补建（platform_id 直填）；
+//   - 两侧都有但资料/启停不一致 → 本地覆盖为平台值；
+//   - 本地已同步（platform_id>0）但平台已无 → 本地软删+墓碑（直接 repo.Delete，
+//     不再调平台——平台侧本就不存在）；
+//   - 本地未同步（platform_id=0，存量补链域）不参与对账，保持原状。
+//
+// 单项失败记日志继续（尽力而为），平台拉取失败整体失败（下轮重试）。
+func (uc *Usecase) ReconcileFromPlatform(ctx context.Context) (string, error) {
+	const pageSize = 100
+	platformTenants := map[uint]*Tenant{}
+	total := int64(-1)
+	for page := 1; page <= 200; page++ {
+		list, t, err := uc.platform.ListOnPlatform(ctx, page, pageSize)
+		if err != nil {
+			return "", fmt.Errorf("拉取平台租户第 %d 页: %w", page, err)
+		}
+		for _, pt := range list {
+			platformTenants[pt.PlatformID] = pt
+		}
+		total = t
+		if int64(page*pageSize) >= total || len(list) == 0 {
+			break
+		}
+	}
+
+	var created, updated, deleted, unchanged int
+	for pid, pt := range platformTenants {
+		local, err := uc.repo.GetByPlatformID(ctx, pid)
+		if err != nil && !errors.Is(err, ErrTenantNotFound) {
+			logger.Warn("tenant reconcile: 定位本地租户失败", zap.Uint("platform_id", pid), zap.Error(err))
+			continue
+		}
+		if local == nil {
+			nt := &Tenant{
+				PlatformID: pt.PlatformID, Name: pt.Name, Code: pt.Code,
+				ContactName: pt.ContactName, ContactPhone: pt.ContactPhone,
+				Remark: pt.Remark, Status: pt.Status,
+			}
+			if err := uc.repo.Create(ctx, nt); err != nil {
+				logger.Warn("tenant reconcile: 补建本地租户失败", zap.Uint("platform_id", pid), zap.Error(err))
+				continue
+			}
+			created++
+			continue
+		}
+		if local.Name == pt.Name && local.Code == pt.Code && local.ContactName == pt.ContactName &&
+			local.ContactPhone == pt.ContactPhone && local.Remark == pt.Remark && local.Status == pt.Status {
+			unchanged++
+			continue
+		}
+		local.Name, local.Code = pt.Name, pt.Code
+		local.ContactName, local.ContactPhone, local.Remark = pt.ContactName, pt.ContactPhone, pt.Remark
+		local.Status = pt.Status
+		if err := uc.repo.Update(ctx, local); err != nil {
+			logger.Warn("tenant reconcile: 更新本地租户失败", zap.Uint("platform_id", pid), zap.Error(err))
+			continue
+		}
+		updated++
+	}
+
+	// 平台已无的已同步本地租户 → 跟随下线（软删+墓碑释放唯一槽位）。
+	// 护栏：平台拉取成功但结果为空时跳过下线——空结果无法区分「平台真清空」与
+	// 「列表接口异常返回空」，批量下线是不可逆操作，宁可下一轮带上非空真相再下线
+	locals, _, err := uc.repo.List(ctx, Query{}, 1, 0)
+	if err != nil {
+		logger.Warn("tenant reconcile: 拉取本地租户失败", zap.Error(err))
+	} else {
+		synced := 0
+		for _, lt := range locals {
+			if !lt.Synced() {
+				continue // 未同步存量（补链域）不参与对账
+			}
+			synced++
+		}
+		if synced > 0 && len(platformTenants) == 0 {
+			logger.Warn("tenant reconcile: 平台租户列表为空，跳过下线阶段（防误删，待下轮非空真相）",
+				zap.Int("local_synced", synced))
+		} else {
+			for _, lt := range locals {
+				if !lt.Synced() {
+					continue
+				}
+				if _, ok := platformTenants[lt.PlatformID]; ok {
+					continue
+				}
+				if err := uc.repo.Delete(ctx, lt.ID); err != nil {
+					logger.Warn("tenant reconcile: 下线本地租户失败", zap.Uint("id", lt.ID), zap.Uint("platform_id", lt.PlatformID), zap.Error(err))
+					continue
+				}
+				deleted++
+			}
+		}
+	}
+	return fmt.Sprintf("租户对账完成：平台 %d，新增 %d、更新 %d、下线 %d、未变 %d", total, created, updated, deleted, unchanged), nil
 }

@@ -289,8 +289,9 @@ func AppAuth(ids auth.AppIdentitySource, tenants TenantResolver, idCache *cache.
 			return
 		}
 		tn, err := tenants.GetByPlatformID(c.Request.Context(), platformTenantID)
-		if err != nil || tn == nil || tn.ID == 0 {
-			// 本地未同步/已删：与未归属同语义 403（不泄露细节）
+		if err != nil || tn == nil || tn.ID == 0 || !tn.Enabled() {
+			// 本地未同步/已删/已停用：与未归属同语义 403（不泄露细节）；
+			// 停用租户挡住其 App 流量（闸门读本地投影，停用经对账回流跟随平台）
 			response.Forbidden(c, "tenant not accessible for this app user")
 			c.Abort()
 			return

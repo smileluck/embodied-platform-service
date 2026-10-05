@@ -16,10 +16,11 @@ import (
 
 // 内置处理器键（种子任务按此引用）
 const (
-	HandlerLogCleanup    = "log_cleanup"
-	HandlerExportCleanup = "export_cleanup"
-	HandlerUsageCleanup  = "agent_usage_cleanup"
-	HandlerNotifyCleanup = "notify_cleanup"
+	HandlerLogCleanup      = "log_cleanup"
+	HandlerExportCleanup   = "export_cleanup"
+	HandlerUsageCleanup    = "agent_usage_cleanup"
+	HandlerNotifyCleanup   = "notify_cleanup"
+	HandlerTenantReconcile = "tenant_reconcile"
 )
 
 // 清理器接口（各仓储实现；保留期取各自配置）
@@ -31,6 +32,12 @@ type ExportCleaner interface {
 }
 type UsageCleaner interface {
 	CleanupExpired(ctx context.Context) error
+}
+
+// TenantReconciler 租户投影对账回流（tenant.Usecase 实现）：
+// 平台为租户事实端，本地投影经此跟随平台侧直接变更（漂移上界=任务周期）
+type TenantReconciler interface {
+	ReconcileFromPlatform(ctx context.Context) (string, error)
 }
 
 // NotifyCleaner 告警发送记录清理（notify.Usecase 实现）
@@ -48,7 +55,7 @@ type Usecase struct {
 	entryIDs map[uint]cron.EntryID
 }
 
-func NewUsecase(repo Repo, lc LogCleaner, ec ExportCleaner, uc UsageCleaner, nc NotifyCleaner) *Usecase {
+func NewUsecase(repo Repo, lc LogCleaner, ec ExportCleaner, uc UsageCleaner, nc NotifyCleaner, tr TenantReconciler) *Usecase {
 	handlers := map[string]Handler{
 		HandlerLogCleanup: {
 			Key: HandlerLogCleanup, Description: "清理保留期外的操作日志",
@@ -84,6 +91,12 @@ func NewUsecase(repo Repo, lc LogCleaner, ec ExportCleaner, uc UsageCleaner, nc 
 					return "", err
 				}
 				return "告警发送记录清理完成", nil
+			},
+		},
+		HandlerTenantReconcile: {
+			Key: HandlerTenantReconcile, Description: "租户投影对账：本地租户跟随平台真相（补建/更新/下线）",
+			Run: func(ctx context.Context, _ string) (string, error) {
+				return tr.ReconcileFromPlatform(ctx)
 			},
 		},
 	}
@@ -303,6 +316,8 @@ func (uc *Usecase) EnsureSeeded(ctx context.Context) error {
 			Remark: "清理保留期外的 Agent 用量流水"},
 		{Name: "告警记录保留期清理", Cron: "40 4 * * *", HandlerKey: HandlerNotifyCleanup, Status: StatusEnabled,
 			Remark: "清理保留期外的告警发送记录（保留 30 天）"},
+		{Name: "租户投影对账", Cron: "*/5 * * * *", HandlerKey: HandlerTenantReconcile, Status: StatusEnabled,
+			Remark: "本地租户投影跟随平台真相：平台侧直接变更（改名/启停/新建/删除）≤5 分钟回流"},
 	}
 	for _, s := range seeds {
 		if names[s.Name] {

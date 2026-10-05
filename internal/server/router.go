@@ -129,6 +129,12 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	s.registerRoutes()
 	s.registerStatic()
 
+	// 定时任务：播种内置任务并拉起 cron 调度器（租户投影对账/保留期清理等）。
+	// 失败不阻断 HTTP 服务（任务体系是运营面），记错误日志可观测
+	if err := job.EnsureSeededAndStart(); err != nil {
+		logger.Error("job scheduler start failed", zap.Error(err))
+	}
+
 	s.srv = &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler: e,
@@ -559,6 +565,7 @@ func (s *HTTPServer) registerStatic() {
 
 // Stop 优雅关停
 func (s *HTTPServer) Stop(ctx context.Context) error {
+	s.job.Stop() // 先停 cron 调度器，再关 HTTP（避免停机窗口内新任务触发）
 	return s.srv.Shutdown(ctx)
 }
 

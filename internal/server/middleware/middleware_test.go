@@ -323,6 +323,7 @@ func TestAppAuth(t *testing.T) {
 	sub := &bizauth.AppSubject{UserID: 9, Username: "appu", Status: 1, TenantIDs: []uint{101, 102}}
 	locals := map[uint]*biztenant.Tenant{
 		101: {ID: 1, PlatformID: 101, Name: "T1", Code: "t1", Status: 1},
+		102: {ID: 2, PlatformID: 102, Name: "T2", Code: "t2", Status: 0}, // 本地已停用
 	}
 	// 覆盖缓存穿透路径：主体经 JSON 往返必须可完整还原（tenant_ids 带 json tag）
 	newEngine := func(ids *fakeAppIdentitySource) *gin.Engine {
@@ -347,7 +348,8 @@ func TestAppAuth(t *testing.T) {
 		{"缺 X-Tenant-ID 400", &fakeAppIdentitySource{sub: sub}, "t", "", http.StatusBadRequest},
 		{"X-Tenant-ID 非法 400", &fakeAppIdentitySource{sub: sub}, "t", "abc", http.StatusBadRequest},
 		{"租户不在归属集 403", &fakeAppIdentitySource{sub: sub}, "t", "999", http.StatusForbidden},
-		{"归属租户本地未同步 403", &fakeAppIdentitySource{sub: sub}, "t", "102", http.StatusForbidden},
+		{"归属租户本地未同步 403", &fakeAppIdentitySource{sub: sub}, "t", "105", http.StatusForbidden},
+		{"归属租户本地已停用 403", &fakeAppIdentitySource{sub: sub}, "t", "102", http.StatusForbidden},
 		{"正例 200", &fakeAppIdentitySource{sub: sub}, "t", "101", http.StatusOK},
 	}
 	for _, tc := range cases {

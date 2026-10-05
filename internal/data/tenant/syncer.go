@@ -31,6 +31,26 @@ func toBiz(t *platformsdk.Tenant) *biztenant.Tenant {
 	}
 }
 
+// ListOnPlatform 分页拉取本商户的平台租户（对账回流）：平台 ID 落 PlatformID，
+// 本地 ID 置零（本地行由对账用例按 PlatformID 定位）
+func (s *Syncer) ListOnPlatform(ctx context.Context, page, pageSize int) ([]*biztenant.Tenant, int64, error) {
+	list, pg, err := s.client.ListTenants(ctx, page, pageSize, platformsdk.TenantFilter{})
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]*biztenant.Tenant, 0, len(list))
+	for _, t := range list {
+		b := toBiz(t)
+		b.PlatformID = t.ID
+		b.ID = 0
+		out = append(out, b)
+	}
+	if pg == nil {
+		pg = &platformsdk.Page{}
+	}
+	return out, pg.Total, nil
+}
+
 func (s *Syncer) CreateOnPlatform(ctx context.Context, t *biztenant.Tenant) (uint, error) {
 	pt, err := s.client.CreateTenant(ctx, platformsdk.TenantCreateRequest{
 		Name: t.Name, Code: t.Code, ContactName: t.ContactName,

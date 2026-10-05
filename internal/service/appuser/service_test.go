@@ -45,10 +45,12 @@ func (f *fakeGateway) List(ctx context.Context, p bizappuser.ListParams, page, p
 func (f *fakeGateway) Create(ctx context.Context, p bizappuser.CreateParams) (*bizappuser.AppUserView, error) {
 	return nil, errors.New("unused")
 }
-func (f *fakeGateway) Update(ctx context.Context, id uint, p bizappuser.UpdateParams) error { return nil }
-func (f *fakeGateway) SetStatus(ctx context.Context, id uint, status int) error            { return nil }
-func (f *fakeGateway) ResetPassword(ctx context.Context, id uint, password string) error   { return nil }
-func (f *fakeGateway) Delete(ctx context.Context, id uint) error                            { return nil }
+func (f *fakeGateway) Update(ctx context.Context, id uint, p bizappuser.UpdateParams) error {
+	return nil
+}
+func (f *fakeGateway) SetStatus(ctx context.Context, id uint, status int) error          { return nil }
+func (f *fakeGateway) ResetPassword(ctx context.Context, id uint, password string) error { return nil }
+func (f *fakeGateway) Delete(ctx context.Context, id uint) error                         { return nil }
 
 // TestList_TenantNamesBatched 列表租户名映射：整页一次批量查询（N+1 消除），
 // 未同步租户缺名不阻断、名字顺序与 tenant_ids 对齐

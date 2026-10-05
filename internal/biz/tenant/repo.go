@@ -60,6 +60,9 @@ type PlatformSyncer interface {
 	DeleteFromPlatform(ctx context.Context, platformID uint) error
 	// SetStatusOnPlatform 同步平台租户启停状态；平台侧已删（404）返回 ErrPlatformTenantGone
 	SetStatusOnPlatform(ctx context.Context, platformID uint, enabled bool) error
+	// ListOnPlatform 分页拉取本商户的平台租户（对账回流用；实体 PlatformID=平台 ID，
+	// 本地 ID 为零）。平台侧直接变更（管理端改名/启停/新建/删除）经此回流本地投影
+	ListOnPlatform(ctx context.Context, page, pageSize int) ([]*Tenant, int64, error)
 	// LinkOrCreateOnPlatform 存量补链：平台已有同 code 租户则（重新）绑定本服务商户并
 	// 同步资料、返回其 ID；没有则创建（平台侧被删后的补链重建亦走此路径）。返回平台租户 ID。
 	LinkOrCreateOnPlatform(ctx context.Context, t *Tenant) (uint, error)
