@@ -282,3 +282,53 @@ type UserCreateOrBindResult struct {
 	// Existed true=账号已存在、仅建立了本商户关联（未创建、未改密）
 	Existed bool `json:"existed"`
 }
+
+// ---- 应用用户域（scope app-user:*；C 端多租户终端用户，2026-10-05） ----
+
+const (
+	ScopeAppUserList          = "app-user:list"
+	ScopeAppUserCreate        = "app-user:create"
+	ScopeAppUserUpdate        = "app-user:update"
+	ScopeAppUserDelete        = "app-user:delete"
+	ScopeAppUserSetStatus     = "app-user:setStatus"
+	ScopeAppUserResetPassword = "app-user:resetPassword"
+)
+
+// AppUser 应用用户（tenant_ids 已按商户租户集收敛为交集视图；跨商户归属不可见）
+type AppUser struct {
+	ID        uint   `json:"id"`
+	Username  string `json:"username"`
+	Nickname  string `json:"nickname"`
+	Phone     string `json:"phone"`
+	Email     string `json:"email"`
+	Status    int    `json:"status"`     // 1 启用 0 禁用（禁用=平台全局，App 登录/token 校验即时失败）
+	TenantIDs []uint `json:"tenant_ids"` // 平台租户 ID（与商户租户集的交集）
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+// AppUserCreateRequest 创建应用用户入参（tenant_ids 须⊆商户租户集，否则 403；
+// username 冲突 409）
+type AppUserCreateRequest struct {
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	Nickname  string `json:"nickname,omitempty"`
+	Phone     string `json:"phone,omitempty"`
+	Email     string `json:"email,omitempty"`
+	TenantIDs []uint `json:"tenant_ids"`
+}
+
+// AppUserUpdateRequest 更新入参（指针可选，nil/省略=不修改；tenant_ids 只改写本商户
+// 租户集内归属，集外（他商户）归属平台侧保留；须⊆商户租户集，否则 403）
+type AppUserUpdateRequest struct {
+	Nickname  *string `json:"nickname,omitempty"`
+	Phone     *string `json:"phone,omitempty"`
+	Email     *string `json:"email,omitempty"`
+	Status    *int    `json:"status,omitempty"`
+	TenantIDs *[]uint `json:"tenant_ids,omitempty"`
+}
+
+// AppUserResetPasswordRequest 重置密码入参（旧密码立即失效）
+type AppUserResetPasswordRequest struct {
+	Password string `json:"password"`
+}

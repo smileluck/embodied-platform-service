@@ -1,6 +1,34 @@
 {
-  "generatedAt": "2026-10-02T08:54:35.040Z",
+  "generatedAt": "2026-10-05T07:48:06.613Z",
   "commits": [
+    {
+      "hash": "36b870981",
+      "date": "2026-10-05",
+      "type": "feat",
+      "scope": "appapi",
+      "message": "AppAuth 授权面——App 直调 service 的认证与租户闸门"
+    },
+    {
+      "hash": "4c3529d30",
+      "date": "2026-10-04",
+      "type": "docs",
+      "scope": "",
+      "message": "更新 aiDoc 相关文档的最后更新日期至 2026-10-04"
+    },
+    {
+      "hash": "cbd60e8ea",
+      "date": "2026-10-03",
+      "type": "docs",
+      "scope": "",
+      "message": "新增 aiDoc 结构化文档层及相关模板与配置"
+    },
+    {
+      "hash": "e11f14c76",
+      "date": "2026-10-02",
+      "type": "chore",
+      "scope": "web",
+      "message": "同步后重新生成变更日志"
+    },
     {
       "hash": "099e5f5cd",
       "date": "2026-10-01",

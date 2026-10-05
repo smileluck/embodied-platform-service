@@ -5,11 +5,7 @@ import (
 	"errors"
 )
 
-// ErrAppUserNotFound 应用用户不存在
-var ErrAppUserNotFound = errors.New("应用用户不存在")
-
-// ErrDuplicateUsername 应用用户名重复
-var ErrDuplicateUsername = errors.New("用户名已存在，请更换")
+// 应用用户不存在/用户名重复哨兵自 2026-10-05 起定义于 gateway.go（开放面消费）
 
 // ErrAppUserDisabled 应用用户已被禁用（登录/访问时拒绝）
 var ErrAppUserDisabled = errors.New("应用用户已被禁用")

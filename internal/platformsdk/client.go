@@ -513,3 +513,72 @@ func (c *Client) SetUserAdmission(ctx context.Context, userID uint, admitted boo
 	return c.do(ctx, http.MethodPut, "/users/"+strconv.FormatUint(uint64(userID), 10)+"/admission",
 		nil, &UserSetAdmissionRequest{Admitted: admitted}, nil, nil)
 }
+
+// ---- 应用用户域（scope app-user:*；C 端多租户终端用户，2026-10-05） ----
+
+// AppUserFilter 应用用户列表过滤（tenant_id 为平台租户 ID，结果天然限定商户租户集交集）
+type AppUserFilter struct {
+	Keyword  string // 用户名/昵称模糊
+	Phone    string // 手机号精确
+	Status   *int   // 1 启用 0 禁用
+	TenantID uint   // 平台租户 ID（0=不过滤）
+}
+
+// ListAppUsers 本商户可见应用用户列表（归属∩商户租户集≠∅；页从 1 起）
+func (c *Client) ListAppUsers(ctx context.Context, page, pageSize int, filter AppUserFilter) ([]*AppUser, *Page, error) {
+	q := url.Values{}
+	q.Set("page", strconv.Itoa(page))
+	q.Set("page_size", strconv.Itoa(pageSize))
+	if filter.Keyword != "" {
+		q.Set("kw", filter.Keyword)
+	}
+	if filter.Phone != "" {
+		q.Set("phone", filter.Phone)
+	}
+	if filter.Status != nil {
+		q.Set("status", strconv.Itoa(*filter.Status))
+	}
+	if filter.TenantID != 0 {
+		q.Set("tenant_id", strconv.FormatUint(uint64(filter.TenantID), 10))
+	}
+	var list []*AppUser
+	pg, err := c.doList(ctx, "/app-users", q, &list)
+	return list, pg, err
+}
+
+// CreateAppUser 创建应用用户（tenant_ids 须⊆商户租户集否则 403；username 冲突 409）
+func (c *Client) CreateAppUser(ctx context.Context, req AppUserCreateRequest) (*AppUser, error) {
+	var out AppUser
+	if err := c.do(ctx, http.MethodPost, "/app-users", nil, req, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// UpdateAppUser 更新应用用户（不可见/不存在 404；tenant_ids 越界 403）
+func (c *Client) UpdateAppUser(ctx context.Context, id uint, req AppUserUpdateRequest) error {
+	return c.do(ctx, http.MethodPut, "/app-users/"+strconv.FormatUint(uint64(id), 10), nil, req, nil, nil)
+}
+
+// SetAppUserStatus 启用/禁用应用用户（禁用后 App 登录/token 校验即时失败）
+func (c *Client) SetAppUserStatus(ctx context.Context, id uint, enabled bool) error {
+	status := 0
+	if enabled {
+		status = 1
+	}
+	return c.do(ctx, http.MethodPut, "/app-users/"+strconv.FormatUint(uint64(id), 10)+"/status",
+		nil, &struct {
+			Status int `json:"status"`
+		}{Status: status}, nil, nil)
+}
+
+// ResetAppUserPassword 管理员重置密码（旧密码立即失效；不可见/不存在 404）
+func (c *Client) ResetAppUserPassword(ctx context.Context, id uint, password string) error {
+	return c.do(ctx, http.MethodPut, "/app-users/"+strconv.FormatUint(uint64(id), 10)+"/password",
+		nil, &AppUserResetPasswordRequest{Password: password}, nil, nil)
+}
+
+// DeleteAppUser 删除应用用户（平台软删+墓碑；仍有他商户归属时 409，须归属商户各自先解除）
+func (c *Client) DeleteAppUser(ctx context.Context, id uint) error {
+	return c.do(ctx, http.MethodDelete, "/app-users/"+strconv.FormatUint(uint64(id), 10), nil, nil, nil, nil)
+}

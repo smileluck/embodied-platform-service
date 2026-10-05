@@ -1,4 +1,9 @@
-// Package appuser 应用用户应用服务（管理端 CRUD + 应用用户独立认证）
+// Package appuser 应用用户应用服务。
+// 2026-10-05 起管理面（列表/创建/更新/删除/重置密码）经平台开放面实时消费——
+// 平台（/open-api/v1/app-users）为唯一事实源，本地不再落 app_users 数据，
+// tenant_ids 全链路为平台租户 ID（tenant_names 由本地租户按 platform_id 映射补齐）。
+// app-auth（Login/Refresh/Profile/ChangePassword）为本地遗留登录面，随统一收尾删除，
+// 届时 App 直连平台 /api/v1/app-auth（token 双用 + service AppAuth 自省）。
 package appuser
 
 import (
@@ -6,15 +11,26 @@ import (
 	"time"
 
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
+	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
+	"github.com/smilex/smilex-admin-gin/pkg/pagination"
 )
 
-type Service struct {
-	uc *bizappuser.Usecase
+// TenantNameResolver 本地租户名解析（按平台租户 ID 只读定位；*biztenant.Usecase 满足）
+type TenantNameResolver interface {
+	GetByPlatformID(ctx context.Context, platformID uint) (*biztenant.Tenant, error)
 }
 
-func NewService(uc *bizappuser.Usecase) *Service { return &Service{uc: uc} }
+type Service struct {
+	gw      bizappuser.Gateway  // 平台开放面应用用户网关（唯一事实源）
+	tenants TenantNameResolver  // tenant_names 本地映射（展示用，解析失败仅缺名不阻断）
+	uc      *bizappuser.Usecase // 遗留本地登录面（app-auth；统一收尾时移除）
+}
 
-// ---- 管理端 ----
+func NewService(gw bizappuser.Gateway, tenants TenantNameResolver, uc *bizappuser.Usecase) *Service {
+	return &Service{gw: gw, tenants: tenants, uc: uc}
+}
+
+// ---- 管理面（经平台开放面实时消费） ----
 
 // CreateRequest 创建应用用户入参
 type CreateRequest struct {
@@ -23,17 +39,17 @@ type CreateRequest struct {
 	Nickname  string `json:"nickname" binding:"max=64"`
 	Phone     string `json:"phone" binding:"max=32"`
 	Email     string `json:"email" binding:"omitempty,max=128,email"`
-	TenantIDs []uint `json:"tenant_ids"`
+	TenantIDs []uint `json:"tenant_ids"` // 平台租户 ID，须⊆本商户绑定租户集
 }
 
-// UpdateRequest 更新应用用户入参（username 创建后不可改；tenant_ids 全量替换）。
+// UpdateRequest 更新应用用户入参（username 创建后不可改；tenant_ids 全量替换本商户范围内归属）。
 // 字段可选：省略即不修改，状态切换等局部更新不会清空其余资料。
 type UpdateRequest struct {
 	Nickname  *string `json:"nickname" binding:"omitempty,max=64"`
 	Phone     *string `json:"phone" binding:"omitempty,max=32"`
 	Email     *string `json:"email" binding:"omitempty,max=128,email"`
 	Status    *int    `json:"status" binding:"omitempty,oneof=0 1"`
-	TenantIDs *[]uint `json:"tenant_ids"`
+	TenantIDs *[]uint `json:"tenant_ids"` // 平台租户 ID
 }
 
 // ResetPasswordRequest 重置密码入参
@@ -41,7 +57,8 @@ type ResetPasswordRequest struct {
 	Password string `json:"password" binding:"required,min=6,max=20"`
 }
 
-// VO 应用用户视图（含租户关联，不含密码哈希）
+// VO 应用用户视图（对外形状与本地时代一致，前端无感；
+// id 为平台 app_user ID，tenant_ids 为平台租户 ID）
 type VO struct {
 	ID          uint     `json:"id"`
 	Username    string   `json:"username"`
@@ -55,67 +72,63 @@ type VO struct {
 	UpdatedAt   string   `json:"updated_at"`
 }
 
-// ToVO 应用用户实体转视图
-func ToVO(u *bizappuser.AppUser) *VO {
+// toVO 平台视图 → 对外 VO（tenant_names 本地映射补齐）
+func (s *Service) toVO(ctx context.Context, u *bizappuser.AppUserView) *VO {
 	vo := &VO{
 		ID: u.ID, Username: u.Username, Nickname: u.Nickname,
-		Phone: u.Phone, Email: u.Email, Status: int(u.Status),
-		TenantIDs: u.TenantIDs, TenantNames: u.TenantNames,
-		CreatedAt: formatTime(u.CreatedAt), UpdatedAt: formatTime(u.UpdatedAt),
+		Phone: u.Phone, Email: u.Email, Status: u.Status,
+		TenantIDs: u.TenantIDs, TenantNames: []string{},
+		CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt,
 	}
 	if vo.TenantIDs == nil {
 		vo.TenantIDs = []uint{}
 	}
-	if vo.TenantNames == nil {
-		vo.TenantNames = []string{}
+	for _, pid := range u.TenantIDs {
+		if tn, err := s.tenants.GetByPlatformID(ctx, pid); err == nil && tn != nil {
+			vo.TenantNames = append(vo.TenantNames, tn.Name)
+		}
 	}
 	return vo
 }
 
-func (s *Service) Create(ctx context.Context, req CreateRequest) (*VO, error) {
-	u, err := s.uc.Create(ctx, req.Username, req.Password, req.Nickname, req.Phone, req.Email, req.TenantIDs)
+// List 本商户可见应用用户列表（实时来自平台开放面；本地无数据面）
+func (s *Service) List(ctx context.Context, q bizappuser.ListParams, page, pageSize int) ([]*VO, pagination.Page, error) {
+	list, pg, err := s.gw.List(ctx, q, page, pageSize)
 	if err != nil {
-		return nil, err
+		return nil, pagination.Page{}, err
 	}
-	return s.Get(ctx, u.ID)
-}
-
-func (s *Service) Update(ctx context.Context, id uint, req UpdateRequest) error {
-	var st *bizappuser.Status
-	if req.Status != nil {
-		sv := bizappuser.Status(*req.Status)
-		st = &sv
-	}
-	return s.uc.Update(ctx, id, req.Nickname, req.Phone, req.Email, st, req.TenantIDs)
-}
-
-func (s *Service) Delete(ctx context.Context, id uint) error { return s.uc.Delete(ctx, id) }
-
-func (s *Service) Get(ctx context.Context, id uint) (*VO, error) {
-	u, err := s.uc.Get(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return ToVO(u), nil
-}
-
-func (s *Service) List(ctx context.Context, q bizappuser.Query, page, pageSize int) ([]*VO, interface{}, error) {
-	users, pg, err := s.uc.List(ctx, q, page, pageSize)
-	if err != nil {
-		return nil, nil, err
-	}
-	out := make([]*VO, 0, len(users))
-	for _, u := range users {
-		out = append(out, ToVO(u))
+	out := make([]*VO, 0, len(list))
+	for _, u := range list {
+		out = append(out, s.toVO(ctx, u))
 	}
 	return out, pg, nil
 }
 
-func (s *Service) ResetPassword(ctx context.Context, id uint, req ResetPasswordRequest) error {
-	return s.uc.ResetPassword(ctx, id, req.Password)
+func (s *Service) Create(ctx context.Context, req CreateRequest) (*VO, error) {
+	u, err := s.gw.Create(ctx, bizappuser.CreateParams{
+		Username: req.Username, Password: req.Password, Nickname: req.Nickname,
+		Phone: req.Phone, Email: req.Email, TenantIDs: req.TenantIDs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.toVO(ctx, u), nil
 }
 
-// ---- 应用用户独立认证（app-auth） ----
+func (s *Service) Update(ctx context.Context, id uint, req UpdateRequest) error {
+	return s.gw.Update(ctx, id, bizappuser.UpdateParams{
+		Nickname: req.Nickname, Phone: req.Phone, Email: req.Email,
+		Status: req.Status, TenantIDs: req.TenantIDs,
+	})
+}
+
+func (s *Service) Delete(ctx context.Context, id uint) error { return s.gw.Delete(ctx, id) }
+
+func (s *Service) ResetPassword(ctx context.Context, id uint, req ResetPasswordRequest) error {
+	return s.gw.ResetPassword(ctx, id, req.Password)
+}
+
+// ---- 应用用户独立认证（本地遗留登录面；统一收尾删除，App 改直连平台 /app-auth） ----
 
 // LoginRequest 应用用户登录入参（无验证码、无设备端会话概念）
 type LoginRequest struct {
@@ -148,9 +161,14 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginVO, error)
 	if err != nil {
 		return nil, err
 	}
+	vo := &VO{
+		ID: u.ID, Username: u.Username, Nickname: u.Nickname,
+		Phone: u.Phone, Email: u.Email, Status: int(u.Status),
+		TenantIDs: u.TenantIDs, TenantNames: []string{},
+	}
 	return &LoginVO{
 		AccessToken: tp.AccessToken, RefreshToken: tp.RefreshToken, ExpiresAt: tp.ExpiresAt,
-		User: ToVO(u),
+		User: vo,
 	}, nil
 }
 
@@ -161,17 +179,20 @@ func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*bizappuser.
 
 // Profile 当前应用用户信息（含租户关联）
 func (s *Service) Profile(ctx context.Context, id uint) (*VO, error) {
-	return s.Get(ctx, id)
+	u, err := s.uc.Profile(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	vo := &VO{
+		ID: u.ID, Username: u.Username, Nickname: u.Nickname,
+		Phone: u.Phone, Email: u.Email, Status: int(u.Status),
+		TenantIDs: u.TenantIDs, TenantNames: u.TenantNames,
+		CreatedAt: u.CreatedAt.Format("2006-01-02 15:04:05"), UpdatedAt: u.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}
+	return vo, nil
 }
 
 // ChangePassword 本人修改密码（校验旧密码）
 func (s *Service) ChangePassword(ctx context.Context, username string, req ChangePasswordRequest) error {
 	return s.uc.ChangePassword(ctx, username, req.OldPassword, req.NewPassword)
-}
-
-func formatTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format("2006-01-02 15:04:05")
 }

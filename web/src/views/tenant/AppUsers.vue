@@ -151,7 +151,11 @@ async function load() {
 async function loadTenantOptions() {
   try {
     const { data } = await listTenants({ page: 1, page_size: 0, status: 1 })
-    tenantOptions.value = data.data.list.map((x) => ({ label: x.name, value: x.id }))
+    // 应用用户统一平台事实源（2026-10-05）：tenant_ids/筛选口径一律为平台租户 ID，
+    // 仅已同步（platform_id>0）租户可挂载应用用户
+    tenantOptions.value = data.data.list
+      .filter((x) => x.platform_id > 0)
+      .map((x) => ({ label: x.name, value: x.platform_id }))
   } catch {
     // 下拉选项加载失败不阻塞页面，列表照常可用
   }

@@ -16,7 +16,7 @@ import (
 
 func (s *HTTPServer) listAppUsers(c *gin.Context) {
 	page, size := s.pageParams(c)
-	q := bizappuser.Query{
+	q := bizappuser.ListParams{
 		Keyword: strings.TrimSpace(c.Query("kw")),
 		Phone:   strings.TrimSpace(c.Query("phone")),
 	}
@@ -25,6 +25,7 @@ func (s *HTTPServer) listAppUsers(c *gin.Context) {
 			q.Status = &st
 		}
 	}
+	// tenant_id 为平台租户 ID（与租户下拉/tenant_ids 口径一致；服务端按商户绑定收敛）
 	if v := c.Query("tenant_id"); v != "" {
 		if tid, err := strconv.ParseUint(v, 10, 64); err == nil && tid > 0 {
 			t := uint(tid)
@@ -33,7 +34,7 @@ func (s *HTTPServer) listAppUsers(c *gin.Context) {
 	}
 	list, pg, err := s.appuser.List(c.Request.Context(), q, page, size)
 	if err != nil {
-		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		s.appuserErr(c, err)
 		return
 	}
 	response.OK(c, listResult{List: list, Page: pg})
@@ -46,19 +47,6 @@ func (s *HTTPServer) createAppUser(c *gin.Context) {
 		return
 	}
 	vo, err := s.appuser.Create(c.Request.Context(), req)
-	if err != nil {
-		s.appuserErr(c, err)
-		return
-	}
-	response.OK(c, vo)
-}
-
-func (s *HTTPServer) getAppUser(c *gin.Context) {
-	id, ok := idParam(c)
-	if !ok {
-		return
-	}
-	vo, err := s.appuser.Get(c.Request.Context(), id)
 	if err != nil {
 		s.appuserErr(c, err)
 		return
@@ -112,13 +100,19 @@ func (s *HTTPServer) resetAppUserPassword(c *gin.Context) {
 	response.OK(c, nil)
 }
 
-// appuserErr 应用用户操作错误映射：不存在 404，其余 400
+// appuserErr 应用用户操作错误映射（经平台开放面）：不存在 404、租户越界 403、
+// 重名/跨商户删除 409，其余 400
 func (s *HTTPServer) appuserErr(c *gin.Context, err error) {
-	if isErr(err, bizappuser.ErrAppUserNotFound) {
+	switch {
+	case isErr(err, bizappuser.ErrAppUserNotFound):
 		response.FailI18n(c, http.StatusNotFound, response.CodeErr, err)
-		return
+	case isErr(err, bizappuser.ErrTenantNotInScope):
+		response.FailI18n(c, http.StatusForbidden, response.CodeForbidden, err)
+	case isErr(err, bizappuser.ErrDuplicateUsername), isErr(err, bizappuser.ErrCrossMerchantDelete):
+		response.FailI18n(c, http.StatusConflict, response.CodeErr, err)
+	default:
+		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 	}
-	response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 }
 
 // getServerStatus 服务器状态监控快照（主机/CPU/内存/磁盘/网络 + Go 进程运行时）

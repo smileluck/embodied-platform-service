@@ -343,11 +343,12 @@ func (s *HTTPServer) registerRoutes() {
 		tenants.POST("/:id/sync", s.syncTenant)
 	}
 
+	// 应用用户管理：2026-10-05 起经平台开放面实时消费（平台为唯一事实源；
+	// tenant_ids/tenant_id 均为平台租户 ID；开放面无单查端点，编辑用列表行数据）
 	appUsers := protected.Group("/app-users")
 	{
 		appUsers.GET("", s.listAppUsers)
 		appUsers.POST("", s.createAppUser)
-		appUsers.GET("/:id", s.getAppUser)
 		appUsers.PUT("/:id", s.updateAppUser)
 		appUsers.DELETE("/:id", s.deleteAppUser)
 		// 重置密码（新密码由管理员指定，旧密码立即失效）

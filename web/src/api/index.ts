@@ -131,13 +131,12 @@ export const setTenantStatus = (id: number, status: number) =>
 // 存量补链：未同步租户在平台创建/绑定并回填 platform_id
 export const syncTenant = (id: number) => request.post<R<Tenant>>(`/tenants/${id}/sync`)
 
-// ---- 应用用户 ----
-// kw 模糊匹配用户名/昵称，phone 精确匹配，tenant_id 按租户筛选
+// ---- 应用用户（2026-10-05 起经平台开放面实时消费；id/tenant_id/tenant_ids 均为平台 ID） ----
+// kw 模糊匹配用户名/昵称，phone 精确匹配，tenant_id 按平台租户筛选
 export const listAppUsers = (params: { page: number; page_size: number; kw?: string; phone?: string; status?: number; tenant_id?: number }) =>
   request.get<R<PageResult<AppUser>>>('/app-users', { params })
 export const createAppUser = (data: { username: string; password: string; nickname?: string; phone?: string; email?: string; tenant_ids?: number[] }) =>
   request.post<R<AppUser>>('/app-users', data)
-export const getAppUser = (id: number) => request.get<R<AppUser>>(`/app-users/${id}`)
 // username 创建后不可修改；tenant_ids 全量替换；status 可选（状态切换也走此接口）
 export const updateAppUser = (id: number, data: { nickname?: string; phone?: string; email?: string; status?: number; tenant_ids?: number[] }) =>
   request.put<R<null>>(`/app-users/${id}`, data)

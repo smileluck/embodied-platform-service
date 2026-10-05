@@ -117,6 +117,7 @@ var bizSet = wire.NewSet(
 	wire.Bind(new(auth.AdmissionReader), new(*bizadmission.Usecase)),
 	// 设备注册自愈：平台 403 时经租户用例补链重建（LinkOrCreate 幂等）
 	wire.Bind(new(bizdevice.TenantRelinker), new(*biztenant.Usecase)),
+	wire.Bind(new(appusersvc.TenantNameResolver), new(*biztenant.Usecase)),
 	// 智能体内置只读工具：服务器状态查询复用 monitor 用例
 	wire.Bind(new(bizagent.ServerStatusReader), new(*bizmonitor.Usecase)),
 	wire.Bind(new(bizagent.MCPToolSource), new(*bizmcp.Usecase)),
@@ -171,9 +172,11 @@ var dataRepoSet = wire.NewSet(
 	dataadmission.NewPlatformGateway,
 	dataauth.NewIdentityAdapter,
 	dataauth.NewAppIdentityAdapter,
+	platform.NewAppUserGateway,
 	// 跨上下文最小依赖接口绑定（provider 与 bind 需同 set）
 	wire.Bind(new(auth.IdentitySource), new(*dataauth.IdentityAdapter)),
 	wire.Bind(new(auth.AppIdentitySource), new(*dataauth.AppIdentityAdapter)),
+	wire.Bind(new(bizappuser.Gateway), new(*platform.AppUserGateway)),
 	wire.Bind(new(bizjob.LogCleaner), new(*datalog.Repo)),
 	wire.Bind(new(bizjob.ExportCleaner), new(*dataexport.Worker)),
 	wire.Bind(new(bizagent.Repo), new(*dataagent.Repo)),
