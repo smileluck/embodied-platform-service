@@ -128,8 +128,8 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 		tenantmember: tenantmember, tenantmemberUC: tenantmemberUC,
 		appIds:  appIds, tenantUC: tenantUC, appIdentityCache: appIdentityCache,
 		device: device, devmodel: devmodel, monitor: monitor, agent: agent, dict: dict, syscfg: syscfg,
-		notice:    notice,
-		rdb:       rdb,
+		notice: notice, job: job, dashboard: dashboard, notify: notify, mcp: mcp, skill: skill,
+		rdb:     rdb,
 		rbacCache: rbacCache.TwoLevel, identityCache: identityCache, engine: e,
 	}
 	s.registerRoutes()
