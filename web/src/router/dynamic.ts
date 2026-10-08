@@ -2,6 +2,7 @@ import { h } from 'vue'
 import { RouterView, type RouteRecordRaw } from 'vue-router'
 import router from './index'
 import { useUserStore } from '../stores/user'
+import type { MenuNode } from '../api/types'
 
 // 兼容存量"有子级的菜单"（未迁移为 dir 的旧数据）：菜单本身没有页面组件时，用透传组件渲染子路由。
 // 注意必须是组件对象：route.component 若是普通函数会被 vue-router 当作懒加载 loader（要求返回 Promise）。
@@ -64,6 +65,20 @@ export function menuToRoutes(menus: any[]): RouteRecordRaw[] {
   return routes
 }
 
+// 菜单树展平后第一个可访问菜单的路径（dir 仅分组无路由，取其第一个子菜单）；
+// 菜单树本身已按用户权限过滤，树中第一个即"第一个可访问菜单"。无菜单兜底 '/'。
+export function firstAccessiblePath(menus: MenuNode[]): string {
+  for (const m of menus ?? []) {
+    if (m.type === 'dir') {
+      const sub = firstAccessiblePath(m.children ?? [])
+      if (sub !== '/') return sub
+      continue
+    }
+    return m.path
+  }
+  return '/'
+}
+
 // 登录后按后端菜单动态注册路由（挂到 layout-root 下），返回首个菜单路径
 export async function setupDynamicRoutes(): Promise<string> {
   const userStore = useUserStore()
@@ -110,7 +125,7 @@ export async function setupDynamicRoutes(): Promise<string> {
     })
   }
   userStore.routesLoaded = true
-  return dynamic.length ? dynamic[0].path : '/'
+  return firstAccessiblePath(userStore.menus)
 }
 
 // 语言切换后：菜单名由后端按新语言返回，就地更新已注册菜单路由的 meta.title

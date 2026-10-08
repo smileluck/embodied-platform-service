@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useTenantUserStore } from '../stores/tenantUser'
-import { setupDynamicRoutes } from './dynamic'
+import { setupDynamicRoutes, firstAccessiblePath } from './dynamic'
 import { i18n } from '../locales'
 
 // 静态路由：登录页、错误页、主布局壳
@@ -100,6 +100,11 @@ router.beforeEach(async (to) => {
       userStore.clearAuth()
       return loginRedirect()
     }
+  }
+  // 已加载状态下访问 '/'（404/500 页"返回首页"等）：layout-root 无自身页面，
+  // 与首载分支一致地落到第一个可访问菜单，避免渲染空壳
+  if (to.path === '/') {
+    return { path: firstAccessiblePath(userStore.menus), replace: true }
   }
   return true
 })
