@@ -14,6 +14,7 @@
 - [lessons/2026-10-08-wire-bind-vs-interface-provider.md](lessons/2026-10-08-wire-bind-vs-interface-provider.md) — wire Provider 直接返回 biz 接口时不需要（也不能）再 wire.Bind
 - [lessons/2026-10-08-frontend-route-namespace-collision.md](lessons/2026-10-08-frontend-route-namespace-collision.md) — 新增前端路由区先查既有菜单路径；守卫分流勿用裸前缀 startsWith
 - [lessons/2026-10-08-httpserver-constructor-missing-field.md](lessons/2026-10-08-httpserver-constructor-missing-field.md) — HTTPServer 构造体漏字段赋值零告警，整域 handler nil panic→空体 500
+- [lessons/2026-10-08-nselect-query-null-placeholder.md](lessons/2026-10-08-nselect-query-null-placeholder.md) — 搜索区 n-select 的 query 字段必须初始化 null；'' 会被当作已选值导致 placeholder 不显示（已晋升至 frontend-rules.md 组件规范）
 
 ## 维护说明
 

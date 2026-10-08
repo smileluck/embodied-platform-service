@@ -136,7 +136,7 @@ const showModal = ref(false)
 const editing = ref(false)
 const editId = ref(0)
 const saving = ref(false)
-const form = reactive({ name: '', cron: '', handler_key: '', remark: '', status: 1 })
+const form = reactive({ name: '', cron: '', handler_key: null as string | null, remark: '', status: 1 })
 
 const rules = computed<FormRules>(() => ({
   name: [{ required: true, message: t('job.nameRequired'), trigger: ['blur', 'change'] }],
@@ -146,7 +146,7 @@ const rules = computed<FormRules>(() => ({
 
 function openCreate() {
   editing.value = false
-  Object.assign(form, { name: '', cron: '', handler_key: '', remark: '', status: 1 })
+  Object.assign(form, { name: '', cron: '', handler_key: null, remark: '', status: 1 })
   showModal.value = true
 }
 
@@ -161,9 +161,9 @@ async function save() {
   saving.value = true
   try {
     if (editing.value) {
-      await updateJob(editId.value, { ...form })
+      await updateJob(editId.value, { ...form, handler_key: form.handler_key ?? '' })
     } else {
-      await createJob({ ...form })
+      await createJob({ ...form, handler_key: form.handler_key ?? '' })
     }
     message.success(t('common.success'))
     showModal.value = false

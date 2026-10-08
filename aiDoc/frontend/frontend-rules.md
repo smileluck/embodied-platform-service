@@ -30,6 +30,7 @@
 - 公共组件位置：`web/src/components/`（跨页面复用才提升）；页面私有子组件就近放页面同目录
 - 页面组件位置：`web/src/views/<域>/`
 - Props 定义方式：`defineProps<{...}>()` 类型式 + `defineEmits`（`<script setup>` TS）
+- 搜索区 `n-select` 绑定的 query 字段一律初始化 `null`（如 `status: null as number | null`），`null = 不筛`、清空归 null；禁止用 `''`——Naive UI 把空串当作已选值，placeholder 不显示（教训见 memory/lessons/2026-10-08-nselect-query-null-placeholder.md）
 
 ## 页面规范
 

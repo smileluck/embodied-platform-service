@@ -119,7 +119,7 @@ const message = useMessage()
 const dialog = useDialog()
 const userStore = useUserStore()
 
-const query = reactive({ kw: '', transport: '', status: null as number | null, page: 1, page_size: 10 })
+const query = reactive({ kw: '', transport: null as string | null, status: null as number | null, page: 1, page_size: 10 })
 const rows = ref<McpServer[]>([])
 const loading = ref(false)
 const { pagination, setTotal, runSearch: search } = usePagination(query, () => load())
@@ -192,7 +192,7 @@ async function load() {
 }
 
 function resetQuery() {
-  Object.assign(query, { kw: '', transport: '', status: null, page: 1 })
+  Object.assign(query, { kw: '', transport: null, status: null, page: 1 })
   load()
 }
 

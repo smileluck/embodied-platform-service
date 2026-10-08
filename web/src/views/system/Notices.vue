@@ -87,7 +87,7 @@ const message = useMessage()
 const dialog = useDialog()
 const userStore = useUserStore()
 
-const query = reactive({ title: '', level: '', status: '', page: 1, page_size: 10 })
+const query = reactive({ title: '', level: null as string | null, status: null as string | null, page: 1, page_size: 10 })
 const rows = ref<NoticeInfo[]>([])
 const loading = ref(false)
 const { pagination, setTotal, runSearch: search } = usePagination(query, () => load())
@@ -163,7 +163,7 @@ async function load() {
 }
 
 function resetQuery() {
-  Object.assign(query, { title: '', level: '', status: '', page: 1 })
+  Object.assign(query, { title: '', level: null, status: null, page: 1 })
   load()
 }
 
