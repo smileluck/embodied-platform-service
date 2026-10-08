@@ -147,13 +147,13 @@ import type { ServerStatus } from '../../api/types'
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
-// 曲线配色与 styles/tokens.css 同源（清水蓝主题）
+// 曲线配色与 styles/variables.css 同源（工业琥珀主题）
 // 主题色从 CSS 变量读取（亮/暗切换后刷新图表）
-const ACCENT = ref('#3F75AB')
+const ACCENT = ref('#D97706')
 function refreshAccent() {
   const cs = getComputedStyle(document.documentElement)
-  ACCENT.value = cs.getPropertyValue('--sx-accent').trim() || '#3F75AB'
-  ACCENT_SOFT.value = cs.getPropertyValue('--sx-accent-bright').trim() || '#8FC5E8'
+  ACCENT.value = cs.getPropertyValue('--sx-accent').trim() || '#D97706'
+  ACCENT_SOFT.value = cs.getPropertyValue('--sx-accent-bright').trim() || '#FFB224'
 }
 refreshAccent()
 watch(isDarkRef, () => {
@@ -161,9 +161,9 @@ watch(isDarkRef, () => {
   renderHistory()
   refreshNow() // 立即重拉一帧并重绘实时图表（配色已更新）
 })
-const ACCENT_SOFT = ref('#8FC5E8')
+const ACCENT_SOFT = ref('#FFB224')
 const MUTED = '#6B7787'
-const DANGER = '#C2453A'
+const DANGER = '#DC2626'
 // 曲线滚动窗口：5s 轮询下约覆盖最近 5 分钟
 const MAX_POINTS = 60
 
@@ -277,7 +277,7 @@ function baseAxis() {
       min: 0,
       max: 100,
       axisLabel: { fontSize: 10, color: MUTED, formatter: '{value}%' },
-      splitLine: { lineStyle: { color: '#E3E8EF' } },
+      splitLine: { lineStyle: { color: 'rgba(110, 118, 129, 0.3)' } },
     },
   }
 }
@@ -291,7 +291,7 @@ function initCharts() {
       data: cpuHistory, animation: false,
       lineStyle: { color: ACCENT.value, width: 1.5 },
       itemStyle: { color: ACCENT.value },
-      areaStyle: { color: 'rgba(63, 117, 171, 0.12)' },
+      areaStyle: { color: 'rgba(217, 119, 6, 0.12)' },
     }],
   })
   memChart = echarts.init(memChartRef.value!)
@@ -304,7 +304,7 @@ function initCharts() {
         data: memHistory, animation: false,
         lineStyle: { color: ACCENT.value, width: 1.5 },
         itemStyle: { color: ACCENT.value },
-        areaStyle: { color: 'rgba(63, 117, 171, 0.12)' },
+        areaStyle: { color: 'rgba(217, 119, 6, 0.12)' },
       },
       {
         name: t('monitor.swap'), type: 'line' as const, smooth: true, showSymbol: false,

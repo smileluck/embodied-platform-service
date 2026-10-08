@@ -311,7 +311,7 @@ function handleSSEFrame(frame: string, assistant: ChatMsg) {
   word-break: break-word;
 }
 .chat-msg.user .chat-bubble {
-  background: rgba(63, 117, 171, 0.12);
+  background: rgba(var(--sx-accent-rgb), 0.12);
 }
 .chat-msg.assistant .chat-bubble {
   background: var(--sx-surface);
@@ -359,7 +359,7 @@ function handleSSEFrame(frame: string, assistant: ChatMsg) {
   gap: 8px;
   padding: 4px 10px;
   border: none;
-  background: rgba(63, 117, 171, 0.06);
+  background: rgba(var(--sx-accent-rgb), 0.06);
   cursor: pointer;
   color: inherit;
 }
@@ -455,7 +455,7 @@ function handleSSEFrame(frame: string, assistant: ChatMsg) {
 .chat-text.md :deep(p code), .chat-text.md :deep(li code) {
   padding: 1px 5px;
   border-radius: 4px;
-  background: rgba(63, 117, 171, 0.1);
+  background: rgba(var(--sx-accent-rgb), 0.1);
 }
 .chat-text.md :deep(table) {
   border-collapse: collapse;
@@ -504,7 +504,7 @@ function handleSSEFrame(frame: string, assistant: ChatMsg) {
 }
 .chat-text.md :deep(.md-copy-btn:hover) {
   color: var(--sx-accent);
-  background: rgba(63, 117, 171, 0.1);
+  background: rgba(var(--sx-accent-rgb), 0.1);
 }
 .chat-text.md :deep(.md-code pre) {
   margin: 0;

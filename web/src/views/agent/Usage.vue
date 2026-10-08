@@ -87,7 +87,7 @@ function renderChart() {
     xAxis: { type: 'category', data: pts.map((p) => p.date.slice(5)) },
     yAxis: { type: 'value' },
     series: [
-      { name: t('agent.usage.promptTokens'), type: 'bar', stack: 'tok', barMaxWidth: 28, itemStyle: { color: '#3F75AB' }, data: pts.map((p) => p.prompt_tokens) },
+      { name: t('agent.usage.promptTokens'), type: 'bar', stack: 'tok', barMaxWidth: 28, itemStyle: { color: '#D97706' }, data: pts.map((p) => p.prompt_tokens) },
       { name: t('agent.usage.completionTokens'), type: 'bar', stack: 'tok', barMaxWidth: 28, itemStyle: { color: '#7FB069' }, data: pts.map((p) => p.completion_tokens) },
     ],
   })

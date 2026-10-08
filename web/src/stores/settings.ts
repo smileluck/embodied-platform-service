@@ -23,7 +23,7 @@ export function setShowTabs(v: boolean) {
   persistBool(TABS_KEY, v)
 }
 
-// 深色侧边栏：品牌藏蓝面板底（--sx-panel）+ 反色菜单
+// 深色侧边栏：品牌石墨面板底（--sx-panel）+ 反色菜单
 export const darkSider = ref<boolean>(persistedBool(SIDER_DARK_KEY, false))
 export function setDarkSider(v: boolean) {
   darkSider.value = v

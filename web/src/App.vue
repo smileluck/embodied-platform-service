@@ -39,19 +39,19 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => {
   const surface = readVar('--sx-surface', '#FFFFFF')
   return {
   common: {
-    primaryColor: readVar('--sx-accent', '#3F75AB'),
-    primaryColorHover: readVar('--sx-accent-hover', '#518CC8'),
-    primaryColorPressed: readVar('--sx-accent-pressed', '#315E8C'),
-    primaryColorSuppl: readVar('--sx-accent-hover', '#518CC8'),
+    primaryColor: readVar('--sx-accent', '#D97706'),
+    primaryColorHover: readVar('--sx-accent-hover', '#E8960C'),
+    primaryColorPressed: readVar('--sx-accent-pressed', '#B8620A'),
+    primaryColorSuppl: readVar('--sx-accent-hover', '#E8960C'),
     borderRadius: readVar('--sx-radius', '8px'),
     borderRadiusSmall: '5px',
-    bodyColor: readVar('--sx-bg', '#F5F7FA'),
+    bodyColor: readVar('--sx-bg', '#F4F4F2'),
     cardColor: surface,
-    textColorBase: readVar('--sx-ink', '#151E2B'),
-    borderColor: readVar('--sx-line', '#E3E8EF'),
+    textColorBase: readVar('--sx-ink', '#17191E'),
+    borderColor: readVar('--sx-line', '#E5E3DE'),
     fontFamily: readVar('--sx-font-body', 'sans-serif'),
   },
-  // 弹窗内的卡片/对话框走 colorModal（naive 默认中性灰，与清水蓝主题脱节），统一对齐面板色
+  // 弹窗内的卡片/对话框走 colorModal（naive 默认中性灰，与主题脱节），统一对齐面板色
   Card: { colorModal: surface },
   Dialog: { colorModal: surface },
   }

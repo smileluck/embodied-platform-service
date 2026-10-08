@@ -1046,7 +1046,7 @@ onUnmounted(() => {
 .sider {
   background: var(--sx-shell) !important;
 }
-/* 深色侧边栏（页面设置开启）：品牌藏蓝面板底 + 反色菜单（n-menu inverted） */
+/* 深色侧边栏（页面设置开启）：品牌石墨面板底 + 反色菜单（n-menu inverted） */
 .sider.sider-dark {
   background: var(--sx-panel) !important;
 }
@@ -1266,7 +1266,7 @@ onUnmounted(() => {
 }
 .notice-item.unread {
   border-color: var(--sx-accent);
-  background: rgba(63, 117, 171, 0.05);
+  background: rgba(var(--sx-accent-rgb), 0.05);
 }
 .notice-item-head {
   display: flex;
@@ -1281,7 +1281,7 @@ onUnmounted(() => {
   background: var(--sx-accent);
 }
 .notice-dot.warning { background: #d9903f; }
-.notice-dot.important { background: var(--sx-danger, #c9553d); }
+.notice-dot.important { background: var(--sx-danger, #DC2626); }
 .notice-item-title {
   font-size: 13px;
   font-weight: 600;
@@ -1310,7 +1310,7 @@ onUnmounted(() => {
 .notice-item-body :deep(p:last-child) { margin: 0; }
 .notice-item-body :deep(code) {
   font-family: var(--sx-font-mono);
-  background: rgba(63, 117, 171, 0.08);
+  background: rgba(var(--sx-accent-rgb), 0.08);
   padding: 0 4px;
   border-radius: 4px;
 }

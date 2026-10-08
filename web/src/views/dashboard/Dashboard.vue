@@ -104,9 +104,9 @@ function renderChart() {
       splitLine: { lineStyle: { color: LINE } },
     },
     series: [
-      { name: t('dashboard.loginTotal'), type: 'line', smooth: true, symbolSize: 5, itemStyle: { color: '#3F75AB' }, data: login.map((p) => p.total) },
+      { name: t('dashboard.loginTotal'), type: 'line', smooth: true, symbolSize: 5, itemStyle: { color: '#D97706' }, data: login.map((p) => p.total) },
       { name: t('dashboard.loginSuccess'), type: 'line', smooth: true, symbolSize: 5, itemStyle: { color: '#7FB069' }, data: login.map((p) => p.success) },
-      { name: t('dashboard.opCount'), type: 'line', smooth: true, symbolSize: 5, itemStyle: { color: '#d9903f' }, data: op.map((p) => p.total) },
+      { name: t('dashboard.opCount'), type: 'line', smooth: true, symbolSize: 5, itemStyle: { color: '#6E7681' }, data: op.map((p) => p.total) },
     ],
   })
 }

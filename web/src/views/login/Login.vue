@@ -271,7 +271,7 @@ onMounted(() => {
   justify-content: space-between;
   padding: 40px 48px;
   background: var(--sx-panel);
-  color: #EDF2F8;
+  color: var(--sx-shell-text);
   overflow: hidden;
 }
 /* 面板内的工程网格 */
@@ -322,7 +322,7 @@ onMounted(() => {
   font-family: var(--sx-font-mono);
   font-weight: 700;
   font-size: 20px;
-  color: var(--sx-ink);
+  color: var(--sx-panel); /* 印章为恒浅底（accent-bright 亮暗不变），文字恒深不随主题反转 */
   background: var(--sx-accent-bright);
 }
 .brand-name {

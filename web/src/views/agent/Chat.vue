@@ -328,7 +328,7 @@ onMounted(async () => {
 }
 .agent-item.active {
   border-color: var(--sx-accent);
-  background-color: rgba(63, 117, 171, 0.08);
+  background-color: rgba(var(--sx-accent-rgb), 0.08);
 }
 .agent-item.off {
   cursor: not-allowed;
@@ -374,7 +374,7 @@ onMounted(async () => {
 }
 .conv-item.active {
   border-color: var(--sx-accent);
-  background-color: rgba(63, 117, 171, 0.08);
+  background-color: rgba(var(--sx-accent-rgb), 0.08);
 }
 .conv-title {
   font-size: 13px;

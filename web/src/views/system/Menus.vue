@@ -406,11 +406,11 @@ watch(locale, () => {
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .icon-cell:hover {
-  border-color: var(--sx-accent, #3F75AB);
+  border-color: var(--sx-accent, #D97706);
 }
 .icon-cell.active {
-  border-color: var(--sx-accent, #3F75AB);
-  background: var(--sx-accent-soft, #E4EDF6);
+  border-color: var(--sx-accent, #D97706);
+  background: var(--sx-accent-soft, #FBEED7);
 }
 .icon-cell :deep(svg) {
   width: 20px;

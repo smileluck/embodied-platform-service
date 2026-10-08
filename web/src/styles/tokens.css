@@ -148,17 +148,17 @@ html.theme-switching *::after {
 
 /* ---- 暗色局部适配（组件内固定亮色的部分在此覆盖） ---- */
 html.dark .chat-text.md .md-code {
-  background: #0F1621;
+  background: #14161A;
 }
 html.dark .chat-text.md .md-code-bar {
-  background: #16202D;
+  background: #1E2126;
 }
 html.dark .chat-text.md p code,
 html.dark .chat-text.md li code {
-  background: rgba(63, 117, 171, 0.25);
+  background: rgba(217, 119, 6, 0.25);
 }
 /* hljs 亮色主题的暗色基础覆盖 */
 html.dark .md-code code.hljs {
-  color: #C9D4E3;
+  color: #D4D8DD;
   background: transparent;
 }
