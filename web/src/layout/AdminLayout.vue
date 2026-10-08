@@ -1041,9 +1041,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 侧边栏：石墨深色仪表外壳（菜单配色见上方 menuOverrides） */
+/* 侧边栏：石墨深色仪表外壳（菜单配色见上方 menuOverrides）；
+   用亮暗不变的 --sx-shell——--sx-ink 是随主题反转的文字色，暗色下会让壳翻白 */
 .sider {
-  background: var(--sx-ink) !important;
+  background: var(--sx-shell) !important;
 }
 /* 深色侧边栏（页面设置开启）：品牌藏蓝面板底 + 反色菜单（n-menu inverted） */
 .sider.sider-dark {
@@ -1092,7 +1093,7 @@ onUnmounted(() => {
   font-family: var(--sx-font-mono);
   font-weight: 700;
   font-size: 17px;
-  color: var(--sx-ink);
+  color: var(--sx-panel); /* 印章为恒浅底（accent-bright 亮暗不变），文字恒深不随主题反转 */
   background: var(--sx-accent-bright);
 }
 /* 文字固定宽度，收起时宽度过渡收缩（v-if 瞬时移除会让宽度动画跳变） */
@@ -1210,7 +1211,7 @@ onUnmounted(() => {
   justify-content: space-between;
   padding: 0 24px;
   background: var(--sx-ink-soft);
-  border-bottom: 1px solid var(--sx-shell-line);
+  border-bottom: 1px solid var(--sx-line);
   position: relative;
   z-index: 1;
 }
@@ -1406,7 +1407,7 @@ onUnmounted(() => {
 .search-trigger,
 .export-trigger {
   flex-shrink: 0;
-  color: var(--sx-shell-muted);
+  color: var(--sx-muted);
 }
 
 /* 导出记录悬浮框：行式列表 + 底部入口，风格对齐命令面板 */
@@ -1469,7 +1470,7 @@ onUnmounted(() => {
   gap: 9px;
   padding: 5px 14px 5px 6px;
   border-radius: 999px;
-  border: 1px solid var(--sx-shell-line);
+  border: 1px solid var(--sx-line);
   background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
   transition: border-color 0.2s ease, background 0.2s ease;
@@ -1485,14 +1486,14 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: var(--sx-ink);
+  color: var(--sx-panel); /* 头像恒浅底（accent-bright 亮暗不变），文字恒深不随主题反转 */
   font-weight: 700;
   font-size: 13px;
   background: var(--sx-accent-bright);
 }
 .user-name {
   font-size: 13px;
-  color: var(--sx-shell-text);
+  color: var(--sx-ink);
 }
 
 /* 内容区 */

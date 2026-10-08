@@ -1,6 +1,20 @@
 {
-  "generatedAt": "2026-10-08T01:58:48.100Z",
+  "generatedAt": "2026-10-08T07:10:40.075Z",
   "commits": [
+    {
+      "hash": "db53f366b",
+      "date": "2026-10-08",
+      "type": "fix",
+      "scope": "web",
+      "message": "404/500 返回首页落到第一个可访问菜单——守卫补已加载分支"
+    },
+    {
+      "hash": "c189bcc8b",
+      "date": "2026-10-08",
+      "type": "feat",
+      "scope": "tenantmember",
+      "message": "租户用户体系——开放租户端给企业租户使用"
+    },
     {
       "hash": "cd2622fed",
       "date": "2026-10-05",

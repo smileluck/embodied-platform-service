@@ -32,6 +32,13 @@
   --sx-radius: 8px;
   --sx-radius-lg: 14px;
   --sx-shadow: 0 1px 3px rgba(21, 30, 43, 0.06), 0 8px 24px rgba(21, 30, 43, 0.05);
+
+  /* 深壳（仪表壳：侧栏恒深底，亮暗不变——壳不随主题反转）；
+     壳上文字/线为暖白系，色值与 AdminLayout menuOverrides 的深壳菜单配色同源 */
+  --sx-shell: #151E2B;       /* 石墨深壳底 */
+  --sx-shell-line: rgba(233, 231, 226, 0.14); /* 壳上分隔线 */
+  --sx-shell-text: #F2F0EB;  /* 壳上主文字 */
+  --sx-shell-muted: rgba(233, 231, 226, 0.45); /* 壳上次级文字 */
 }
 
 /* 暗色覆盖：底/面/线/文字反转，主色与品牌面板保持不变 */

@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-03 -->
+<!-- last-updated: 2026-10-08 -->
 # 前端开发规范（frontend rules）
 
 > 前端开发必须遵守的规范（`web/`，Vue 3 + TS + Vite + Naive UI + Pinia）。所有约定来自真实代码。
@@ -45,6 +45,8 @@
 
 - 优先级：Naive UI 组件与主题变量 > 全局样式类（`web/src/styles/`）> 页面 scoped 样式
 - 主题改动三处同步：`stores/theme.ts`（Naive UI 主题）、`web/src/styles/`（暗壳亮芯 + 工业琥珀）、图表配色；签名元素复用 sx-led/sx-plate 既有类
+- 恒定深/浅底的元素（侧栏深壳、品牌色块）必须用亮暗不变 token（`--sx-shell*`、`--sx-panel` 系）；禁止用随主题反转的 `--sx-ink`/`--sx-bg`/`--sx-surface` 作此类底色或其上文字色——暗色下会翻色导致不可读（见 notes/implemented/bug-fix/2026-10-08-dark-mode-sider-shell-tokens.md）
+- 使用 `var(--sx-*)` 前确认变量已在 `web/src/styles/variables.css` 定义；未定义变量静默落入 CSS 兜底（inherit/initial），行为偶然不可靠
 - 禁止内联硬编码颜色绕过主题变量
 
 ## 国际化规范
