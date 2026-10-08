@@ -18,7 +18,9 @@ type AppSubject struct {
 }
 
 // AppIdentitySource 平台应用用户身份源（data 层实现，依赖倒置）：
-// AppProfile 为 app-access token 自省入口。
+// AppProfile 为 app-access token 自省入口；AppChangePassword 为本人改密代理
+// （校验旧密码，平台侧成功后吊销其他端会话）。
 type AppIdentitySource interface {
 	AppProfile(ctx context.Context, token string) (*AppSubject, error)
+	AppChangePassword(ctx context.Context, token, oldPassword, newPassword string) error
 }

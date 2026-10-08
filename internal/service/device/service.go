@@ -16,19 +16,21 @@ type Service struct {
 
 func NewService(uc *bizdevice.Usecase) *Service { return &Service{uc: uc} }
 
-// ListRequest 列表查询（租户过滤不可指定：由平台按商户绑定租户集服务端收敛）
+// ListRequest 列表查询（TenantID 可选单租户过滤=平台租户 ID：管理端不传即
+// 商户绑定租户集全量，租户端由 handler 强制注入当前租户；越界由平台 403 收敛）
 type ListRequest struct {
 	Keyword   string `form:"kw"`
 	ModelID   uint   `form:"model_id"`
 	Status    string `form:"status"`
 	Online    *bool  `form:"online"`
 	Transport string `form:"transport"`
+	TenantID  *uint  `form:"tenant_id"` // 平台租户 ID（可选）
 }
 
 func (s *Service) List(ctx context.Context, req ListRequest, page, pageSize int) ([]*platformsdk.Device, interface{}, error) {
 	return s.uc.List(ctx, page, pageSize, platformsdk.DeviceFilter{
 		Keyword: req.Keyword, ModelID: req.ModelID, Status: req.Status,
-		Online: req.Online, Transport: req.Transport,
+		Online: req.Online, Transport: req.Transport, TenantID: req.TenantID,
 	})
 }
 

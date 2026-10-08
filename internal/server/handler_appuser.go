@@ -100,6 +100,25 @@ func (s *HTTPServer) resetAppUserPassword(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// setAppUserTenantRole 设置应用用户在某租户的租户端角色（管理面修复/调整入口；
+// 目标须已是该租户成员，守卫哨兵沿租户成员错误映射）
+func (s *HTTPServer) setAppUserTenantRole(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	var req appusersvc.TenantRoleInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	if err := s.appuser.SetTenantRole(c.Request.Context(), id, req); err != nil {
+		s.tenantMemberErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
 // appuserErr 应用用户操作错误映射（经平台开放面）：不存在 404、租户越界 403、
 // 重名/跨商户删除 409，其余 400
 func (s *HTTPServer) appuserErr(c *gin.Context, err error) {

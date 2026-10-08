@@ -7,6 +7,7 @@ import (
 
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
+	biztenantmember "github.com/smilex/smilex-admin-gin/internal/biz/tenantmember"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
 )
 
@@ -52,6 +53,16 @@ func (f *fakeGateway) SetStatus(ctx context.Context, id uint, status int) error 
 func (f *fakeGateway) ResetPassword(ctx context.Context, id uint, password string) error { return nil }
 func (f *fakeGateway) Delete(ctx context.Context, id uint) error                         { return nil }
 
+// fakeRoleReader 租户端角色替身（无绑定场景返回空 map，角色标注缺省不阻断）
+type fakeRoleReader struct{}
+
+func (f *fakeRoleReader) RolesOf(ctx context.Context, ids []uint, tenantPlatformID uint) (map[uint]biztenantmember.Role, error) {
+	return map[uint]biztenantmember.Role{}, nil
+}
+func (f *fakeRoleReader) SetMemberRole(ctx context.Context, tenantPlatformID, appUserID, actorID uint, role biztenantmember.Role) error {
+	return nil
+}
+
 // TestList_TenantNamesBatched 列表租户名映射：整页一次批量查询（N+1 消除），
 // 未同步租户缺名不阻断、名字顺序与 tenant_ids 对齐
 func TestList_TenantNamesBatched(t *testing.T) {
@@ -63,7 +74,7 @@ func TestList_TenantNamesBatched(t *testing.T) {
 		{ID: 11, Username: "a", Status: 1, TenantIDs: []uint{101, 999}}, // 999 本地未同步
 		{ID: 12, Username: "b", Status: 1, TenantIDs: []uint{102, 101}}, // 跨行复用同一租户
 	}}
-	svc := NewService(gw, resolver)
+	svc := NewService(gw, resolver, &fakeRoleReader{})
 
 	list, pg, err := svc.List(context.Background(), bizappuser.ListParams{}, 1, 10)
 	if err != nil {

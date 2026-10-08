@@ -21,6 +21,7 @@ import (
 	bizskill "github.com/smilex/smilex-admin-gin/internal/biz/skill"
 	bizsys "github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
+	biztenantmember "github.com/smilex/smilex-admin-gin/internal/biz/tenantmember"
 	"github.com/smilex/smilex-admin-gin/pkg/response"
 )
 
@@ -78,6 +79,11 @@ var errKeys = []struct {
 	{bizappuser.ErrDuplicateUsername, "appuser.name_exists"},
 	{bizappuser.ErrTenantNotInScope, "tenant.not_in_scope"},
 	{bizappuser.ErrCrossMerchantDelete, "appuser.cross_merchant_delete"},
+	// 租户成员（租户端授权层）
+	{biztenantmember.ErrMemberNotInTenant, "tenant_member.not_in_tenant"},
+	{biztenantmember.ErrLastTenantAdmin, "tenant_member.last_admin"},
+	{biztenantmember.ErrCannotModifySelf, "tenant_member.self_forbidden"},
+	{errDeviceNotInTenant, "tenant_member.device_not_in_tenant"},
 	// 服务器监控
 	{bizmonitor.ErrCollectFailed, "monitor.collect_failed"},
 	// 智能体（LLM 配置底座）

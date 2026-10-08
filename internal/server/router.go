@@ -15,6 +15,7 @@ import (
 	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
+	biztenantmember "github.com/smilex/smilex-admin-gin/internal/biz/tenantmember"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	"github.com/smilex/smilex-admin-gin/internal/server/middleware"
@@ -39,6 +40,7 @@ import (
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
 	skillsvc "github.com/smilex/smilex-admin-gin/internal/service/skill"
 	syssvc "github.com/smilex/smilex-admin-gin/internal/service/sysconfig"
+	tenantmembersvc "github.com/smilex/smilex-admin-gin/internal/service/tenantmember"
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
 	"github.com/smilex/smilex-admin-gin/pkg/cache"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
@@ -72,6 +74,8 @@ type HTTPServer struct {
 	skill            *skillsvc.Service
 	tenant           *tenantsvc.Service
 	appuser          *appusersvc.Service
+	tenantmember     *tenantmembersvc.Service // 租户端成员自助管理（/app-api/v1/members）
+	tenantmemberUC   *biztenantmember.Usecase // 租户端角色查询（profile/TenantAdmin 中间件）
 	appIds           bizauth.AppIdentitySource // AppAuth 中间件的平台应用用户身份源
 	tenantUC         *biztenant.Usecase        // AppAuth 租户闸门（按平台租户 ID 只读定位本地租户）
 	appIdentityCache *cache.TwoLevel           // App token 自省缓存（pat: 前缀）
@@ -90,6 +94,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	admissionUC *bizadmission.Usecase, role *rolesvc.Service, perm *permsvc.Service, log *logsvc.Service,
 	file *filesvc.Service, export *exportsvc.Service, blacklist *blacklistsvc.Service,
 	tenant *tenantsvc.Service, appuser *appusersvc.Service,
+	tenantmember *tenantmembersvc.Service, tenantmemberUC *biztenantmember.Usecase,
 	appIds bizauth.AppIdentitySource, tenantUC *biztenant.Usecase,
 	device *devicesvc.Service, devmodel *devmodelsvc.Service,
 	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service, syscfg *syssvc.Service,
@@ -120,6 +125,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 		role: role, perm: perm, log: log,
 		file: file, export: export, blacklist: blacklist, tenant: tenant,
 		appuser: appuser,
+		tenantmember: tenantmember, tenantmemberUC: tenantmemberUC,
 		appIds:  appIds, tenantUC: tenantUC, appIdentityCache: appIdentityCache,
 		device: device, devmodel: devmodel, monitor: monitor, agent: agent, dict: dict, syscfg: syscfg,
 		notice:    notice,
@@ -164,6 +170,27 @@ func (s *HTTPServer) registerRoutes() {
 		}))
 	{
 		appAPI.GET("/profile", s.appApiProfile)
+		// 本人修改密码：持本人 token 代理平台（平台校验旧密码并吊销其他端会话）
+		appAPI.PUT("/profile/password", s.appApiChangePassword)
+
+		// ---- 租户端成员自助管理（仅 tenant_admin：本地角色绑定默认拒绝） ----
+		// 移除成员=tenant_ids 差集更新（不删账号）；守卫（最后管理员/本人）在 biz 层
+		members := appAPI.Group("/members", middleware.TenantAdmin(s.tenantmemberUC))
+		{
+			members.GET("", s.appApiListMembers)
+			members.POST("", s.appApiCreateMember)
+			members.PUT("/:id", s.appApiUpdateMember)
+			members.PUT("/:id/status", s.appApiSetMemberStatus)
+			members.PUT("/:id/password", s.appApiResetMemberPassword)
+			members.PUT("/:id/role", s.appApiSetMemberRole)
+			members.DELETE("/:id", s.appApiRemoveMember)
+		}
+
+		// ---- 租户端设备只读（归属即准入：成员可读，无指令下发） ----
+		appAPI.GET("/devices", s.appApiListDevices)
+		appAPI.GET("/devices/:id", s.appApiGetDevice)
+		appAPI.GET("/devices/:id/shadow", s.appApiGetDeviceShadow)
+		appAPI.GET("/devices/:id/telemetry", s.appApiGetDeviceTelemetry)
 	}
 
 	// ---- 自身数据接口：仅平台认证（token 自省 + 本地准入），不做 RBAC ----
@@ -325,15 +352,17 @@ func (s *HTTPServer) registerRoutes() {
 
 	// 应用用户管理：2026-10-05 起经平台开放面实时消费（平台为唯一事实源；
 	// tenant_ids/tenant_id 均为平台租户 ID；开放面无单查端点，编辑用列表行数据）
-	appUsers := protected.Group("/app-users")
-	{
-		appUsers.GET("", s.listAppUsers)
-		appUsers.POST("", s.createAppUser)
-		appUsers.PUT("/:id", s.updateAppUser)
-		appUsers.DELETE("/:id", s.deleteAppUser)
-		// 重置密码（新密码由管理员指定，旧密码立即失效）
-		appUsers.PUT("/:id/password", s.resetAppUserPassword)
-	}
+		appUsers := protected.Group("/app-users")
+		{
+			appUsers.GET("", s.listAppUsers)
+			appUsers.POST("", s.createAppUser)
+			appUsers.PUT("/:id", s.updateAppUser)
+			appUsers.DELETE("/:id", s.deleteAppUser)
+			// 重置密码（新密码由管理员指定，旧密码立即失效）
+			appUsers.PUT("/:id/password", s.resetAppUserPassword)
+			// 租户端角色（管理面设置/修复租户管理员；目标须已是该租户成员）
+			appUsers.PUT("/:id/tenant-role", s.setAppUserTenantRole)
+		}
 
 	// 服务器状态监控（只读快照；CPU%/网卡速率由后台采样器固定 3s 窗口差值计算）
 	monitors := protected.Group("/monitor")

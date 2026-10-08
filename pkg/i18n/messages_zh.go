@@ -102,6 +102,11 @@ var messagesZh = map[string]string{
 	"appuser.not_found":             "应用用户不存在",
 	"appuser.cross_merchant_delete": "应用用户仍挂靠其他商户的租户，请先解除其在本商户外的归属",
 	"appuser.name_exists":           "用户名已存在，请更换",
+	// 租户成员（租户端授权层）
+	"tenant_member.not_in_tenant":        "成员不属于当前租户",
+	"tenant_member.last_admin":           "租户内最后一名管理员不可移除、降级或禁用",
+	"tenant_member.self_forbidden":       "不可对本人执行该操作，请由其他管理员处理",
+	"tenant_member.device_not_in_tenant": "设备不存在或不属于当前租户",
 	// 服务器监控
 	"monitor.collect_failed": "服务器指标采集失败，请稍后重试",
 	// 智能体（LLM 配置底座）

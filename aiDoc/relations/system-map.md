@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-03 -->
+<!-- last-updated: 2026-10-08 -->
 # 系统地图（system map）
 
 > 系统架构与组件关系。结构描述必须与真实目录一致，禁止虚构目录。
@@ -8,7 +8,7 @@
 | 目录 | 职责 | 归属组件 |
 |---|---|---|
 | `cmd/server/` | 入口 `main.go` + wire 注入（`wire.go` 构建、`wire_gen.go` 生成物） | 后端 |
-| `internal/biz/` | 领域层：实体/哨兵错误/Repo 接口/用例（24 个限界上下文） | 后端 |
+| `internal/biz/` | 领域层：实体/哨兵错误/Repo 接口/用例（25 个限界上下文） | 后端 |
 | `internal/data/` | 基础设施层：GORM 仓储、`model/` PO 定义、`platform/` 平台客户端 | 后端 |
 | `internal/service/` | 应用服务层：DTO、binding 校验、biz Input 转换 | 后端 |
 | `internal/server/` | HTTP 层：`router.go` 路由注册、`handler_*.go`、`middleware/` | 后端 |
@@ -76,6 +76,7 @@ web/src/locales/{zh-CN,en-US}（i18n 语言包，后端按 Accept-Language 同�
 | `biz/file`（平台存储代理） | `views/file/Files.vue` |
 | `biz/blacklist` / `biz/monitor` / `biz/log` | `views/system/Blacklist.vue`、`views/system/ServerMonitor.vue`、`views/log/OperationLogs.vue` |
 | `biz/tenant` / `biz/appuser` | `views/tenant/{Tenants,AppUsers}.vue` |
+| `biz/tenantmember`（租户端授权层：/app-api/v1 成员自助管理 + 设备只读，见 [../notes/implemented/architecture/2026-10-08-tenant-user-system.md](../notes/implemented/architecture/2026-10-08-tenant-user-system.md)） | `views/tenant-portal/*`（租户端，/tenant/* 路由树 + `layout/TenantLayout.vue`） |
 | `biz/device` / `biz/devmodel`（平台开放面） | `views/device/{Devices,DeviceModels}.vue` |
 | `biz/agent` / `biz/mcp` / `biz/skill` | `views/agent/*`、`views/mcp/Servers.vue`、`views/skill/Skills.vue` |
 | `biz/notify` | `views/notify/{Channels,Rules,Records}.vue` |

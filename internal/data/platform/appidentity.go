@@ -62,3 +62,10 @@ func (c *AppIdentityClient) AppProfile(ctx context.Context, token string) (*AppP
 	}
 	return nil, fmt.Errorf("%w: %v", ErrUnavailable, err)
 }
+
+// ChangePassword 代理平台「应用用户本人修改密码」（校验旧密码；
+// 平台侧成功后吊销其他端会话）
+func (c *AppIdentityClient) ChangePassword(ctx context.Context, token, oldPassword, newPassword string) error {
+	body := map[string]string{"old_password": oldPassword, "new_password": newPassword}
+	return do(ctx, c.hc, http.MethodPut, c.baseURL+"/api/v1/app-auth/password", token, body, nil)
+}

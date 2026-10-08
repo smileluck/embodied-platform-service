@@ -168,7 +168,8 @@ func (c *Client) Ping(ctx context.Context) (map[string]any, error) {
 	return out, nil
 }
 
-// ListDevices 设备列表（页从 1 起；过滤项与服务端 scope 收敛叠加）
+// ListDevices 设备列表（页从 1 起；过滤项与服务端 scope 收敛叠加；
+// TenantID 可选单租户过滤，须在商户绑定租户集内否则 403）
 func (c *Client) ListDevices(ctx context.Context, page, pageSize int, filter DeviceFilter) ([]*Device, *Page, error) {
 	q := url.Values{}
 	q.Set("page", strconv.Itoa(page))
@@ -188,18 +189,23 @@ func (c *Client) ListDevices(ctx context.Context, page, pageSize int, filter Dev
 	if filter.Transport != "" {
 		q.Set("transport", filter.Transport)
 	}
+	if filter.TenantID != nil && *filter.TenantID != 0 {
+		q.Set("tenant_id", strconv.FormatUint(uint64(*filter.TenantID), 10))
+	}
 	var list []*Device
 	pg, err := c.doList(ctx, "/devices", q, &list)
 	return list, pg, err
 }
 
-// DeviceFilter 设备列表过滤项（租户过滤不可指定——由服务端按商户绑定注入）
+// DeviceFilter 设备列表过滤项（TenantID 可选单租户过滤=平台租户 ID，
+// 未指定时返回商户绑定租户集全量；越界 403）
 type DeviceFilter struct {
 	Keyword   string // sn/名称模糊
 	ModelID   uint
 	Status    string
 	Online    *bool
 	Transport string // socket | mqtt | default
+	TenantID  *uint  // 平台租户 ID（可选）
 }
 
 // GetDevice 设备详情

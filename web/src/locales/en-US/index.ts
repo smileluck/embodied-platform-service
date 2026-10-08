@@ -11,6 +11,7 @@ import blacklist from './blacklist'
 import device from './device'
 import model from './model'
 import tenant from './tenant'
+import tenantPortal from './tenantPortal'
 import appUser from './appUser'
 import file from './file'
 import exportRecords from './exportRecords'
@@ -41,6 +42,7 @@ export default {
   device,
   model,
   tenant,
+  tenantPortal,
   appUser,
   file,
   exportRecords,

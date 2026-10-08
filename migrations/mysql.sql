@@ -176,6 +176,18 @@ CREATE TABLE IF NOT EXISTS tenants (
   KEY idx_deleted (deleted_at)
 );
 
+-- 租户成员角色绑定表（租户端授权：平台 app_user × 平台租户 ID，内置双角色；
+-- 绑定即授权、无软删，孤儿绑定在 AppAuth 闸门处天然失效）
+CREATE TABLE IF NOT EXISTS tenant_user_roles (
+  app_user_id BIGINT UNSIGNED NOT NULL,
+  tenant_platform_id BIGINT UNSIGNED NOT NULL,  -- 平台租户 ID（X-Tenant-ID 同口径）
+  role VARCHAR(32) NOT NULL,                    -- tenant_admin | member
+  created_at DATETIME,
+  updated_at DATETIME,
+  PRIMARY KEY (app_user_id, tenant_platform_id),
+  KEY idx_tenant_platform_id (tenant_platform_id)
+);
+
 
 -- MCP 服务器配置表（智能体工具源；token 只存 AES-GCM 密文，软删留痕；name/code 唯一）
 CREATE TABLE IF NOT EXISTS `mcp_servers` (

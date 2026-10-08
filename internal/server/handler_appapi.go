@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	biztenantmember "github.com/smilex/smilex-admin-gin/internal/biz/tenantmember"
 	"github.com/smilex/smilex-admin-gin/internal/server/middleware"
 	"github.com/smilex/smilex-admin-gin/pkg/response"
 )
@@ -36,9 +37,10 @@ type appAPIProfileVO struct {
 	User       appAPIUserVO     `json:"user"`
 	Tenant     appAPITenantVO   `json:"tenant"`             // 本次请求上下文租户（X-Tenant-ID 解析命中）
 	Accessible []appAPITenantVO `json:"accessible_tenants"` // 归属 ∩ 本地已同步
+	Role       string           `json:"role"`               // 本租户内角色（tenant_admin | member；无绑定为 member）
 }
 
-// appApiProfile GET /app-api/v1/profile：App 用户 + 可访问租户（本地视图）
+// appApiProfile GET /app-api/v1/profile：App 用户 + 可访问租户（本地视图）+ 本租户内角色
 func (s *HTTPServer) appApiProfile(c *gin.Context) {
 	sub := middleware.AppAuthSubject(c)
 	if sub == nil {
@@ -48,9 +50,14 @@ func (s *HTTPServer) appApiProfile(c *gin.Context) {
 	vo := appAPIProfileVO{
 		User:       appAPIUserVO{ID: sub.UserID, Username: sub.Username, Nickname: sub.Nickname},
 		Accessible: []appAPITenantVO{},
+		Role:       string(biztenantmember.RoleMember),
 	}
 	if tn := middleware.AppAuthTenant(c); tn != nil {
 		vo.Tenant = newAppAPITenantVO(tn.PlatformID, tn.ID, tn.Name, tn.Code, int(tn.Status))
+		// 本租户内角色（查询失败降级 member，不阻断身份探针）
+		if role, err := s.tenantmemberUC.RoleOf(c.Request.Context(), sub.UserID, tn.PlatformID); err == nil {
+			vo.Role = string(role)
+		}
 	}
 	// 归属租户批量解析（一次查询；本地未同步的不出现在本地视图）
 	if tenants, err := s.tenantUC.GetByPlatformIDs(c.Request.Context(), sub.TenantIDs); err == nil {

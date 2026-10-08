@@ -15,6 +15,7 @@ import (
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
+	biztenantmember "github.com/smilex/smilex-admin-gin/internal/biz/tenantmember"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	"github.com/smilex/smilex-admin-gin/pkg/cache"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
@@ -372,5 +373,38 @@ func RBAC(authSvc *authsvc.Service, cache *cache.TwoLevel) gin.HandlerFunc {
 			response.Forbidden(c, "permission denied")
 			c.Abort()
 		}
+	}
+}
+
+// TenantRoleReader 租户端角色查询最小接口（*biztenantmember.Usecase 满足）
+type TenantRoleReader interface {
+	RoleOf(ctx context.Context, appUserID, tenantPlatformID uint) (biztenantmember.Role, error)
+}
+
+// TenantAdmin 租户端管理员鉴权（AppAuth 之后）：按 (app_user_id, X-Tenant-ID)
+// 查本地角色绑定，仅 tenant_admin 放行。绑定缺失=普通成员（读面不挂本中间件，
+// 归属即准入；成员管理面默认拒绝）。主键双列点查 + per-uid 限流兜底，暂不加缓存
+// （与 B 端 RBAC 的缓存权衡不同：本查询无权限点 JOIN，成本恒定）。
+func TenantAdmin(roles TenantRoleReader) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sub := AppAuthSubject(c)
+		tn := AppAuthTenant(c)
+		if sub == nil || tn == nil {
+			response.Unauthorized(c, "unauthenticated")
+			c.Abort()
+			return
+		}
+		role, err := roles.RoleOf(c.Request.Context(), sub.UserID, tn.PlatformID)
+		if err != nil {
+			response.ServerError(c, "authorize failed")
+			c.Abort()
+			return
+		}
+		if role != biztenantmember.RoleTenantAdmin {
+			response.Forbidden(c, "permission denied")
+			c.Abort()
+			return
+		}
+		c.Next()
 	}
 }

@@ -1,6 +1,62 @@
 {
-  "generatedAt": "2026-10-05T07:48:06.613Z",
+  "generatedAt": "2026-10-08T01:58:48.100Z",
   "commits": [
+    {
+      "hash": "cd2622fed",
+      "date": "2026-10-05",
+      "type": "docs",
+      "scope": "",
+      "message": "决策记录补 job 执行链健壮性收口小节"
+    },
+    {
+      "hash": "c0cef238d",
+      "date": "2026-10-05",
+      "type": "fix",
+      "scope": "job",
+      "message": "执行链健壮性收口——panic 隔离/同任务互斥/停机有界等待"
+    },
+    {
+      "hash": "607fca4e1",
+      "date": "2026-10-05",
+      "type": "feat",
+      "scope": "tenant",
+      "message": "租户投影对账回流 + AppAuth 闸门启停校验（A+ 收口）"
+    },
+    {
+      "hash": "b2d6ae9ef",
+      "date": "2026-10-05",
+      "type": "perf",
+      "scope": "appuser",
+      "message": "租户名映射批量化——消除列表 N+1"
+    },
+    {
+      "hash": "a7dbe44e2",
+      "date": "2026-10-05",
+      "type": "docs",
+      "scope": "",
+      "message": "应用用户统一收口——决策记录/lessons/计划交付摘要（AppAuth+开放面消费+登录面删除）"
+    },
+    {
+      "hash": "c2c86eeba",
+      "date": "2026-10-05",
+      "type": "fix",
+      "scope": "router",
+      "message": "移除 dict-items 的重复路由注册（启动 panic：handlers already registered）"
+    },
+    {
+      "hash": "9a7ac089e",
+      "date": "2026-10-05",
+      "type": "other",
+      "scope": "",
+      "message": "refactor(appuser)!: 删除本地应用用户登录面（平台唯一事实源收口）"
+    },
+    {
+      "hash": "b0ba3beb1",
+      "date": "2026-10-05",
+      "type": "feat",
+      "scope": "appuser",
+      "message": "管理面改经平台开放面实时消费（平台唯一事实源）"
+    },
     {
       "hash": "36b870981",
       "date": "2026-10-05",

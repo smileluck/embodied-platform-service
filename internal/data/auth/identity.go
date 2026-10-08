@@ -89,3 +89,22 @@ func (a *AppIdentityAdapter) AppProfile(ctx context.Context, token string) (*biz
 		Status: s.Status, TenantIDs: s.TenantIDs,
 	}, nil
 }
+
+// AppChangePassword 本人改密代理（哨兵映射与 AppProfile 同款；旧密码错误等
+// 平台 4xx 以 *platform.Error 透传给 handler 按状态码回显）
+func (a *AppIdentityAdapter) AppChangePassword(ctx context.Context, token, oldPassword, newPassword string) error {
+	err := a.c.ChangePassword(ctx, token, oldPassword, newPassword)
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, platform.ErrInvalidToken):
+		return bizauth.ErrInvalidToken
+	case errors.Is(err, platform.ErrUnavailable):
+		return bizauth.ErrPlatformUnavailable
+	}
+	var perr *platform.Error
+	if errors.As(err, &perr) && perr.HTTPStatus == http.StatusUnauthorized {
+		return bizauth.ErrInvalidToken
+	}
+	return err
+}

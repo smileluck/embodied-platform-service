@@ -31,6 +31,7 @@ import (
 
 	bizskill "github.com/smilex/smilex-admin-gin/internal/biz/skill"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
+	biztenantmember "github.com/smilex/smilex-admin-gin/internal/biz/tenantmember"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	dataadmission "github.com/smilex/smilex-admin-gin/internal/data/admission"
 	dataagent "github.com/smilex/smilex-admin-gin/internal/data/agent"
@@ -57,6 +58,7 @@ import (
 	dataskill "github.com/smilex/smilex-admin-gin/internal/data/skill"
 	datasys "github.com/smilex/smilex-admin-gin/internal/data/sysconfig"
 	datatenant "github.com/smilex/smilex-admin-gin/internal/data/tenant"
+	datatenantmember "github.com/smilex/smilex-admin-gin/internal/data/tenantmember"
 	"github.com/smilex/smilex-admin-gin/internal/server"
 	admissionsvc "github.com/smilex/smilex-admin-gin/internal/service/admission"
 	agentsvc "github.com/smilex/smilex-admin-gin/internal/service/agent"
@@ -83,6 +85,7 @@ import (
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
 
 	skillsvc "github.com/smilex/smilex-admin-gin/internal/service/skill"
+	tenantmembersvc "github.com/smilex/smilex-admin-gin/internal/service/tenantmember"
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
 )
 
@@ -107,6 +110,7 @@ var bizSet = wire.NewSet(
 	bizmcp.NewUsecase,
 	bizskill.NewUsecase,
 	bizexport.NewUsecase,
+	biztenantmember.NewUsecase,
 	bizexport.NewRegistry,
 	bizexport.NewUserExporter,
 	bizexport.NewOpLogExporter,
@@ -116,6 +120,7 @@ var bizSet = wire.NewSet(
 	// 设备注册自愈：平台 403 时经租户用例补链重建（LinkOrCreate 幂等）
 	wire.Bind(new(bizdevice.TenantRelinker), new(*biztenant.Usecase)),
 	wire.Bind(new(appusersvc.TenantNameResolver), new(*biztenant.Usecase)),
+	wire.Bind(new(appusersvc.TenantRoleReader), new(*biztenantmember.Usecase)),
 	wire.Bind(new(bizjob.TenantReconciler), new(*biztenant.Usecase)),
 	// 智能体内置只读工具：服务器状态查询复用 monitor 用例
 	wire.Bind(new(bizagent.ServerStatusReader), new(*bizmonitor.Usecase)),
@@ -137,6 +142,7 @@ var dataRepoSet = wire.NewSet(
 	datafile.NewStorageManager,
 	datablacklist.NewRepo,
 	datatenant.NewRepo,
+	datatenantmember.NewRepo,
 
 	dataagent.NewRepo,
 
@@ -204,6 +210,7 @@ var serviceSet = wire.NewSet(
 	exportsvc.NewService,
 	tenantsvc.NewService,
 	appusersvc.NewService,
+	tenantmembersvc.NewService,
 	devicesvc.NewService,
 	devmodelsvc.NewService,
 	monitorsvc.NewService,

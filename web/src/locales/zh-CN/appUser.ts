@@ -27,6 +27,9 @@ export default {
   deleteFailed: '删除失败',
   deleteConfirmTitle: '删除确认',
   deleteConfirmContent: '确定删除应用用户「{name}」吗？该操作不可恢复。',
+  tenantRole: '租户端角色',
+  setTenantRole: '设置角色',
+  setTenantRoleTitle: '设置租户端角色',
   form: {
     usernameRequired: '请输入用户名',
     usernameLength: '用户名长度为 3-64 个字符',

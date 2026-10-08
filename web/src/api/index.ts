@@ -135,7 +135,7 @@ export const syncTenant = (id: number) => request.post<R<Tenant>>(`/tenants/${id
 // kw 模糊匹配用户名/昵称，phone 精确匹配，tenant_id 按平台租户筛选
 export const listAppUsers = (params: { page: number; page_size: number; kw?: string; phone?: string; status?: number; tenant_id?: number }) =>
   request.get<R<PageResult<AppUser>>>('/app-users', { params })
-export const createAppUser = (data: { username: string; password: string; nickname?: string; phone?: string; email?: string; tenant_ids?: number[] }) =>
+export const createAppUser = (data: { username: string; password: string; nickname?: string; phone?: string; email?: string; tenant_ids?: number[]; tenant_roles?: { tenant_id: number; role: string }[] }) =>
   request.post<R<AppUser>>('/app-users', data)
 // username 创建后不可修改；tenant_ids 全量替换；status 可选（状态切换也走此接口）
 export const updateAppUser = (id: number, data: { nickname?: string; phone?: string; email?: string; status?: number; tenant_ids?: number[] }) =>
@@ -146,6 +146,9 @@ export const setAppUserStatus = (id: number, status: number) =>
 // 重置密码（新密码由管理员指定，旧密码立即失效）
 export const resetAppUserPassword = (id: number, password: string) =>
   request.put<R<null>>(`/app-users/${id}/password`, { password })
+// 设置租户端角色（tenant_id 为平台租户 ID，目标须已是该租户成员）
+export const setAppUserTenantRole = (id: number, tenantId: number, role: string) =>
+  request.put<R<null>>(`/app-users/${id}/tenant-role`, { tenant_id: tenantId, role })
 
 // ---- 服务器状态监控 ----
 // 只读快照：CPU%/网卡速率为后端 3s 窗口差值，页面轮询读最新值

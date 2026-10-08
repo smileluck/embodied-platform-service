@@ -64,3 +64,31 @@ export async function platformCaptcha(acceptLanguage: string): Promise<{ captcha
     '/api/v1/auth/captcha', { method: 'GET' }, acceptLanguage,
   )
 }
+
+// ---- 应用用户认证（/app-auth，租户端登录同走此处；token 双用于平台与本系统 /app-api/v1） ----
+
+// 应用用户登录响应：令牌对 + 用户租户归属（平台租户 ID，与商户租户集的交集视图）。
+// tenant_ids 用于登录后选择当前租户（本系统 /app-api/v1 的 X-Tenant-ID 需先于 profile 确定）
+export interface AppLoginResult {
+  access_token: string
+  refresh_token: string
+  expires_at: string
+  user?: { id: number; username: string; tenant_ids: number[] }
+}
+
+// 应用用户登录（无验证码、无设备端会话概念）
+export function platformAppLogin(username: string, password: string, acceptLanguage: string) {
+  return call<AppLoginResult>('/api/v1/app-auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  }, acceptLanguage)
+}
+
+// 应用用户刷新（refresh_token 放 body——跨域 cookie 不可用）。
+// 注意：平台 /app-auth 无 logout 端点——登出仅本地清态，会话靠平台侧自然过期
+export function platformAppRefresh(refreshToken: string, acceptLanguage: string) {
+  return call<TokenPair>('/api/v1/app-auth/refresh', {
+    method: 'POST',
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  }, acceptLanguage)
+}

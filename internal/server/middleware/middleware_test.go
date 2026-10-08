@@ -293,6 +293,10 @@ func (f *fakeAppIdentitySource) AppProfile(ctx context.Context, token string) (*
 	return f.sub, nil
 }
 
+func (f *fakeAppIdentitySource) AppChangePassword(ctx context.Context, token, oldPassword, newPassword string) error {
+	return nil
+}
+
 // fakeTenantResolver 租户闸门替身：locals 为「平台租户 ID → 本地租户」已知集
 type fakeTenantResolver struct {
 	locals map[uint]*biztenant.Tenant

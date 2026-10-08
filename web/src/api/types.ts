@@ -155,7 +155,8 @@ export interface Tenant {
   updated_at: string
 }
 
-// 应用用户（含租户关联，不含密码；status: 1 启用 0 禁用）
+// 应用用户（含租户关联，不含密码；status: 1 启用 0 禁用；
+// tenant_roles 为租户端角色标注 [{tenant_id(平台租户ID), role: tenant_admin|member}]）
 export interface AppUser {
   id: number
   username: string
@@ -165,6 +166,7 @@ export interface AppUser {
   status: number
   tenant_ids: number[]
   tenant_names: string[]
+  tenant_roles: { tenant_id: number; role: string }[]
   created_at: string
   updated_at: string
 }

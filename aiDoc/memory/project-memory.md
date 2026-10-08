@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-04 -->
+<!-- last-updated: 2026-10-08 -->
 # 项目记忆索引
 
 ## 长期记忆
@@ -7,7 +7,11 @@
 
 ## 业务需求记忆
 
-暂无。
+- [business/2026-10-08-租户用户体系.md](business/2026-10-08-租户用户体系.md) — 开放租户端给企业租户：AppUser 身份复用 + 本地租户级双角色授权 + /app-api/v1 租户面
+
+## 经验记忆（lessons）
+
+- [lessons/2026-10-08-wire-bind-vs-interface-provider.md](lessons/2026-10-08-wire-bind-vs-interface-provider.md) — wire Provider 直接返回 biz 接口时不需要（也不能）再 wire.Bind
 
 ## 维护说明
 

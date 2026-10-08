@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-03 -->
+<!-- last-updated: 2026-10-08 -->
 # 契约层（boundary）
 
 > 本项目为 mixed：本文件维护三条契约边界——**web 前端 ↔ 本服务 API**、**本服务 ↔ 平台开放面（服务端 HMAC）**、**浏览器 ↔ 平台（认证直调）**。契约结构来自真实代码。
@@ -51,12 +51,24 @@
 ### 认证与请求头
 
 - 本服务 API：`Authorization: Bearer <平台 access_token>`；语言 `Accept-Language`（响应 msg 与菜单名均本地化）
-- 路由分档（`internal/server/router.go:registerRoutes`）：公开 `/app-auth/*`（本地应用用户）→ basic（PlatformAuth，本人数据）→ protected（PlatformAuth+RBAC，默认拒绝）
+- 路由分档（`internal/server/router.go:registerRoutes`）：basic（PlatformAuth，本人数据）→ protected（PlatformAuth+RBAC，默认拒绝）；租户面 `/app-api/v1/*` 独立分档（AppAuth+租户闸门，见下节）
+
+## web-api 变体：租户面 HTTP 契约（租户端前端 ↔ 本服务 `/app-api/v1`）
+
+面向企业租户的租户端（`web/src/views/tenant-portal/`）与商户管理端完全隔离，2026-10-08 起：
+
+- **认证**：Bearer 平台 **app-access token**（App 直连平台 `/api/v1/app-auth` 登录取得，token 双用）+ 必带请求头 `X-Tenant-ID`（**平台租户 ID**，全链路唯一口径）。AppAuth 自省平台 profile 后做租户闸门：归属 ∈ TenantIDs ∧ 本地租户已同步 ∧ 启用，否则 403（缺失/非法 400）；per-uid 限流 120/min
+- **鉴权分档**：读面（`GET /profile`、`/devices*`、`PUT /profile/password`）归属即准入；成员管理面（`/members/*`）挂 `TenantAdmin`（本地角色绑定默认拒绝，仅 tenant_admin 放行）
+- **响应信封/分页/snake_case** 与管理端一致（同一 `pkg/response`/`pkg/pagination`）
+- **登录自举**：平台 `/app-auth/login` 响应携带 `user.tenant_ids`，前端据此在首个 `/profile` 调用前确定 `X-Tenant-ID`（`web/src/stores/tenantUser.ts`）
+- **成员语义**：`DELETE /members/:id` = 移出本租户（tenant_ids 差集更新，不删账号）；本人/最后管理员守卫在 biz 层（409/400 哨兵）
+- 前端独立 axios 实例（`web/src/api/tenant.ts`，token 独立存储键 `tenant_access_token`/`tenant_refresh_token`，401 单飞刷新直调平台 `/app-auth/refresh`）
 
 ## 组件间契约：本服务 ↔ 平台开放面（服务端）
 
 - 调用经 `internal/platformsdk/client.go:Client`（HMAC 签名 `signer.go`；直连 `/open-api/v1`，经网关 `/gw/open-api/v1`，签名按实际完整 path）；业务封装在 `internal/data/platform/`（设备/租户/型号同步、storage-gateway）
 - 平台信封同为 `{code,msg,data}`，`code!=0` 报错；`cmd/server/main.go:checkPlatform` 启动时异步自检连通性
+- `ListDevices` 支持可选 `tenant_id` 单租户过滤（平台租户 ID，⊆ 商户绑定租户集，越界 403）——租户端设备列表依赖此参数（2026-10-08 起，双侧已同步）
 - 配置：`configs/config.yaml` 的 `platform` 节（`appKey/appSecret`、storage `baseURL/apiKeyID`）
 - **契约以平台仓库为准**（`embodied-platform/internal/server/openapi.go`）；接口/签名/字段变更须两侧仓库分别留痕（项目集根 `../../AGENTS.md`）
 

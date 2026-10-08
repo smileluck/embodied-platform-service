@@ -102,6 +102,11 @@ var messagesEn = map[string]string{
 	"appuser.not_found":             "App user not found",
 	"appuser.cross_merchant_delete": "The app user is still attached to tenants of another merchant; detach those first",
 	"appuser.name_exists":           "Username already exists, please choose another one",
+	// Tenant member (tenant portal authorization)
+	"tenant_member.not_in_tenant":        "The member does not belong to the current tenant",
+	"tenant_member.last_admin":           "The last tenant admin cannot be removed, demoted or disabled",
+	"tenant_member.self_forbidden":       "You cannot perform this operation on yourself; ask another admin",
+	"tenant_member.device_not_in_tenant": "Device not found or not in the current tenant",
 	// Server monitor
 	"monitor.collect_failed": "Failed to collect server metrics, please try again later",
 	// Agent (LLM configuration base)

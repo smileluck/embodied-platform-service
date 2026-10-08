@@ -158,6 +158,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_tenants_name ON tenants (name);
 CREATE UNIQUE INDEX IF NOT EXISTS uk_tenants_code ON tenants (code);
 CREATE INDEX IF NOT EXISTS idx_tenants_deleted_at ON tenants (deleted_at);
 
+-- 租户成员角色绑定表（租户端授权：平台 app_user × 平台租户 ID，内置双角色；
+-- 绑定即授权、无软删，孤儿绑定在 AppAuth 闸门处天然失效）
+CREATE TABLE IF NOT EXISTS tenant_user_roles (
+  app_user_id INTEGER NOT NULL,
+  tenant_platform_id INTEGER NOT NULL,  -- 平台租户 ID（X-Tenant-ID 同口径）
+  role TEXT NOT NULL,                   -- tenant_admin | member
+  created_at DATETIME,
+  updated_at DATETIME,
+  PRIMARY KEY (app_user_id, tenant_platform_id)
+);
+CREATE INDEX IF NOT EXISTS idx_tenant_user_roles_tenant ON tenant_user_roles (tenant_platform_id);
+
 CREATE INDEX IF NOT EXISTS idx_app_user_tenants_deleted_at ON app_user_tenants (deleted_at);
 
 -- MCP 服务器配置表（智能体工具源；token 只存 AES-GCM 密文，软删留痕；name/code 唯一）

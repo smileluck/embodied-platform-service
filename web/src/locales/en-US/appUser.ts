@@ -27,6 +27,9 @@ export default {
   deleteFailed: 'Failed to delete',
   deleteConfirmTitle: 'Delete Confirmation',
   deleteConfirmContent: 'Delete app user "{name}"? This cannot be undone.',
+  tenantRole: 'Tenant role',
+  setTenantRole: 'Set role',
+  setTenantRoleTitle: 'Set tenant portal role',
   form: {
     usernameRequired: 'Please enter the username',
     usernameLength: 'Username must be 3-64 characters',
