@@ -7,6 +7,7 @@ import user from './user'
 import role from './role'
 import permMenu from './permMenu'
 import opLog from './opLog'
+import loginLog from './loginLog'
 import blacklist from './blacklist'
 import device from './device'
 import model from './model'
@@ -38,6 +39,7 @@ export default {
   role,
   permMenu,
   opLog,
+  loginLog,
   blacklist,
   device,
   model,

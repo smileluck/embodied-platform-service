@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/smilex/smilex-admin-gin/internal/biz/dashboard"
+	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	"github.com/smilex/smilex-admin-gin/internal/data/model"
 )
@@ -32,14 +33,23 @@ func (r *repo) Counts() (users, roles int64, err error) {
 	return
 }
 
-// TodayLogins 本地无登录日志（登录在平台侧）；以今日发起过操作的用户数近似活跃度
+// TodayLogins 今日活跃操作用户数（操作日志口径：同一用户多次操作去重）
 func (r *repo) TodayLogins() (int64, error) {
 	var n int64
 	start := time.Now().Truncate(24 * time.Hour)
-	// 卡片口径为今日活跃操作用户数：同一用户多次操作去重
 	err := r.data.DB.Model(&model.OperationLogPO{}).
 		Where("created_at >= ? AND user_id > 0", start).
 		Distinct("user_id").Count(&n).Error
+	return n, err
+}
+
+// TodayLoginCount 今日登录成功次数（登录日志口径：status=1）
+func (r *repo) TodayLoginCount() (int64, error) {
+	var n int64
+	start := time.Now().Truncate(24 * time.Hour)
+	err := r.data.DB.Model(&model.LoginLogPO{}).
+		Where("created_at >= ? AND status = ?", start, bizlog.LoginStatusSuccess).
+		Count(&n).Error
 	return n, err
 }
 
@@ -55,7 +65,8 @@ func (r *repo) dateExpr() string {
 	}
 }
 
-// LoginTrend 活跃趋势：按日聚合操作量与活跃用户数（复用登录趋势的总量/成功双线语义）
+// LoginTrend 登录趋势：按日聚合登录日志（total=登录次数，success=成功次数；
+// SUM(CASE WHEN ...) 三方言兼容）
 func (r *repo) LoginTrend(days int) ([]dashboard.DailyPoint, error) {
 	since := time.Now().AddDate(0, 0, -(days - 1)).Format("2006-01-02")
 	var rows []struct {
@@ -63,8 +74,8 @@ func (r *repo) LoginTrend(days int) ([]dashboard.DailyPoint, error) {
 		Total   int64  `gorm:"column:total"`
 		Success int64  `gorm:"column:success"`
 	}
-	err := r.data.DB.Model(&model.OperationLogPO{}).
-		Select(fmt.Sprintf("%s AS d, COUNT(*) AS total, COUNT(DISTINCT user_id) AS success", r.dateExpr())).
+	err := r.data.DB.Model(&model.LoginLogPO{}).
+		Select(fmt.Sprintf("%s AS d, COUNT(*) AS total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS success", r.dateExpr()), bizlog.LoginStatusSuccess).
 		Where("created_at >= ?", since).
 		Group("d").Scan(&rows).Error
 	if err != nil {
@@ -98,19 +109,17 @@ func (r *repo) OpTrend(days int) ([]dashboard.DailyPoint, error) {
 	return out, nil
 }
 
-// RecentLogins 最近操作（本地无登录日志；同用户去重：每用户只保留最新一条；
-// id 自增与时间同向，MAX(id) 即该用户最新记录，IN 子查询写法三库通用；状态按响应码 <400 视为成功）
+// RecentLogins 最近登录记录（真实登录流水：按时间取最新 n 条，不按用户去重）
 func (r *repo) RecentLogins(n int) ([]dashboard.LoginItem, error) {
-	var pos []model.OperationLogPO
+	var pos []model.LoginLogPO
 	if err := r.data.DB.WithContext(context.Background()).
-		Where("id IN (?)", r.data.DB.Model(&model.OperationLogPO{}).
-			Select("MAX(id)").Group("user_id")).Order("id DESC").Limit(n).Find(&pos).Error; err != nil {
+		Order("id DESC").Limit(n).Find(&pos).Error; err != nil {
 		return nil, err
 	}
 	out := make([]dashboard.LoginItem, 0, len(pos))
 	for _, p := range pos {
 		status := dashboard.LoginFail
-		if p.StatusCode < 400 {
+		if p.Status == bizlog.LoginStatusSuccess {
 			status = dashboard.LoginSuccess
 		}
 		out = append(out, dashboard.LoginItem{

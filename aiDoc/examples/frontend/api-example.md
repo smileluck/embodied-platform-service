@@ -35,7 +35,7 @@ export const deleteDictType = (id: number) => request.delete<R<null>>(`/dict-typ
 ## 要点
 
 - 可选查询参数传 `undefined` 时 axios 自动省略（`name: query.name || undefined`）
-- 登录/刷新/登出**不在**本文件——直调平台的认证接口在 `web/src/api/platform.ts`（fetch，token 双用）
+- 管理端登录/刷新/登出也在本文件（`/auth/*`，经本服务代理平台）；仅租户端 app-auth 直调平台（`web/src/api/platform.ts`，fetch，token 双用）
 - 401 刷新重放、错误 toast 兜底已由 `request.ts` 拦截器统一处理，函数内不重复处理
 
 ## 真实参考文件

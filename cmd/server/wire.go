@@ -114,6 +114,7 @@ var bizSet = wire.NewSet(
 	bizexport.NewRegistry,
 	bizexport.NewUserExporter,
 	bizexport.NewOpLogExporter,
+	bizexport.NewLoginLogExporter,
 	auth.NewUsecase,
 	// 跨上下文最小依赖接口绑定（provider 与 bind 需同 set）
 	wire.Bind(new(auth.AdmissionReader), new(*bizadmission.Usecase)),

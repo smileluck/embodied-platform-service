@@ -133,7 +133,7 @@ func (d *Data) migrateAndSeed() error {
 	if err := d.DB.AutoMigrate(
 		&model.PlatformUserPO{}, &model.PlatformUserRolePO{},
 		&model.RolePO{}, &model.PermissionPO{}, &model.RolePermissionPO{},
-		&model.OperationLogPO{},
+		&model.OperationLogPO{}, &model.LoginLogPO{},
 		&model.FilePO{}, &model.ExportRecordPO{}, &model.IPBlacklistPO{},
 		&model.TenantPO{},
 		&model.TenantUserRolePO{},
@@ -206,6 +206,7 @@ var systemMenus = []systemMenuDef{
 	{Name: "定时任务", Code: "menu:job", Path: "/system/jobs", Icon: "TimerOutline", Sort: 13, ParentCode: "menu:system"},
 	{Name: "关于我们", Code: "menu:about", Path: "/about", Icon: "InformationCircleOutline", Sort: 9},
 	{Name: "日志管理", Code: "menu:log", Type: "dir", Icon: "DocumentTextOutline", Sort: 3},
+	{Name: "登录日志", Code: "menu:loginLog", Path: "/log/login-logs", Icon: "LogInOutline", Sort: 1, ParentCode: "menu:log"},
 	{Name: "操作日志", Code: "menu:opLog", Path: "/log/operation-logs", Icon: "ClipboardOutline", Sort: 2, ParentCode: "menu:log"},
 	{Name: "文件管理", Code: "menu:file", Path: "/file", Icon: "FolderOpenOutline", Sort: 4},
 	{Name: "IP黑名单", Code: "menu:blacklist", Path: "/system/blacklist", Icon: "BanOutline", Sort: 6, ParentCode: "menu:system"},
@@ -378,6 +379,9 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "物模型选择器", Code: "model:tmPicker", Menu: "menu:deviceModel", Method: "GET", Path: "/api/v1/thing-models", Sort: 6},
 	{Name: "物模型版本选择器", Code: "model:tmVersion", Menu: "menu:deviceModel", Method: "GET", Path: "/api/v1/thing-models/*/versions", Sort: 7},
 	// 日志管理
+	{Name: "查询登录日志", Code: "log:login:list", Menu: "menu:loginLog", Method: "GET", Path: "/api/v1/login-logs", Sort: 1},
+	{Name: "清理登录日志", Code: "log:login:clear", Menu: "menu:loginLog", Method: "DELETE", Path: "/api/v1/login-logs", Sort: 2},
+	{Name: "导出登录日志", Code: "log:login:export", Menu: "menu:loginLog", Method: "POST", Path: "/api/v1/login-logs/export", Sort: 3},
 	{Name: "查询操作日志", Code: "log:op:list", Menu: "menu:opLog", Method: "GET", Path: "/api/v1/operation-logs", Sort: 1},
 	{Name: "清理操作日志", Code: "log:op:clear", Menu: "menu:opLog", Method: "DELETE", Path: "/api/v1/operation-logs", Sort: 2},
 	{Name: "导出操作日志", Code: "log:op:export", Menu: "menu:opLog", Method: "POST", Path: "/api/v1/operation-logs/export", Sort: 3},
@@ -641,11 +645,11 @@ func (d *Data) dedupeLegacyRoleNames() error {
 }
 
 // obsoletePermCodes 已废弃的菜单与按钮权限点（本次改造移除的模块）：
-// 在线用户/登录日志（会话与登录委外给平台）、开放API/商户/调用日志（商户模块移除）
+// 在线用户（会话委外给平台）、开放API/商户/调用日志（商户模块移除）
+// （登录日志模块已恢复，menu:loginLog / log:login:* 不再废弃，由种子幂等补齐）
 var obsoletePermCodes = []string{
-	"menu:online", "menu:loginLog", "menu:openapi", "menu:merchant", "menu:merchantLog",
+	"menu:online", "menu:openapi", "menu:merchant", "menu:merchantLog",
 	"online:list", "online:kick", "online:kickUser",
-	"log:login:list", "log:login:clear", "log:login:export",
 	"merchant:list", "merchant:view", "merchant:create", "merchant:update",
 	"merchant:delete", "merchant:resetSecret", "merchant:status", "merchantLog:list",
 	// 旧用户管理按钮（本地账号体系移除，由 user:setAdmission 等新按钮替代）
@@ -658,7 +662,7 @@ var obsoletePermCodes = []string{
 //  3. 「菜单与权限」更名「菜单管理」、「用户管理」更名「用户准入」；
 //  4. 目录类型显式化：含菜单/目录子级的 menu 转为 dir（仅按钮子级的不算，避免页面菜单被误判为分组）；
 //  5. 删除已废弃的 roles.code 列（AutoMigrate 不会删列，删列时唯一索引随之删除）；
-//  6. 物理删除本次改造废弃的菜单/按钮权限点及其角色绑定（在线用户/登录日志/商户/开放API 等）；
+//  6. 物理删除本次改造废弃的菜单/按钮权限点及其角色绑定（在线用户/商户/开放API 等）；
 //  7. 物理删除已废弃的内置超管角色（ID=1）及其用户/权限绑定与 all 通配权限行
 //     （bootstrapAdmins 引导机制移除，商户管理员成为唯一内置角色）。
 func (d *Data) migrateLegacy() error {
@@ -714,7 +718,7 @@ func (d *Data) migrateLegacy() error {
 			if err := d.DB.Unscoped().Delete(&model.PermissionPO{}, "id IN ?", ids).Error; err != nil {
 				return err
 			}
-			logger.Info("dropped obsolete permissions (merchant/online/login-log/local-account)", zap.Int("count", len(ids)))
+			logger.Info("dropped obsolete permissions (merchant/online/local-account)", zap.Int("count", len(ids)))
 		}
 	}
 

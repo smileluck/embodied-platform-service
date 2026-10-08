@@ -87,6 +87,20 @@ type RolePermissionPO struct {
 
 func (RolePermissionPO) TableName() string { return "role_permissions" }
 
+// LoginLogPO 登录日志表（追加型流水：无软删，清空/保留期清理均为物理删除）
+type LoginLogPO struct {
+	ID        uint      `gorm:"primaryKey"`
+	Username  string    `gorm:"size:64;index"` // 尝试登录的用户名（可能不存在）
+	IP        string    `gorm:"size:64;index"`
+	UserAgent string    `gorm:"size:255"`
+	Device    string    `gorm:"size:16"`  // web / app
+	Status    int       `gorm:"index"`    // 1 成功 0 失败
+	Msg       string    `gorm:"size:255"` // 失败原因（成功为空）
+	CreatedAt time.Time `gorm:"index"`    // 登录时间
+}
+
+func (LoginLogPO) TableName() string { return "login_logs" }
+
 // OperationLogPO 操作日志表（写请求审计流水：无软删，清空/保留期清理均为物理删除）
 type OperationLogPO struct {
 	ID         uint      `gorm:"primaryKey"`
@@ -337,6 +351,20 @@ func PermissionFromPO(p *PermissionPO) *permission.Permission {
 		Method: p.Method, Path: p.Path, ParentID: p.ParentID,
 		Icon: p.Icon, Sort: p.Sort,
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+}
+
+func LoginLogToPO(l *log.LoginLog) *LoginLogPO {
+	return &LoginLogPO{
+		ID: l.ID, Username: l.Username, IP: l.IP, UserAgent: l.UserAgent,
+		Device: l.Device, Status: l.Status, Msg: l.Msg, CreatedAt: l.CreatedAt,
+	}
+}
+
+func LoginLogFromPO(p *LoginLogPO) *log.LoginLog {
+	return &log.LoginLog{
+		ID: p.ID, Username: p.Username, IP: p.IP, UserAgent: p.UserAgent,
+		Device: p.Device, Status: p.Status, Msg: p.Msg, CreatedAt: p.CreatedAt,
 	}
 }
 

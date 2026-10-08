@@ -25,6 +25,9 @@ func (uc *Usecase) Stats(ctx context.Context) (*Stats, error) {
 	if out.Cards.TodayLogins, err = uc.repo.TodayLogins(); err != nil {
 		return nil, err
 	}
+	if out.Cards.TodayLoginCount, err = uc.repo.TodayLoginCount(); err != nil {
+		return nil, err
+	}
 
 	login, err := uc.repo.LoginTrend(7)
 	if err != nil {

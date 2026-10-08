@@ -21,6 +21,26 @@ func (uc *Usecase) Introspect(ctx context.Context, token string) (*Subject, erro
 	return uc.identity.Profile(ctx, token)
 }
 
+// Login 代理平台登录（透传平台令牌对与业务错误；登录日志记录由 handler 层完成）
+func (uc *Usecase) Login(ctx context.Context, username, password, captchaID, captchaCode string) (*TokenPair, error) {
+	return uc.identity.Login(ctx, username, password, captchaID, captchaCode)
+}
+
+// Refresh 代理平台刷新令牌
+func (uc *Usecase) Refresh(ctx context.Context, refreshToken string) (*TokenPair, error) {
+	return uc.identity.Refresh(ctx, refreshToken)
+}
+
+// Logout 代理平台登出（吊销平台侧会话）
+func (uc *Usecase) Logout(ctx context.Context, token string) error {
+	return uc.identity.Logout(ctx, token)
+}
+
+// Captcha 取平台登录验证码（开关关时返回 enabled=false）
+func (uc *Usecase) Captcha(ctx context.Context) (*CaptchaInfo, error) {
+	return uc.identity.Captcha(ctx)
+}
+
 // Authorize RBAC 接口鉴权：未准入直接拒绝；已准入按本地权限点匹配
 func (uc *Usecase) Authorize(ctx context.Context, platformUserID uint, method, path string) bool {
 	p, err := uc.admission.Admission(ctx, platformUserID)

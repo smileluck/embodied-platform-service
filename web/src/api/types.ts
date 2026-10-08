@@ -10,6 +10,13 @@ export interface TokenPair {
   expires_at: string
 }
 
+// 图形验证码（enabled=false 表示服务端已停用，前端隐藏验证码表单）
+export interface CaptchaInfo {
+  captcha_id: string
+  captcha_image: string // PNG base64，无 data: 前缀，展示时需自行拼接 dataURL
+  enabled: boolean
+}
+
 // 个人信息（平台身份 + 本系统准入状态；账号体系在平台上，本地只做准入投影）
 export interface UserInfo {
   id: number // 平台用户 ID
@@ -90,6 +97,18 @@ export interface MemberRow {
   admitted: boolean // 业务端准入状态（平台侧实时事实源；本端开关写回）
   bound_at: string // 平台侧绑定时间
   projection: AdmissionProjection | null // null=平台已绑定但本系统未准入
+}
+
+// 登录日志（一次登录尝试 = 一条）
+export interface LoginLogInfo {
+  id: number
+  username: string // 尝试登录的用户名（可能不存在）
+  ip: string
+  user_agent: string
+  device: string // web | app
+  status: number // 1 成功 0 失败
+  msg: string // 失败原因（成功为空）
+  created_at: string
 }
 
 // 操作日志（一条写请求审计）
@@ -614,6 +633,7 @@ export interface DashboardStats {
     roles: number
     online: number
     today_logins: number
+    today_login_count: number // 今日登录成功次数
   }
   login_trend: { date: string; total: number; success: number }[]
   op_trend: { date: string; total: number }[]

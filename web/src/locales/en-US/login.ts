@@ -1,4 +1,4 @@
-// login module messages (sign-in goes directly to embodied-platform, token dual-use)
+// login module messages (sign-in is proxied to the platform via this service, token dual-use)
 export default {
   brandHeadline1: 'Your device fleet,',
   brandHeadline2: 'quietly in motion.',
@@ -16,8 +16,8 @@ export default {
   loginButton: 'Sign In',
   captchaLoadFailed: 'Failed to load the captcha, please click to refresh',
   loginSuccess: 'Signed in successfully',
-  loginFailed: 'Sign-in failed (check platform availability and account)',
-  platformUnreachable: 'Cannot reach the platform service — make sure it is running and open this page via localhost, then retry',
+  loginFailed: 'Sign-in failed (check your account)',
+  platformUnreachable: 'Cannot reach the server — make sure this service is running, then retry',
   captchaError: 'Incorrect captcha, please try again',
   sessionExpired: 'Your session has expired, please sign in again',
   // Platform identity valid but this console rejected the request (not a merchant member / not admitted, both 403)

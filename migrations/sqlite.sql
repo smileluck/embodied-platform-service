@@ -222,3 +222,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_skill_file_path ON skill_files (skill_id, p
 
 -- 智能体表加列：绑定的技能 code JSON 数组（空=无技能）
 -- ALTER TABLE agents ADD COLUMN skills TEXT; -- 由 AutoMigrate 自动完成，此处仅参考
+
+-- 登录日志表（追加型流水：无软删，清空/保留期清理均为物理删除）
+CREATE TABLE IF NOT EXISTS login_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT DEFAULT '',          -- 尝试登录的用户名（可能不存在）
+  ip TEXT DEFAULT '',
+  user_agent TEXT DEFAULT '',
+  device TEXT DEFAULT '',            -- web / app
+  status INTEGER DEFAULT 0,          -- 1 成功 0 失败
+  msg TEXT DEFAULT '',               -- 失败原因（成功为空）
+  created_at DATETIME                -- 登录时间
+);
+CREATE INDEX IF NOT EXISTS idx_login_logs_username ON login_logs (username);
+CREATE INDEX IF NOT EXISTS idx_login_logs_ip ON login_logs (ip);
+CREATE INDEX IF NOT EXISTS idx_login_logs_status ON login_logs (status);
+CREATE INDEX IF NOT EXISTS idx_login_logs_created_at ON login_logs (created_at);

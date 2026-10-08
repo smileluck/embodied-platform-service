@@ -1,4 +1,4 @@
-// login 模块文案（登录直调 embodied-platform，token 双用）
+// login 模块文案（登录经本服务后端代理到平台，token 双用）
 export default {
   brandHeadline1: '让设备编队',
   brandHeadline2: '安静地运转',
@@ -16,8 +16,8 @@ export default {
   loginButton: '登 录',
   captchaLoadFailed: '验证码加载失败，请点击刷新',
   loginSuccess: '登录成功',
-  loginFailed: '登录失败（请确认平台服务可达且账号有效）',
-  platformUnreachable: '无法连接平台服务，请确认平台已启动、且用 localhost 访问本页面后重试',
+  loginFailed: '登录失败（请确认账号有效）',
+  platformUnreachable: '无法连接服务器，请确认本服务已启动后重试',
   captchaError: '验证码错误，请重新输入',
   sessionExpired: '登录已失效，请重新登录',
   // 平台身份有效但本系统拒绝进入（非本商户成员 / 未开通准入，均 403）

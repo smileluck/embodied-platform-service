@@ -241,3 +241,20 @@ CREATE TABLE IF NOT EXISTS `skill_files` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ALTER TABLE `agents` ADD COLUMN `skills` VARCHAR(512); -- 由 AutoMigrate 自动完成，此处仅参考
+
+-- 登录日志表（追加型流水：无软删，清空/保留期清理均为物理删除）
+CREATE TABLE IF NOT EXISTS `login_logs` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `username` VARCHAR(64) DEFAULT '' COMMENT '尝试登录的用户名（可能不存在）',
+  `ip` VARCHAR(64) DEFAULT '',
+  `user_agent` VARCHAR(255) DEFAULT '',
+  `device` VARCHAR(16) DEFAULT '' COMMENT 'web / app',
+  `status` TINYINT DEFAULT 0 COMMENT '1 成功 0 失败',
+  `msg` VARCHAR(255) DEFAULT '' COMMENT '失败原因（成功为空）',
+  `created_at` DATETIME(3) COMMENT '登录时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_login_logs_username` (`username`),
+  KEY `idx_login_logs_ip` (`ip`),
+  KEY `idx_login_logs_status` (`status`),
+  KEY `idx_login_logs_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

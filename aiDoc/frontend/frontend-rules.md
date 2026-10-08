@@ -6,7 +6,7 @@
 ## 基础规则
 
 - HTTP 请求：本服务 API 一律走 `web/src/api/request.ts` 的 axios 实例（`baseURL: '/api/v1'`，自动带 token/Accept-Language/deepTrim，401 单飞刷新重放）；**禁止**页面里裸用 axios/fetch 调本服务
-- 登录/刷新/登出直调平台：`web/src/api/platform.ts`（token 双用，平台是唯一身份源）；**不得**用本服务 axios 实例调平台
+- 管理端登录/刷新/登出/验证码走本服务代理接口（`web/src/api/index.ts`，同一 axios 实例；`/auth/*` 端点被 request.ts 排除在 401 自刷新外）；平台是唯一身份源，token 双用。租户端 app-auth 才直调平台：`web/src/api/platform.ts`；**不得**用本服务 axios 实例直调平台
 - 状态管理：全局仅 `web/src/stores/{user,settings,theme}.ts`；页面局部状态留在组件内，禁止为单页面建 store
 - 路由：登录后按菜单动态生成（`web/src/router/dynamic.ts`）；新页面必须登记 `viewModules` 的 `menu:<code>` 映射；路由守卫依赖 `useUserStore().routesLoaded`
 

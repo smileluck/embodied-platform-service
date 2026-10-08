@@ -1,7 +1,7 @@
 <!-- last-updated: 2026-10-08 -->
 # 契约层（boundary）
 
-> 本项目为 mixed：本文件维护三条契约边界——**web 前端 ↔ 本服务 API**、**本服务 ↔ 平台开放面（服务端 HMAC）**、**浏览器 ↔ 平台（认证直调）**。契约结构来自真实代码。
+> 本项目为 mixed：本文件维护三条契约边界——**web 前端 ↔ 本服务 API**、**本服务 ↔ 平台开放面（服务端 HMAC）**、**本服务 ↔ 平台认证公开 API（管理端登录代理）**。契约结构来自真实代码。
 
 ## 责任边界
 
@@ -9,7 +9,7 @@
 |---|---|
 | 参数校验（binding）、业务规则、鉴权（RBAC/准入）、持久化、平台开放面代理 | 本服务（后端） |
 | 表单即时反馈、展示格式化、路由/菜单按权限渲染 | web 前端 |
-| 账号密码、token 签发/刷新/吊销、验证码 | **平台（embodied-platform，唯一身份源）**——本服务与前端均不碰密码 |
+| 账号密码校验、token 签发/刷新/吊销、验证码 | **平台（embodied-platform，唯一身份源）**——管理端登录经本服务后端代理转发（密码过内存不落盘），本服务只做代理 + token 自省 + 登录日志 |
 | 文件字节存储 | 平台 storage-gateway（本服务只存元数据，下载 302 到预签名 URL） |
 
 ## web-api 变体：HTTP 接口契约（前端 ↔ 本服务）
@@ -72,11 +72,12 @@
 - 配置：`configs/config.yaml` 的 `platform` 节（`appKey/appSecret`、storage `baseURL/apiKeyID`）
 - **契约以平台仓库为准**（`embodied-platform/internal/server/openapi.go`）；接口/签名/字段变更须两侧仓库分别留痕（项目集根 `../../AGENTS.md`）
 
-## 组件间契约：浏览器 ↔ 平台（认证直调）
+## 组件间契约：本服务 ↔ 平台认证公开 API（管理端登录代理）
 
-- 登录/刷新/登出由浏览器直调平台（token 双用）：`web/src/api/platform.ts`（`PLATFORM_API` 来自 `VITE_PLATFORM_API`，默认 `http://localhost:27080`；refresh_token 放 body）
-- 平台是唯一身份源：本服务后端只做 token 自省 + 本地准入；前端 401 刷新重放逻辑在 `web/src/api/request.ts`
-- 生产部署必须把本前端 Origin 登记进平台 CORS 白名单（平台 `cors.allowedOrigins`）
+- 管理端登录/刷新/登出/验证码经本服务后端代理平台（2026-10-08 起，替代原浏览器直调）：前端只调本服务 `POST /api/v1/auth/login`、`POST /auth/refresh`、`GET /auth/captcha`、`POST /auth/logout`；后端 `internal/data/platform/identity.go:IdentityClient` 以普通 HTTP 调平台主服务同名公开端点（`/api/v1/auth/*`，非开放面、无 HMAC）
+- 设计动机与备选见决策记录 `aiDoc/notes/implemented/architecture/2026-10-08-admin-login-backend-proxy.md`：服务端由此记录登录日志（成功+失败，login_logs 表）并恢复 LoginIPGuard 临时封禁与登录 IP 限流（10 次/分/IP）
+- token 双用语义不变（平台签发，本服务自省）；平台 4xx 的 msg 原样透传给前端展示；平台不可达 → 503
+- 租户端 app-auth 仍由浏览器直调平台（`web/src/api/platform.ts`），生产部署仍需把前端 Origin 登记进平台 CORS 白名单（平台 `cors.allowedOrigins`）
 
 ## 变更规则
 

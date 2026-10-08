@@ -1,6 +1,6 @@
 // Package auth 认证应用服务（薄用例编排）。
-// 登录不在本服务：前端直调平台 POST /api/v1/auth/login（token 双用），
-// 本服务只做 token 自省（introspection）+ 本地准入判定 + 自身数据代理。
+// 管理端登录经本服务代理平台公开 API（服务端落登录日志），另做 token 自省
+// （introspection）+ 本地准入判定 + 自身数据代理。
 package auth
 
 import (
@@ -19,6 +19,72 @@ func NewService(uc *bizauth.Usecase) *Service { return &Service{uc: uc} }
 // Introspect 平台 token 自省（中间件用；缓存由传输层的二级缓存承担）
 func (s *Service) Introspect(ctx context.Context, token string) (*bizauth.Subject, error) {
 	return s.uc.Introspect(ctx, token)
+}
+
+// LoginRequest 登录入参（代理平台；captcha 字段按平台验证码开关决定是否必填）
+type LoginRequest struct {
+	Username    string `json:"username" binding:"required,max=64"`
+	Password    string `json:"password" binding:"required,max=64"`
+	CaptchaID   string `json:"captcha_id"`
+	CaptchaCode string `json:"captcha_code"`
+}
+
+// TokenPairVO 令牌对视图（平台登录/刷新的透传结果）
+type TokenPairVO struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresAt    string `json:"expires_at"`
+}
+
+// CaptchaVO 验证码视图（enabled=false 时 captcha_id/image 为空）
+type CaptchaVO struct {
+	Enabled      bool   `json:"enabled"`
+	CaptchaID    string `json:"captcha_id"`
+	CaptchaImage string `json:"captcha_image"`
+}
+
+// Login 代理平台登录
+func (s *Service) Login(ctx context.Context, req LoginRequest) (*TokenPairVO, error) {
+	pair, err := s.uc.Login(ctx, req.Username, req.Password, req.CaptchaID, req.CaptchaCode)
+	if err != nil {
+		return nil, err
+	}
+	return toTokenPairVO(pair), nil
+}
+
+// RefreshRequest 刷新入参（refresh_token 放 body——跨域 cookie 不可用）
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+// Refresh 代理平台刷新令牌
+func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*TokenPairVO, error) {
+	pair, err := s.uc.Refresh(ctx, req.RefreshToken)
+	if err != nil {
+		return nil, err
+	}
+	return toTokenPairVO(pair), nil
+}
+
+// Logout 代理平台登出（带用户本人 token）
+func (s *Service) Logout(ctx context.Context, token string) error {
+	return s.uc.Logout(ctx, token)
+}
+
+// Captcha 取平台登录验证码
+func (s *Service) Captcha(ctx context.Context) (*CaptchaVO, error) {
+	info, err := s.uc.Captcha(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &CaptchaVO{Enabled: info.Enabled, CaptchaID: info.CaptchaID, CaptchaImage: info.CaptchaImage}, nil
+}
+
+func toTokenPairVO(p *bizauth.TokenPair) *TokenPairVO {
+	return &TokenPairVO{
+		AccessToken: p.AccessToken, RefreshToken: p.RefreshToken,
+		ExpiresAt: p.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
 }
 
 // Authorize 供 RBAC 中间件调用（未准入直接拒绝）

@@ -10,6 +10,7 @@ import type {
   AgentToolGroups,
   AppUser,
   BlacklistItem,
+  CaptchaInfo,
   DashboardStats,
   DataEvent,
   Device,
@@ -23,6 +24,7 @@ import type {
   JobHandler,
   JobInfo,
   JobLog,
+  LoginLogInfo,
   LogPageResult,
   McpServer,
   McpServerInput,
@@ -55,6 +57,16 @@ import type {
   UsageStats,
   UserInfo,
 } from './types'
+
+// ---- 认证（管理端登录/刷新/登出由本服务代理到平台，token 仍双用；
+//      这些端点被 request.ts 的 isAuthEndpoint 排除在 401 自动刷新外，URL 形态勿改） ----
+// 验证码：enabled=false 表示服务端停用；captcha_image 为 PNG base64（无 data: 前缀）
+export const getCaptcha = () => request.get<R<CaptchaInfo>>('/auth/captcha')
+export const login = (data: { username: string; password: string; captcha_id: string; captcha_code: string }) =>
+  request.post<R<TokenPair>>('/auth/login', data)
+export const refreshToken = (refresh_token: string) =>
+  request.post<R<TokenPair>>('/auth/refresh', { refresh_token })
+export const logout = () => request.post<R<null>>('/auth/logout')
 
 export const getProfile = () =>
   request.get<R<{ user: UserInfo; permissions: Permission[] }>>('/auth/profile')
@@ -112,6 +124,9 @@ export const deletePermission = (id: number) => request.delete<R<null>>(`/permis
 
 // ---- 日志 ----
 // start/end 为 unix 秒级时间戳
+export const listLoginLogs = (params: { page: number; page_size: number; username?: string; ip?: string; status?: number; start?: number; end?: number }) =>
+  request.get<R<LogPageResult<LoginLogInfo>>>('/login-logs', { params })
+export const clearLoginLogs = () => request.delete<R<{ deleted: number }>>('/login-logs')
 export const listOperationLogs = (params: { page: number; page_size: number; username?: string; method?: string; kw?: string; start?: number; end?: number }) =>
   request.get<R<LogPageResult<OperationLogInfo>>>('/operation-logs', { params })
 export const clearOperationLogs = () => request.delete<R<{ deleted: number }>>('/operation-logs')
@@ -221,7 +236,7 @@ export const getFileBlob = (id: number, download = false) =>
 
 // ---- 异步导出 ----
 // 提交导出任务：params 为当前列表过滤条件（剔除 page/page_size 与空值）；429 表示队列满
-export const createExport = (biz: 'users' | 'operation-logs', params: Record<string, any>) => {
+export const createExport = (biz: 'users' | 'operation-logs' | 'login-logs', params: Record<string, any>) => {
   const query: Record<string, any> = {}
   for (const [k, v] of Object.entries(params)) {
     if (k === 'page' || k === 'page_size') continue

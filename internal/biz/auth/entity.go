@@ -1,8 +1,9 @@
 // Package auth 认证限界上下文 —— 领域层。
 //
-// 平台（embodied-platform）是唯一身份源：登录在本系统前端直调平台
-// POST /api/v1/auth/login（token 双用），本系统后端不再签发本地令牌、
-// 不再保存密码、不再维护服务端会话。本上下文只做两件事：
+// 平台（embodied-platform）是唯一身份源：账号密码、token 签发/刷新/吊销、验证码
+// 均在平台侧。管理端登录经本服务后端代理平台公开 API（本服务不保存密码、
+// 不维护服务端会话，仅转发——代理使服务端得以落登录日志）。本上下文职责：
+//   - 登录/刷新/登出/验证码代理（透传平台结果与业务错误 msg）
 //   - token 自省（introspection）：拿平台 token 调 GET /auth/profile 验证并取身份
 //   - 本地准入/权限组合判定：平台身份 × 准入投影 × 本地 RBAC
 package auth
@@ -10,6 +11,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/permission"
@@ -32,10 +34,30 @@ type Subject struct {
 	Merchants []admission.MerchantRef `json:"merchants"` // 本人已准入商户（含商户管理员标记）
 }
 
+// TokenPair 平台令牌对（登录/刷新代理的返回值；expires_at 为 RFC3339 序列化）
+type TokenPair struct {
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token"`
+	ExpiresAt    time.Time `json:"expires_at"`
+}
+
+// CaptchaInfo 登录验证码开关与图文（captcha_image 为 PNG base64，无 data: 前缀）
+type CaptchaInfo struct {
+	Enabled      bool   `json:"enabled"`
+	CaptchaID    string `json:"captcha_id"`
+	CaptchaImage string `json:"captcha_image"`
+}
+
 // IdentitySource 平台身份源接口（data 层实现，依赖倒置）：
+// Login/Refresh/Logout/Captcha 为平台公开 API 代理（本服务不落任何凭证，仅转发；
+// 平台业务错误以 *platform.Error 透传 msg 供登录日志与前端回显）；
 // Profile 为自省入口；UpdateProfile/ChangePassword 为「用户本人 token」的
-// 平台自身数据代理（本系统不落任何凭证，仅转发）
+// 平台自身数据代理
 type IdentitySource interface {
+	Login(ctx context.Context, username, password, captchaID, captchaCode string) (*TokenPair, error)
+	Refresh(ctx context.Context, refreshToken string) (*TokenPair, error)
+	Logout(ctx context.Context, token string) error
+	Captcha(ctx context.Context) (*CaptchaInfo, error)
 	Profile(ctx context.Context, token string) (*Subject, error)
 	UpdateProfile(ctx context.Context, token, nickname, email string) error
 	ChangePassword(ctx context.Context, token, oldPassword, newPassword string) error

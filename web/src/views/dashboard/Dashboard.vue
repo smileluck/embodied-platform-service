@@ -1,5 +1,6 @@
-<!-- 设备运营总览（首页）：指标全部由现有列表接口的 page.total 聚合（page_size=1），无专用统计接口；
-     某块接口失败（含无权限 403）该处显示 — ，不阻塞整页。状态呈现统一用「状态灯语」(.sx-led)。 -->
+<!-- 设备运营总览（首页）：指标来自专用统计接口 getDashboardStats（/dashboard/stats）；
+     login_trend 为真实登录趋势（total=登录次数，success=成功次数），recent_logins 为真实登录记录。
+     状态呈现统一用「状态灯语」(.sx-led)。 -->
 <template>
   <!-- 首页仪表盘：统计卡 + 7 日登录/操作趋势 + 最近登录 -->
   <div class="dash-page">
@@ -11,6 +12,7 @@
         <n-statistic :label="t('dashboard.roles')" :value="stats?.cards.roles ?? 0" />
       </n-card>
       <n-card size="small">
+        <n-statistic :label="t('dashboard.todayLoginCount')" :value="stats?.cards.today_login_count ?? 0" />
       </n-card>
       <n-card size="small">
         <n-statistic :label="t('dashboard.todayLogins')" :value="stats?.cards.today_logins ?? 0" />

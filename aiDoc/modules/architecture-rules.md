@@ -70,7 +70,7 @@ views/*（页面）→ components/*（共享组件）→ stores/*（Pinia）→ 
 
 - 页面组件放 `web/src/views/<域>/<Page>.vue`；跨页面复用组件提升到 `web/src/components/`
 - 服务端数据类型只在 `web/src/api/types.ts` 声明（与后端 DTO snake_case 一一对应）
-- 所有本服务请求走 `web/src/api/request.ts` 的 axios 实例（`baseURL: '/api/v1'`）；登录/刷新/登出走 `web/src/api/platform.ts` 直调平台——**不得**用 axios 实例调平台
+- 所有本服务请求走 `web/src/api/request.ts` 的 axios 实例（`baseURL: '/api/v1'`），含管理端登录/刷新/登出（`/auth/*`，经本服务代理平台）；仅租户端 app-auth 走 `web/src/api/platform.ts` 直调平台——**不得**用 axios 实例直调平台
 
 ### 状态与路由
 

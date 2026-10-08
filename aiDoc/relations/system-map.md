@@ -57,7 +57,7 @@ cmd/server/main.go（wire 装配）
 web/src/views/*（页面组件）
   ← web/src/stores/*（Pinia：user/settings/theme）
   ← web/src/api/index.ts（本服务 API，axios 实例 web/src/api/request.ts：/api/v1、token、401 刷新重放）
-  ← web/src/api/platform.ts（登录/刷新/登出直调平台，token 双用）
+  ← web/src/api/platform.ts（租户端 app-auth 直调平台，token 双用；管理端登录走 index.ts 经本服务代理）
 web/src/router/dynamic.ts（菜单 code → viewModules 组件映射，登录后动态挂路由）
 web/src/locales/{zh-CN,en-US}（i18n 语言包，后端按 Accept-Language 同步本地化）
 ```

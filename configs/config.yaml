@@ -35,8 +35,8 @@ db:
     path: ./data/smilex.db
 
 jwt:
-  # 密钥材料：本地登录面已于 2026-10-05 下线（B 端登录直调平台、C 端走平台 /app-auth），
-  # 本系统不再签发任何 token；jwt.secret 仅作为 agent/notify/mcp cryptoKey 未显式配置时的
+  # 密钥材料：本系统不签发任何 token（B 端登录由本服务代理转发平台、C 端走平台 /app-auth），
+  # jwt.secret 仅作为 agent/notify/mcp cryptoKey 未显式配置时的
   # 派生源——更换会使已存密钥不可解密，需到对应页面重新保存一次。生产仍建议注入强随机值
   # （APP_JWT_SECRET）
   secret: ""
@@ -61,7 +61,8 @@ cache:
 #      设备域 device:*、遥测 telemetry:read、data-event:read
 #      租户域 tenant:*（商户自管租户，同步创建即自动入商户租户集）
 #      型号域 model:*、物模型 thing-model:read（型号管理 + 选择器）
-#   2. 平台 CORS 白名单（cors.allowedOrigins）登记本系统前端 Origin（登录直调平台）
+#   2. 平台 CORS 白名单（cors.allowedOrigins）登记本系统前端 Origin（租户端 app-auth 仍浏览器直调平台；
+#      管理端登录自 2026-10-08 起经本服务后端代理，不再依赖该白名单）
 #   3. NTP 校时（HMAC 时间戳偏差 ≤ 300s）
 #   4. （可选）storage 段：storage-gateway API Key（文件存储）；不配置时降级本地磁盘
 #   注：用户（成员）管理走开放面 user:*（列表=本商户绑定成员，新增=即建即绑，删除=解绑），

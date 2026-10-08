@@ -1,6 +1,34 @@
 {
-  "generatedAt": "2026-10-08T07:10:40.075Z",
+  "generatedAt": "2026-10-08T09:31:11.746Z",
   "commits": [
+    {
+      "hash": "670003bd2",
+      "date": "2026-10-08",
+      "type": "fix",
+      "scope": "web",
+      "message": "搜索区 n-select query 字段改 null 初始化——修复 placeholder 不显示（消息通知/MCP 服务/定时任务处理器）"
+    },
+    {
+      "hash": "b41474afb",
+      "date": "2026-10-08",
+      "type": "fix",
+      "scope": "web",
+      "message": "深色模式侧栏白底白字——补深壳 token，纠正随主题反转变量的误用"
+    },
+    {
+      "hash": "03da2cd7b",
+      "date": "2026-10-08",
+      "type": "fix",
+      "scope": "web",
+      "message": "租户端路由前缀迁移 /tenant-portal——消除与管理端租户菜单的守卫误分流"
+    },
+    {
+      "hash": "b89d44375",
+      "date": "2026-10-08",
+      "type": "fix",
+      "scope": "server",
+      "message": "HTTPServer 构造体补 job/dashboard/notify/mcp/skill 赋值——修复整域 nil panic 500"
+    },
     {
       "hash": "db53f366b",
       "date": "2026-10-08",

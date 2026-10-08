@@ -217,3 +217,19 @@ CREATE INDEX IF NOT EXISTS idx_skill_files_skill_id ON skill_files (skill_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uk_skill_file_path ON skill_files (skill_id, path);
 
 -- ALTER TABLE agents ADD COLUMN skills VARCHAR(512); -- 由 AutoMigrate 自动完成，此处仅参考
+
+-- 登录日志表（追加型流水：无软删，清空/保留期清理均为物理删除）
+CREATE TABLE IF NOT EXISTS login_logs (
+  id BIGSERIAL PRIMARY KEY,
+  username VARCHAR(64) DEFAULT '',   -- 尝试登录的用户名（可能不存在）
+  ip VARCHAR(64) DEFAULT '',
+  user_agent VARCHAR(255) DEFAULT '',
+  device VARCHAR(16) DEFAULT '',     -- web / app
+  status SMALLINT DEFAULT 0,         -- 1 成功 0 失败
+  msg VARCHAR(255) DEFAULT '',       -- 失败原因（成功为空）
+  created_at TIMESTAMPTZ             -- 登录时间
+);
+CREATE INDEX IF NOT EXISTS idx_login_logs_username ON login_logs (username);
+CREATE INDEX IF NOT EXISTS idx_login_logs_ip ON login_logs (ip);
+CREATE INDEX IF NOT EXISTS idx_login_logs_status ON login_logs (status);
+CREATE INDEX IF NOT EXISTS idx_login_logs_created_at ON login_logs (created_at);

@@ -152,6 +152,22 @@ func (s *HTTPServer) registerRoutes() {
 	// 持久化 IP 黑名单在认证之前拦截全部 /api/ 请求（静态前端资源不经过此组）
 	v1 := s.engine.Group("/api/v1", middleware.IPBlacklist(s.blacklist.Checker()))
 
+	// ---- 认证代理（公开）：登录/刷新/验证码。登录经本服务代理平台公开 API，
+	// 服务端落登录日志（含失败）；LoginIPGuard 临时封禁在限流之前生效（与 app 登录同策略），
+	// 失败计数由中间件按响应状态码自动完成（401 计入、200 清零，handler 不重复调用）。
+	v1.POST("/auth/login",
+		middleware.LoginIPGuard(s.blacklist.LoginGuard()),
+		middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
+			KeyPrefix: "bl:rl:", Max: 10, Window: time.Minute, MessageKey: "security.login_frequent",
+		}),
+		s.login)
+	v1.POST("/auth/refresh",
+		middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
+			KeyPrefix: "rl:auth-refresh:", Max: 60, Window: time.Minute, MessageKey: "security.rate_limited",
+		}),
+		s.refreshToken)
+	v1.GET("/auth/captcha", s.captcha)
+
 	// ---- App 面（/app-api/v1）：App（C 端）直调本系统的业务接口 ----
 	// App 直连平台 /app-auth 登录（token 双用）；AppAuth 自省平台 app profile + 租户闸门
 	// （X-Tenant-ID = 平台租户 ID，须∈用户归属集且本地已同步）；per-uid 限流。
@@ -194,12 +210,14 @@ func (s *HTTPServer) registerRoutes() {
 	}
 
 	// ---- 自身数据接口：仅平台认证（token 自省 + 本地准入），不做 RBAC ----
-	// 管理端登录不在本服务（前端直调平台 /auth/login，token 双用）；
+	// 管理端登录由本服务公开路由代理平台（见上方 /auth/login）；
 	// profile 是本人信息、menus 是已按角色过滤的本人菜单树，均无越权面；
 	// 若纳入默认拒绝的 RBAC，仅绑定了菜单/按钮权限的普通用户登录后即 403 白屏。
-	// OpLog 自动审计写请求（改资料/改密码）。
+	// OpLog 自动审计写请求（改资料/改密码/登出）。
 	basic := v1.Group("", middleware.PlatformAuth(s.auth, s.admissionUC, s.identityCache), middleware.OpLog(s.log))
 	{
+		// 登出：带用户本人 token 代理平台吊销会话
+		basic.POST("/auth/logout", s.logout)
 		basic.GET("/auth/profile", func(c *gin.Context) {
 			vo, err := s.auth.Profile(c.Request.Context(), middleware.Subject(c))
 			if err != nil {
@@ -319,6 +337,13 @@ func (s *HTTPServer) registerRoutes() {
 		opLogs.GET("", s.listOperationLogs)
 		opLogs.DELETE("", s.clearOperationLogs)
 		opLogs.POST("/export", func(c *gin.Context) { s.submitExport(c, "op_log") })
+	}
+
+	loginLogs := protected.Group("/login-logs")
+	{
+		loginLogs.GET("", s.listLoginLogs)
+		loginLogs.DELETE("", s.clearLoginLogs)
+		loginLogs.POST("/export", func(c *gin.Context) { s.submitExport(c, "login_log") })
 	}
 
 	files := protected.Group("/files")

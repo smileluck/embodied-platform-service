@@ -53,7 +53,7 @@ Go 后端（Gin，业务管理端服务）与 Vue 3 前端（`web/`）同仓的 
 
 <!-- TODO: 按项目范式（web-api / library / cli）与实际契约约定填写，细节路由到 aiDoc/contracts/boundary.md -->
 
-统一信封 `{code, msg, data}`（`pkg/response/response.go:Body`），错误消息走 i18n；字段命名 snake_case；分页 `{list, page}`。前端 `/api/v1` 走本服务，登录/刷新/登出直调平台（token 双用）。细节路由到 `aiDoc/contracts/boundary.md`。
+统一信封 `{code, msg, data}`（`pkg/response/response.go:Body`），错误消息走 i18n；字段命名 snake_case；分页 `{list, page}`。前端 `/api/v1` 走本服务，管理端登录/刷新/登出经本服务代理平台（token 双用；租户端 app-auth 直调平台）。细节路由到 `aiDoc/contracts/boundary.md`。
 
 ### 模块与目录
 

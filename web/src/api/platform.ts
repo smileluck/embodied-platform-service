@@ -1,5 +1,6 @@
-// 平台（embodied-platform）直调 API：登录/刷新/登出由浏览器直调平台（token 双用）。
-// 平台是唯一身份源——本系统后端不碰密码，只做 token 自省 + 本地准入。
+// 平台（embodied-platform）直调 API：仅保留应用用户（租户端）认证；
+// 管理端登录/刷新/登出已改经本服务后端代理（见 api/index.ts 的 login/refreshToken/logout），token 仍双用。
+// 平台是唯一身份源——本系统后端不碰密码，只做代理转发 + token 自省 + 本地准入。
 // 平台地址来自 VITE_PLATFORM_API（开发默认 http://localhost:27080）；
 // 生产部署需在平台 CORS 白名单（cors.allowedOrigins）登记本前端 Origin。
 import type { TokenPair } from './types'
@@ -28,41 +29,6 @@ async function call<T>(path: string, init: RequestInit, acceptLanguage: string):
     throw err
   }
   return body.data as T
-}
-
-// 平台登录：设备端 web（同端互斥）；验证码开关在平台侧（captchaEnabled）
-export function platformLogin(username: string, password: string, acceptLanguage: string, captchaId = '', captchaCode = '') {
-  return call<TokenPair>('/api/v1/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ username, password, captcha_id: captchaId, captcha_code: captchaCode, device_type: 'web' }),
-  }, acceptLanguage)
-}
-
-// 平台刷新：跨域 cookie 不可用，refresh_token 放 body
-export function platformRefresh(refreshToken: string, acceptLanguage: string) {
-  return call<TokenPair>('/api/v1/auth/refresh', {
-    method: 'POST',
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  }, acceptLanguage)
-}
-
-// 平台登出：吊销当前会话（token 立即失效）；失败不阻断本地清态
-export async function platformLogout(accessToken: string, acceptLanguage: string): Promise<void> {
-  try {
-    await call<null>('/api/v1/auth/logout', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }, acceptLanguage)
-  } catch {
-    // 忽略：本地清态不受影响
-  }
-}
-
-// 平台验证码（enabled=false 表示平台侧停用；image 为 PNG base64，无 data: 前缀）
-export async function platformCaptcha(acceptLanguage: string): Promise<{ captcha_id: string; captcha_image: string; enabled: boolean }> {
-  return call<{ captcha_id: string; captcha_image: string; enabled: boolean }>(
-    '/api/v1/auth/captcha', { method: 'GET' }, acceptLanguage,
-  )
 }
 
 // ---- 应用用户认证（/app-auth，租户端登录同走此处；token 双用于平台与本系统 /app-api/v1） ----

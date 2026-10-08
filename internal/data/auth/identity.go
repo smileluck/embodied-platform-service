@@ -58,6 +58,51 @@ func (a *IdentityAdapter) ChangePassword(ctx context.Context, token, oldPassword
 	return a.c.ChangePassword(ctx, token, oldPassword, newPassword)
 }
 
+// Login 代理平台登录：平台业务错误（401 密码错等）以 *platform.Error 原样透传
+// （msg 供登录日志与前端回显），不映射为本地哨兵；网络故障 → ErrPlatformUnavailable
+func (a *IdentityAdapter) Login(ctx context.Context, username, password, captchaID, captchaCode string) (*bizauth.TokenPair, error) {
+	pair, err := a.c.Login(ctx, username, password, captchaID, captchaCode)
+	if err != nil {
+		return nil, mapIdentityErr(err)
+	}
+	return &bizauth.TokenPair{AccessToken: pair.AccessToken, RefreshToken: pair.RefreshToken, ExpiresAt: pair.ExpiresAt}, nil
+}
+
+// Refresh 代理平台刷新令牌（错误映射同 Login）
+func (a *IdentityAdapter) Refresh(ctx context.Context, refreshToken string) (*bizauth.TokenPair, error) {
+	pair, err := a.c.Refresh(ctx, refreshToken)
+	if err != nil {
+		return nil, mapIdentityErr(err)
+	}
+	return &bizauth.TokenPair{AccessToken: pair.AccessToken, RefreshToken: pair.RefreshToken, ExpiresAt: pair.ExpiresAt}, nil
+}
+
+// Logout 代理平台登出（错误映射同 Login）
+func (a *IdentityAdapter) Logout(ctx context.Context, token string) error {
+	return mapIdentityErr(a.c.Logout(ctx, token))
+}
+
+// Captcha 取平台登录验证码（错误映射同 Login）
+func (a *IdentityAdapter) Captcha(ctx context.Context) (*bizauth.CaptchaInfo, error) {
+	info, err := a.c.Captcha(ctx)
+	if err != nil {
+		return nil, mapIdentityErr(err)
+	}
+	return &bizauth.CaptchaInfo{Enabled: info.Enabled, CaptchaID: info.CaptchaID, CaptchaImage: info.CaptchaImage}, nil
+}
+
+// mapIdentityErr 登录链路的错误归一：ErrUnavailable → ErrPlatformUnavailable；
+// 平台信封错误（*platform.Error）原样透传（保留 HTTP 状态与 msg）
+func mapIdentityErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, platform.ErrUnavailable) {
+		return bizauth.ErrPlatformUnavailable
+	}
+	return err
+}
+
 // AppIdentityAdapter 把平台 AppIdentityClient 适配为 biz 的 AppIdentitySource
 // （应用用户 C 端自省；哨兵错误映射与 IdentityAdapter 同款）
 type AppIdentityAdapter struct {

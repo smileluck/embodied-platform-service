@@ -5,7 +5,7 @@
 
 ## 项目定位
 
-**SmileX Admin（github.com/smilex/smilex-admin-gin）**：embodied 平台的商户侧**业务管理端**（mixed：Go 后端 + Vue 3 前端同仓）。定位是商户日常运营入口——成员/角色/权限、字典、文件、通知、任务、监控、智能体/MCP/技能、设备与租户管理；平台（embodied-platform，见项目集根 `../../AGENTS.md`）是唯一身份源，本服务不碰密码，只做 token 自省 + 本地准入投影。
+**SmileX Admin（github.com/smilex/smilex-admin-gin）**：embodied 平台的商户侧**业务管理端**（mixed：Go 后端 + Vue 3 前端同仓）。定位是商户日常运营入口——成员/角色/权限、字典、文件、通知、任务、监控、智能体/MCP/技能、设备与租户管理；平台（embodied-platform，见项目集根 `../../AGENTS.md`）是唯一身份源，管理端登录由本服务代理转发平台（不落密码），本服务做 token 自省 + 本地准入投影 + 登录日志。
 
 ## 核心技术栈
 

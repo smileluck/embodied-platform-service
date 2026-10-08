@@ -101,10 +101,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NForm, NFormItem, NInput, NButton, NCheckbox, NDropdown, NIcon, useMessage, type FormInst, type DropdownOption } from 'naive-ui'
 import { LanguageOutline, MoonOutline, SunnyOutline } from '@vicons/ionicons5'
-import { platformCaptcha } from '../../api/platform'
+import { getCaptcha } from '../../api'
 import { setupDynamicRoutes } from '../../router/dynamic'
 import { useUserStore } from '../../stores/user'
-import { getLocale, setLocale, type AppLocale } from '../../locales'
+import { setLocale, type AppLocale } from '../../locales'
 import EgoUnit from './EgoUnit.vue'
 import { isDarkRef, toggleTheme } from '../../stores/theme'
 import { TABS_STORAGE_KEY } from '../../utils/tabStorage'
@@ -147,8 +147,9 @@ const remember = ref(false)
 async function loadCaptcha() {
   form.captchaCode = ''
   try {
-    const resp = await platformCaptcha(getLocale())
-    // 平台停用验证码：隐藏表单，登录时提交空验证码即可
+    const { data } = await getCaptcha()
+    const resp = data.data
+    // 服务端停用验证码：隐藏表单，登录时提交空验证码即可
     if (resp.enabled === false) {
       captchaEnabled.value = false
       captchaId.value = ''
@@ -157,11 +158,12 @@ async function loadCaptcha() {
     }
     captchaEnabled.value = true
     captchaId.value = resp.captcha_id
-    captchaImage.value = resp.captcha_image
+    // captcha_image 为纯 base64（无 data: 前缀），需自行拼 dataURL 才能作 img src
+    captchaImage.value = `data:image/png;base64,${resp.captcha_image}`
   } catch {
     captchaId.value = ''
     captchaImage.value = ''
-    captchaEnabled.value = false // 平台不可达时隐藏验证码，让登录错误自己暴露问题
+    captchaEnabled.value = false // 后端不可达时隐藏验证码，让登录错误自己暴露问题
   }
 }
 
@@ -200,7 +202,7 @@ async function onLogin() {
   }
     loading.value = true
   try {
-    // 登录直调平台（token 双用：既调本系统也直调平台）
+    // 登录经本服务后端代理到平台（token 双用：既调本系统也调平台）
     await userStore.login(form.username, form.password, captchaId.value, form.captchaCode)
     persistRemembered()
     // 平台登录成功 ≠ 可进入本系统：先加载本系统上下文（profile/菜单/动态路由）验证准入，
@@ -225,10 +227,9 @@ async function onLogin() {
     // 路由已在此注册完成，直接进入首个菜单（守卫对 routesLoaded=true 不再转换 '/'）
     router.push(firstPath)
   } catch (e: any) {
-    // 平台直调 fetch 失败（平台未启动/CORS 拒绝）：无 response 且 message 为浏览器原生 fetch 报错，
-    // 显示本地化的可行动提示而非 "Failed to fetch" 原文
-    const networkFailed = !e?.response && /fetch/i.test(e?.message || '')
-    const msg: string = e?.response?.data?.msg || e?.message || t('login.loginFailed')
+    // 网络层失败（后端未启动/代理不通）：axios 无 response，显示可行动提示而非 "Network Error" 原文
+    const networkFailed = !e?.response
+    const msg: string = e?.response?.data?.msg || t('login.loginFailed')
     if (networkFailed) {
       message.error(t('login.platformUnreachable'))
     } else {

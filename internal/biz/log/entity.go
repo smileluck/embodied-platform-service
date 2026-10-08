@@ -1,9 +1,36 @@
 // Package log 日志限界上下文 —— 领域层。
-// 管理端登录已委外给平台（登录日志在平台侧），本上下文只承载操作日志：
-// 审计全部写请求，追加型流水，清空与保留期清理共用同一条按时间物理删除的路径。
+// 登录日志记录每次登录尝试（成功/失败/IP 被封禁拦截，管理端登录经本服务代理平台故可落库）；
+// 操作日志审计全部写请求。两者均为追加型流水，清空与保留期清理共用同一条按时间物理删除的路径。
 package log
 
 import "time"
+
+// 登录结果
+const (
+	LoginStatusSuccess = 1
+	LoginStatusFail    = 0
+)
+
+// LoginLog 登录日志
+type LoginLog struct {
+	ID        uint
+	Username  string // 尝试登录的用户名（可能不存在）
+	IP        string
+	UserAgent string
+	Device    string // web / app
+	Status    int    // 1 成功 0 失败
+	Msg       string // 失败原因（成功为空）
+	CreatedAt time.Time
+}
+
+// LoginLogQuery 登录日志查询条件（零值为不限）
+type LoginLogQuery struct {
+	Username string    // 用户名前缀模糊
+	IP       string    // IP 精确匹配
+	Status   *int      // 1 成功 0 失败（nil 为全部）
+	Start    time.Time // 登录时间范围起（含）
+	End      time.Time // 登录时间范围止（含）
+}
 
 // OperationLog 操作日志（写请求审计）
 type OperationLog struct {
