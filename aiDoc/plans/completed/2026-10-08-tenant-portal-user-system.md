@@ -3,7 +3,7 @@
 
 ## 目标
 
-企业租户可登录租户端（web 内 /tenant/* 路由区）并完成：本租户设备查看、成员自助管理（tenant_admin）、个人中心。身份复用平台应用用户，本服务新增租户级授权层（内置双角色）。
+企业租户可登录租户端（web 内 /tenant-portal/* 路由区）并完成：本租户设备查看、成员自助管理（tenant_admin）、个人中心。身份复用平台应用用户，本服务新增租户级授权层（内置双角色）。
 
 ## 非目标
 
@@ -24,7 +24,7 @@
 
 - 后端：新上下文 tenantmember（biz/data/service/handler）、model/migrations、middleware.TenantRBAC、router /app-api/v1、wire、i18n errKeys；B 端 app-users 角色扩展
 - 平台：../embodied-platform 开放面 ListDevices 过滤参数 + contract_test；本仓 internal/platformsdk 手工同步
-- 前端：web/src/api/tenant、stores/tenantUser、router（/tenant 树 + 守卫分流）、views/tenant/*、i18n
+- 前端：web/src/api/tenant、stores/tenantUser、router（/tenant-portal 树 + 守卫分流）、views/tenant-portal/*、i18n
 - 契约：/app-api/v1 新端点（boundary.md 新增租户面契约段）；平台开放面设备列表参数（两侧留痕）
 
 ## 验收标准
@@ -60,7 +60,7 @@ cd web && npm run typecheck && npm run build
 
 - 新表 tenant_user_roles 由 AutoMigrate 幂等创建；回滚 = 删表 + 回退代码
 - 平台侧 ListDevices 过滤参数为可选，向后兼容，回滚无数据影响
-- 前端 /tenant/* 路由区独立，回滚不影响管理端
+- 前端 /tenant-portal/* 路由区独立，回滚不影响管理端
 
 ## 当前状态
 
@@ -73,7 +73,7 @@ cd web && npm run typecheck && npm run build
 - **平台侧**（../embodied-platform）：开放面 ListDevices 增加可选 tenant_id 过滤（服务层 + HTTP 层 + contract 范围内测试 `TestListDevices_TenantFilter`）；`sdk/client.go` 同口径更新；本仓 `internal/platformsdk` 手工同步。部署备注：租户端 Origin 需登记平台 CORS 白名单。
 - **后端**：新上下文 `tenantmember`（entity/usecase/repo/service）；`tenant_user_roles` 表（AutoMigrate + 三方言 DDL）；`middleware.TenantAdmin`；`/app-api/v1` 新端点：members 全套 CRUD/角色/密码 + 设备四只读端点（列表强制租户过滤、单查/影子/遥测前置归属校验）+ `PUT /profile/password`（本人改密代理平台 `/app-auth/password`）+ profile 扩展 role 字段；`biz/appuser.Gateway` 复用无改动；i18n 哨兵与词条（zh/en）齐备。
 - **B 端管理面**：`/app-users` 创建支持 `tenant_roles`、`PUT /:id/tenant-role`、列表 `tenant_roles` 标注（按租户批量补齐）。
-- **前端租户端**：`/tenant/*` 路由树 + 守卫分流；`api/tenant.ts`（独立 axios + X-Tenant-ID + 401 单飞刷新）；`stores/tenantUser.ts`（独立 token 键 + 登录租户自举）；TenantLayout（租户切换器 + 角色过滤菜单）；页面：TenantLogin/Devices/DeviceDetail/Members/Profile；`locales/{zh-CN,en-US}/tenantPortal.ts`；B 端 AppUsers.vue 角色列与设置弹窗。
+- **前端租户端**：`/tenant-portal/*` 路由树 + 守卫分流；`api/tenant.ts`（独立 axios + X-Tenant-ID + 401 单飞刷新）；`stores/tenantUser.ts`（独立 token 键 + 登录租户自举）；TenantLayout（租户切换器 + 角色过滤菜单）；页面：TenantLogin/Devices/DeviceDetail/Members/Profile；`locales/{zh-CN,en-US}/tenantPortal.ts`；B 端 AppUsers.vue 角色列与设置弹窗。
 - **文档**：决策记录 `notes/implemented/architecture/2026-10-08-tenant-user-system.md`；boundary.md 修正过时「公开 /app-auth/*」描述并新增租户面契约段与 ListDevices tenant_id 说明；system-map 更新模块对应与上下文计数；业务记忆 + lessons（wire Bind 惯用法）。
 
 **与计划的偏差**：

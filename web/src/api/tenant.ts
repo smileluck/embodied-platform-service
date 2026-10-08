@@ -57,8 +57,8 @@ tenantRequest.interceptors.response.use(
         return tenantRequest(config)
       }
       useTenantUserStore().clearAuth()
-      if (!window.location.pathname.startsWith('/tenant/login')) {
-        window.location.href = '/tenant/login?reason=expired'
+      if (!window.location.pathname.startsWith('/tenant-portal/login')) {
+        window.location.href = '/tenant-portal/login?reason=expired'
       }
     }
     if (!config?.silent && response?.status !== 401 && (response?.status === undefined || response.status >= 500)) {

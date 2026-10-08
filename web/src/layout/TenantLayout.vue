@@ -78,20 +78,20 @@ const tenantSel = ref(store.tenantId)
 // 菜单：静态定义按角色过滤（member 不见成员管理；无后端菜单面）
 const menuOptions = computed<MenuOption[]>(() => {
   const opts: MenuOption[] = [
-    { label: t('tenantPortal.menu.devices'), key: '/tenant/devices', icon: () => h(NIcon, null, { default: () => h(HardwareChipOutline) }) },
+    { label: t('tenantPortal.menu.devices'), key: '/tenant-portal/devices', icon: () => h(NIcon, null, { default: () => h(HardwareChipOutline) }) },
   ]
   if (store.isAdmin) {
-    opts.push({ label: t('tenantPortal.menu.members'), key: '/tenant/members', icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) })
+    opts.push({ label: t('tenantPortal.menu.members'), key: '/tenant-portal/members', icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) })
   }
-  opts.push({ label: t('tenantPortal.menu.profile'), key: '/tenant/profile', icon: () => h(NIcon, null, { default: () => h(PersonOutline) }) })
+  opts.push({ label: t('tenantPortal.menu.profile'), key: '/tenant-portal/profile', icon: () => h(NIcon, null, { default: () => h(PersonOutline) }) })
   return opts
 })
 
 const activeKey = computed(() => {
   // 详情页高亮所属菜单
-  if (route.path.startsWith('/tenant/devices')) return '/tenant/devices'
-  if (route.path.startsWith('/tenant/members')) return '/tenant/members'
-  if (route.path.startsWith('/tenant/profile')) return '/tenant/profile'
+  if (route.path.startsWith('/tenant-portal/devices')) return '/tenant-portal/devices'
+  if (route.path.startsWith('/tenant-portal/members')) return '/tenant-portal/members'
+  if (route.path.startsWith('/tenant-portal/profile')) return '/tenant-portal/profile'
   return ''
 })
 
@@ -107,7 +107,7 @@ function onMenuSelect(key: string) {
 // 切换租户：写 store 并整页重载（所有页面数据随 X-Tenant-ID 变化，重载最稳）
 function onTenantSwitch(value: number) {
   store.switchTenant(value)
-  window.location.href = '/tenant/devices'
+  window.location.href = '/tenant-portal/devices'
 }
 
 const userDropdown = computed<DropdownOption[]>(() => [
@@ -118,10 +118,10 @@ const userDropdown = computed<DropdownOption[]>(() => [
 
 async function onUserAction(key: string | number) {
   if (key === 'profile') {
-    router.push('/tenant/profile')
+    router.push('/tenant-portal/profile')
   } else if (key === 'logout') {
     await store.logout()
-    window.location.href = '/tenant/login'
+    window.location.href = '/tenant-portal/login'
   }
 }
 

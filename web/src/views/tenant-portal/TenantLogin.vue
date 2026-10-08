@@ -79,7 +79,7 @@ async function onLogin() {
       return
     }
     message.success(t('tenantPortal.login.success'))
-    router.push('/tenant/devices')
+    router.push('/tenant-portal/devices')
   } catch (e: any) {
     const networkFailed = !e?.response && /fetch/i.test(e?.message || '')
     if (networkFailed) {

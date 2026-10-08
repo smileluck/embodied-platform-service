@@ -76,7 +76,7 @@ web/src/locales/{zh-CN,en-US}（i18n 语言包，后端按 Accept-Language 同�
 | `biz/file`（平台存储代理） | `views/file/Files.vue` |
 | `biz/blacklist` / `biz/monitor` / `biz/log` | `views/system/Blacklist.vue`、`views/system/ServerMonitor.vue`、`views/log/OperationLogs.vue` |
 | `biz/tenant` / `biz/appuser` | `views/tenant/{Tenants,AppUsers}.vue` |
-| `biz/tenantmember`（租户端授权层：/app-api/v1 成员自助管理 + 设备只读，见 [../notes/implemented/architecture/2026-10-08-tenant-user-system.md](../notes/implemented/architecture/2026-10-08-tenant-user-system.md)） | `views/tenant-portal/*`（租户端，/tenant/* 路由树 + `layout/TenantLayout.vue`） |
+| `biz/tenantmember`（租户端授权层：/app-api/v1 成员自助管理 + 设备只读，见 [../notes/implemented/architecture/2026-10-08-tenant-user-system.md](../notes/implemented/architecture/2026-10-08-tenant-user-system.md)） | `views/tenant-portal/*`（租户端，/tenant-portal/* 路由树 + `layout/TenantLayout.vue`） |
 | `biz/device` / `biz/devmodel`（平台开放面） | `views/device/{Devices,DeviceModels}.vue` |
 | `biz/agent` / `biz/mcp` / `biz/skill` | `views/agent/*`、`views/mcp/Servers.vue`、`views/skill/Skills.vue` |
 | `biz/notify` | `views/notify/{Channels,Rules,Records}.vue` |

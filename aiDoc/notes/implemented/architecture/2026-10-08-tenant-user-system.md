@@ -17,7 +17,7 @@
 4. **成员语义**：「移除成员」= `UpdateAppUser` tenant_ids **差集更新**（保留本商户其他租户归属与他商户归属），不删账号；硬删仅存在于 B 端管理面。
 5. **守卫**：最后一个 tenant_admin 不可移除/降级/禁用（防租户失管）；本人不可移除/降级/禁用自己。
 6. **登录自举**：平台 `/app-auth/login` 响应携带 `user.tenant_ids`，前端据此在调本服务 `/profile`（需 X-Tenant-ID）前确定当前租户——解决「租户集合未知 vs profile 需租户头」的先后依赖。
-7. **前端形态**：同应用新增 `/tenant/*` 路由树 + 独立登录页，token 独立存储键（`tenant_access_token`/`tenant_refresh_token`），独立 axios 实例（baseURL `/app-api/v1`，自动带 Bearer + X-Tenant-ID，401 单飞刷新）；静态菜单按 role 过滤（无后端菜单面）。
+7. **前端形态**：同应用新增 `/tenant-portal/*` 路由树 + 独立登录页（前缀避开管理端「租户中心」菜单的 `/tenant/*`，2026-10-08 路由前缀冲突修复后定稿），token 独立存储键（`tenant_access_token`/`tenant_refresh_token`），独立 axios 实例（baseURL `/app-api/v1`，自动带 Bearer + X-Tenant-ID，401 单飞刷新）；静态菜单按 role 过滤（无后端菜单面）。
 8. **平台侧 enabler（跨仓库）**：开放面 `ListDevices` 增加可选 `tenant_id` 过滤（⊆ 商户绑定租户集，越界 403，与 `AppUserFilter.TenantID` 同语义）——否则租户端设备列表只能本地过滤导致分页失真。`../embodied-platform` 与本仓 `internal/platformsdk` 已双侧同步。
 9. **B 端管理面补充**：`/app-users` 创建时可指定 `tenant_roles`、`PUT /:id/tenant-role` 单独设置、列表带角色标注——租户首管理员的来源。
 

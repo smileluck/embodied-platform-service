@@ -91,7 +91,7 @@ const columns = computed<DataTableColumns<TenantDevice>>(() => [
   { title: t('tenantPortal.devices.lastSeen'), key: 'last_seen_at', width: 170, render: (row) => row.last_seen_at || '—' },
   {
     title: t('common.operation'), key: 'actions', width: 90,
-    render: (row) => h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/tenant/devices/${row.id}`) }, { default: () => t('common.detail') }),
+    render: (row) => h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/tenant-portal/devices/${row.id}`) }, { default: () => t('common.detail') }),
   },
 ])
 

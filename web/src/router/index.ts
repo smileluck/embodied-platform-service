@@ -19,12 +19,14 @@ const staticRoutes: RouteRecordRaw[] = [
     children: [], // 动态菜单路由运行时注入（菜单 path 为绝对路径），见 ./dynamic.ts
   },
   // ---- 租户端（企业租户）：独立登录页 + 独立壳，静态路由按角色过滤菜单（无后端菜单面） ----
-  { path: '/tenant/login', name: 'tenant-login', component: () => import('../views/tenant-portal/TenantLogin.vue'), meta: { titleKey: 'tenantPortal.menu.login' } },
+  // 路由前缀用 /tenant-portal 与管理端「租户中心」菜单（/tenant/tenants、/tenant/app-users）
+  // 物理隔离——曾用 /tenant 前缀导致管理端点「租户管理」被守卫误判为租户端而踢去登录页
+  { path: '/tenant-portal/login', name: 'tenant-login', component: () => import('../views/tenant-portal/TenantLogin.vue'), meta: { titleKey: 'tenantPortal.menu.login' } },
   {
-    path: '/tenant',
+    path: '/tenant-portal',
     name: 'tenant-layout-root',
     component: () => import('../layout/TenantLayout.vue'),
-    redirect: '/tenant/devices',
+    redirect: '/tenant-portal/devices',
     children: [
       { path: 'devices', name: 'tenant-devices', component: () => import('../views/tenant-portal/Devices.vue'), meta: { titleKey: 'tenantPortal.menu.devices' } },
       { path: 'devices/:id', name: 'tenant-device-detail', component: () => import('../views/tenant-portal/DeviceDetail.vue'), meta: { titleKey: 'tenantPortal.menu.deviceDetail', hideInMenu: true } },
@@ -40,19 +42,20 @@ const router = createRouter({
 })
 
 // 无需登录即可访问的路径（错误页允许直接访问排查问题）
-const PUBLIC_PATHS = new Set(['/login', '/tenant/login', '/404', '/500'])
+const PUBLIC_PATHS = new Set(['/login', '/tenant-portal/login', '/404', '/500'])
 
 const loginRedirect = () => ({ path: '/login', query: { reason: 'expired' }, replace: true })
-const tenantLoginRedirect = () => ({ path: '/tenant/login', query: { reason: 'expired' }, replace: true })
+const tenantLoginRedirect = () => ({ path: '/tenant-portal/login', query: { reason: 'expired' }, replace: true })
 
 // 路由守卫（return 风格）：未登录跳登录页；登录后按菜单动态注册路由。
 // 用返回值而非 next()——导航被 401 拦截器的新导航取消时，返回值会被安全忽略，
 // 不会像"对已取消导航调 next()"那样抛异常导致白屏。
 router.beforeEach(async (to) => {
-  // ---- 租户端分流：/tenant/* 用租户端 token（与管理端完全隔离） ----
-  if (to.path.startsWith('/tenant')) {
+  // ---- 租户端分流：/tenant-portal/* 用租户端 token（与管理端完全隔离；
+  // 前缀与管理端 /tenant/* 菜单不重叠，见 staticRoutes 注释） ----
+  if (to.path.startsWith('/tenant-portal')) {
     const store = useTenantUserStore()
-    if (to.path === '/tenant/login') return true
+    if (to.path === '/tenant-portal/login') return true
     if (!store.accessToken || !store.tenantId) {
       // 当前租户在登录时已按平台归属集自举（见 stores/tenantUser.ts login），
       // 此处无租户即视为会话不完整
@@ -67,9 +70,9 @@ router.beforeEach(async (to) => {
         return tenantLoginRedirect()
       }
     }
-    // member 访问 admin-only 页面（/tenant/members）跳回设备列表
+    // member 访问 admin-only 页面（成员管理）跳回设备列表
     if (to.meta?.adminOnly && !store.isAdmin) {
-      return { path: '/tenant/devices', replace: true }
+      return { path: '/tenant-portal/devices', replace: true }
     }
     return true
   }
@@ -113,7 +116,7 @@ router.afterEach((to) => {
   const { t } = i18n.global
   const titleKey = to.meta?.titleKey as string | undefined
   const title = (titleKey ? t(titleKey) : (to.meta?.title as string)) || ''
-  const brand = to.path.startsWith('/tenant') ? 'Tenant Portal' : 'SmileX Admin'
+  const brand = to.path.startsWith('/tenant-portal') ? 'Tenant Portal' : 'SmileX Admin'
   document.title = title ? `${title} - ${brand}` : brand
 })
 
