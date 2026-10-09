@@ -25,6 +25,7 @@
 - [lessons/2026-10-08-obsolete-perm-codes-restore.md](lessons/2026-10-08-obsolete-perm-codes-restore.md) — 恢复旧菜单/权限 code 前必须先移出 obsoletePermCodes 淘汰清单，否则种子被 migrateLegacy 反复清掉
 - [lessons/2026-10-09-vue-i18n-literal-braces.md](lessons/2026-10-09-vue-i18n-literal-braces.md) — locale 文案要展示字面 `{xxx}`（如 source_topic 占位符）时，调用处必须传同名字面参数，否则 vue-i18n 当插值变量解析
 - [lessons/2026-10-09-menu-seed-softdelete-restore.md](lessons/2026-10-09-menu-seed-softdelete-restore.md) — 种子「Unscoped 判存在 + 缺失插入」必须配软删恢复分支；菜单软删会引发按钮孤儿化次生症状
+- [lessons/2026-10-09-debug-server-port-occupancy.md](lessons/2026-10-09-debug-server-port-occupancy.md) — 调试二进制占用 dev 端口会让 air 热重载静默失效（bind 失败只进日志、build text-file-busy 致 air wedge）；「改了不生效」先 lsof 确认监听者
 
 ## 维护说明
 
