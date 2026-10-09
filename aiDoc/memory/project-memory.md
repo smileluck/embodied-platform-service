@@ -35,3 +35,4 @@
 - 索引每条一行：文件相对路径 + 一句话摘要
 
 - [lessons/2026-10-09-new-table-legacy-name-collision.md](lessons/2026-10-09-new-table-legacy-name-collision.md) — 新增本地表先查 migrateLegacy 清理名单，撞旧表名会被每次启动反复清空（tenant_user_roles→tenant_user_role_binds）
+- [lessons/2026-10-09-setup-tdz-ref-before-declaration.md](lessons/2026-10-09-setup-tdz-ref-before-declaration.md) — script setup 顶层 TDZ：函数先调用、const ref 后声明，setup 抛错整页白屏；排查白屏先查顶层执行顺序
