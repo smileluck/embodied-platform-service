@@ -1,6 +1,7 @@
-// 租户端业务端点（/app-api/v1）：成员自助管理（TenantAdmin 鉴权）与
-// 设备只读（归属即准入，v1 不含指令下发）。租户上下文一律取自 AppAuth
-// 闸门（X-Tenant-ID 解析的平台租户 ID）与认证主体，不信任客户端参数。
+// 租户门户业务端点（/tenant-api/v1）：认证代理（登录/刷新经本服务代理平台公开 API，
+// 服务端挂 LoginIPGuard/限流）+ 自身数据（profile/改密）+ 成员自治（RequireTenantPerm
+// member:* 精确匹配）+ 设备只读（device:list）。租户上下文一律取自 TenantAuth 自省
+// （tid 单租户绑定），不信任客户端参数。
 package server
 
 import (
@@ -10,7 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
-	biztenantmember "github.com/smilex/smilex-admin-gin/internal/biz/tenantmember"
+	biztenantuser "github.com/smilex/smilex-admin-gin/internal/biz/tenantuser"
 	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 	"github.com/smilex/smilex-admin-gin/internal/server/middleware"
 	devicesvc "github.com/smilex/smilex-admin-gin/internal/service/device"
@@ -22,10 +23,10 @@ import (
 // errDeviceNotInTenant 设备不属于当前租户（404 语义，不泄露存在性——与平台开放面越权口径一致）
 var errDeviceNotInTenant = errors.New("设备不存在或不属于当前租户")
 
-// tenantCtx 取当前租户平台 ID 与操作者 app_user ID（AppAuth 之后可用）
+// tenantCtx 取当前租户平台 ID 与操作者 tenant_user ID（TenantAuth 之后可用）
 func tenantCtx(c *gin.Context) (tenantPlatformID uint, actorID uint, ok bool) {
-	tn := middleware.AppAuthTenant(c)
-	sub := middleware.AppAuthSubject(c)
+	tn := middleware.TenantAuthTenant(c)
+	sub := middleware.TenantAuthSubject(c)
 	if tn == nil || sub == nil {
 		response.Unauthorized(c, "unauthenticated")
 		return 0, 0, false
@@ -33,9 +34,98 @@ func tenantCtx(c *gin.Context) (tenantPlatformID uint, actorID uint, ok bool) {
 	return tn.PlatformID, sub.UserID, true
 }
 
-// ---- 成员自助管理（仅 tenant_admin，路由组已挂 TenantAdmin） ----
+// ---- 认证代理（公开：平台 /tenant-api/v1/auth，token 双用于平台与本系统） ----
 
-func (s *HTTPServer) appApiListMembers(c *gin.Context) {
+type tenantPortalLoginRequest struct {
+	Username string `json:"username" binding:"required,min=3,max=64"`
+	Password string `json:"password" binding:"required,min=6,max=20"`
+}
+
+func (s *HTTPServer) tenantPortalLogin(c *gin.Context) {
+	var req tenantPortalLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	pair, err := s.tenantIds.TenantLogin(c.Request.Context(), req.Username, req.Password)
+	if err != nil {
+		s.platformErr(c, err) // 401 密码错等平台业务错误按状态码透传
+		return
+	}
+	response.OK(c, pair)
+}
+
+type tenantPortalRefreshRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+func (s *HTTPServer) tenantPortalRefresh(c *gin.Context) {
+	var req tenantPortalRefreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	pair, err := s.tenantIds.TenantRefresh(c.Request.Context(), req.RefreshToken)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, pair)
+}
+
+// ---- 自身数据（TenantAuth 之后：profile/改密） ----
+
+// tenantPortalProfile 门户 profile：平台自省主体 + 本地租户投影 + 权限码集合
+func (s *HTTPServer) tenantPortalProfile(c *gin.Context) {
+	sub := middleware.TenantAuthSubject(c)
+	tn := middleware.TenantAuthTenant(c)
+	if sub == nil || tn == nil {
+		response.Unauthorized(c, "unauthenticated")
+		return
+	}
+	response.OK(c, gin.H{
+		"user": gin.H{
+			"id": sub.UserID, "username": sub.Username, "nickname": sub.Nickname,
+			"tenant_id": sub.TenantID,
+		},
+		"tenant": gin.H{
+			"platform_id": tn.PlatformID, "local_id": tn.ID,
+			"name": tn.Name, "code": tn.Code, "status": tn.Status,
+		},
+		"perm_codes": sub.PermCodes,
+	})
+}
+
+// tenantPortalChangePassword 本人修改密码（持本人 token 代理平台，平台校验旧密码）
+func (s *HTTPServer) tenantPortalChangePassword(c *gin.Context) {
+	if middleware.TenantAuthSubject(c) == nil {
+		response.Unauthorized(c, "unauthenticated")
+		return
+	}
+	var req struct {
+		OldPassword string `json:"old_password" binding:"required,min=6,max=64"`
+		NewPassword string `json:"new_password" binding:"required,min=6,max=20"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	err := s.tenantIds.TenantChangePassword(c.Request.Context(), middleware.TenantAuthToken(c), req.OldPassword, req.NewPassword)
+	switch {
+	case err == nil:
+		response.OK(c, nil)
+	case isErr(err, bizauth.ErrInvalidToken):
+		response.FailI18n(c, http.StatusUnauthorized, response.CodeUnauthorized, err)
+	case isErr(err, bizauth.ErrPlatformUnavailable):
+		response.FailI18n(c, http.StatusServiceUnavailable, response.CodeErr, err)
+	default:
+		s.platformErr(c, err) // 旧密码错误等平台 4xx 按状态码透传
+	}
+}
+
+// ---- 成员自治（member:* 权限码；tenant_id 锁定认证主体 tid） ----
+
+func (s *HTTPServer) tenantApiListMembers(c *gin.Context) {
 	tid, _, ok := tenantCtx(c)
 	if !ok {
 		return
@@ -49,7 +139,21 @@ func (s *HTTPServer) appApiListMembers(c *gin.Context) {
 	response.OK(c, listResult{List: list, Page: pg})
 }
 
-func (s *HTTPServer) appApiCreateMember(c *gin.Context) {
+// tenantApiListMemberRoles 本租户角色选项（成员表单数据源；member:role:list）
+func (s *HTTPServer) tenantApiListMemberRoles(c *gin.Context) {
+	tid, _, ok := tenantCtx(c)
+	if !ok {
+		return
+	}
+	roles, err := s.tenantmember.ListRoles(c.Request.Context(), tid)
+	if err != nil {
+		s.tenantMemberErr(c, err)
+		return
+	}
+	response.OK(c, roles)
+}
+
+func (s *HTTPServer) tenantApiCreateMember(c *gin.Context) {
 	tid, _, ok := tenantCtx(c)
 	if !ok {
 		return
@@ -67,7 +171,7 @@ func (s *HTTPServer) appApiCreateMember(c *gin.Context) {
 	response.OK(c, vo)
 }
 
-func (s *HTTPServer) appApiUpdateMember(c *gin.Context) {
+func (s *HTTPServer) tenantApiUpdateMember(c *gin.Context) {
 	tid, _, ok := tenantCtx(c)
 	if !ok {
 		return
@@ -88,7 +192,7 @@ func (s *HTTPServer) appApiUpdateMember(c *gin.Context) {
 	response.OK(c, nil)
 }
 
-func (s *HTTPServer) appApiSetMemberStatus(c *gin.Context) {
+func (s *HTTPServer) tenantApiSetMemberStatus(c *gin.Context) {
 	tid, actorID, ok := tenantCtx(c)
 	if !ok {
 		return
@@ -109,7 +213,7 @@ func (s *HTTPServer) appApiSetMemberStatus(c *gin.Context) {
 	response.OK(c, nil)
 }
 
-func (s *HTTPServer) appApiResetMemberPassword(c *gin.Context) {
+func (s *HTTPServer) tenantApiResetMemberPassword(c *gin.Context) {
 	tid, _, ok := tenantCtx(c)
 	if !ok {
 		return
@@ -130,7 +234,28 @@ func (s *HTTPServer) appApiResetMemberPassword(c *gin.Context) {
 	response.OK(c, nil)
 }
 
-func (s *HTTPServer) appApiRemoveMember(c *gin.Context) {
+func (s *HTTPServer) tenantApiSetMemberRoles(c *gin.Context) {
+	tid, actorID, ok := tenantCtx(c)
+	if !ok {
+		return
+	}
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	var req tenantmembersvc.SetRolesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	if err := s.tenantmember.SetRoles(c.Request.Context(), tid, id, actorID, req.RoleIDs); err != nil {
+		s.tenantMemberErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) tenantApiRemoveMember(c *gin.Context) {
 	tid, actorID, ok := tenantCtx(c)
 	if !ok {
 		return
@@ -146,76 +271,29 @@ func (s *HTTPServer) appApiRemoveMember(c *gin.Context) {
 	response.OK(c, nil)
 }
 
-func (s *HTTPServer) appApiSetMemberRole(c *gin.Context) {
-	tid, actorID, ok := tenantCtx(c)
-	if !ok {
-		return
-	}
-	id, ok := idParam(c)
-	if !ok {
-		return
-	}
-	var req tenantmembersvc.SetRoleRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
-		return
-	}
-	if err := s.tenantmember.SetRole(c.Request.Context(), tid, id, actorID, req.Role); err != nil {
-		s.tenantMemberErr(c, err)
-		return
-	}
-	response.OK(c, nil)
-}
-
-// ---- 个人中心（本人数据：持本人 token 代理平台，与 B 端 /auth/password 同模式） ----
-
-// appApiChangePasswordRequest 本人修改密码入参（平台校验旧密码并吊销其他端会话）
-type appApiChangePasswordRequest struct {
-	OldPassword string `json:"old_password" binding:"required,min=6,max=64"`
-	NewPassword string `json:"new_password" binding:"required,min=6,max=20"`
-}
-
-// appApiChangePassword PUT /app-api/v1/profile/password：代理平台 PUT /app-auth/password
-func (s *HTTPServer) appApiChangePassword(c *gin.Context) {
-	if middleware.AppAuthSubject(c) == nil {
-		response.Unauthorized(c, "unauthenticated")
-		return
-	}
-	var req appApiChangePasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
-		return
-	}
-	err := s.appIds.AppChangePassword(c.Request.Context(), middleware.AppAuthToken(c), req.OldPassword, req.NewPassword)
-	switch {
-	case err == nil:
-		response.OK(c, nil)
-	case isErr(err, bizauth.ErrInvalidToken):
-		response.FailI18n(c, http.StatusUnauthorized, response.CodeUnauthorized, err)
-	case isErr(err, bizauth.ErrPlatformUnavailable):
-		response.FailI18n(c, http.StatusServiceUnavailable, response.CodeErr, err)
-	default:
-		s.platformErr(c, err) // 旧密码错误等平台 4xx 按状态码透传
-	}
-}
-
-// tenantMemberErr 成员操作错误映射：本地守卫 404/409/400，其余沿应用用户开放面映射
+// tenantMemberErr 成员操作错误映射：本地守卫 404/409/400，其余沿开放面 tenant-user 域映射
 func (s *HTTPServer) tenantMemberErr(c *gin.Context, err error) {
 	switch {
-	case isErr(err, biztenantmember.ErrMemberNotInTenant):
+	case isErr(err, tenantmembersvc.ErrMemberNotInTenant):
 		response.FailI18n(c, http.StatusNotFound, response.CodeErr, err)
-	case isErr(err, biztenantmember.ErrLastTenantAdmin):
+	case isErr(err, tenantmembersvc.ErrLastTenantAdmin):
 		response.FailI18n(c, http.StatusConflict, response.CodeErr, err)
-	case isErr(err, biztenantmember.ErrCannotModifySelf):
+	case isErr(err, tenantmembersvc.ErrCannotModifySelf):
 		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
+	case isErr(err, biztenantuser.ErrTenantUserNotFound):
+		response.FailI18n(c, http.StatusNotFound, response.CodeErr, err)
+	case isErr(err, biztenantuser.ErrTenantNotInScope):
+		response.FailI18n(c, http.StatusForbidden, response.CodeForbidden, err)
+	case isErr(err, biztenantuser.ErrDuplicateUsername):
+		response.FailI18n(c, http.StatusConflict, response.CodeErr, err)
 	default:
-		s.appuserErr(c, err)
+		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 	}
 }
 
-// ---- 设备只读（归属即准入：列表强制按当前租户过滤，单查先验归属） ----
+// ---- 设备只读（device:list；列表强制按当前租户过滤，单查先验归属） ----
 
-func (s *HTTPServer) appApiListDevices(c *gin.Context) {
+func (s *HTTPServer) tenantApiListDevices(c *gin.Context) {
 	tid, _, ok := tenantCtx(c)
 	if !ok {
 		return
@@ -232,8 +310,8 @@ func (s *HTTPServer) appApiListDevices(c *gin.Context) {
 	response.OK(c, listResult{List: list, Page: pg})
 }
 
-// appApiDeviceScoped 取设备并校验归属当前租户（越权 404 语义不泄露存在性）
-func (s *HTTPServer) appApiDeviceScoped(c *gin.Context, tid, id uint) (*platformsdk.Device, error) {
+// tenantApiDeviceScoped 取设备并校验归属当前租户（越权 404 语义不泄露存在性）
+func (s *HTTPServer) tenantApiDeviceScoped(c *gin.Context, tid, id uint) (*platformsdk.Device, error) {
 	dev, err := s.device.Get(c.Request.Context(), id)
 	if err != nil {
 		return nil, err
@@ -244,7 +322,7 @@ func (s *HTTPServer) appApiDeviceScoped(c *gin.Context, tid, id uint) (*platform
 	return dev, nil
 }
 
-func (s *HTTPServer) appApiGetDevice(c *gin.Context) {
+func (s *HTTPServer) tenantApiGetDevice(c *gin.Context) {
 	tid, _, ok := tenantCtx(c)
 	if !ok {
 		return
@@ -253,7 +331,7 @@ func (s *HTTPServer) appApiGetDevice(c *gin.Context) {
 	if !ok {
 		return
 	}
-	dev, err := s.appApiDeviceScoped(c, tid, id)
+	dev, err := s.tenantApiDeviceScoped(c, tid, id)
 	if err != nil {
 		s.tenantDeviceErr(c, err)
 		return
@@ -261,7 +339,7 @@ func (s *HTTPServer) appApiGetDevice(c *gin.Context) {
 	response.OK(c, dev)
 }
 
-func (s *HTTPServer) appApiGetDeviceShadow(c *gin.Context) {
+func (s *HTTPServer) tenantApiGetDeviceShadow(c *gin.Context) {
 	tid, _, ok := tenantCtx(c)
 	if !ok {
 		return
@@ -270,7 +348,7 @@ func (s *HTTPServer) appApiGetDeviceShadow(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if _, err := s.appApiDeviceScoped(c, tid, id); err != nil {
+	if _, err := s.tenantApiDeviceScoped(c, tid, id); err != nil {
 		s.tenantDeviceErr(c, err)
 		return
 	}
@@ -282,7 +360,7 @@ func (s *HTTPServer) appApiGetDeviceShadow(c *gin.Context) {
 	response.OK(c, shadow)
 }
 
-func (s *HTTPServer) appApiGetDeviceTelemetry(c *gin.Context) {
+func (s *HTTPServer) tenantApiGetDeviceTelemetry(c *gin.Context) {
 	tid, _, ok := tenantCtx(c)
 	if !ok {
 		return
@@ -291,7 +369,7 @@ func (s *HTTPServer) appApiGetDeviceTelemetry(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if _, err := s.appApiDeviceScoped(c, tid, id); err != nil {
+	if _, err := s.tenantApiDeviceScoped(c, tid, id); err != nil {
 		s.tenantDeviceErr(c, err)
 		return
 	}

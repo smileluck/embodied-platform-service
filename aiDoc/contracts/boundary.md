@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-08 -->
+<!-- last-updated: 2026-10-09 -->
 # 契约层（boundary）
 
 > 本项目为 mixed：本文件维护三条契约边界——**web 前端 ↔ 本服务 API**、**本服务 ↔ 平台开放面（服务端 HMAC）**、**本服务 ↔ 平台认证公开 API（管理端登录代理）**。契约结构来自真实代码。
@@ -70,6 +70,7 @@
 - 平台信封同为 `{code,msg,data}`，`code!=0` 报错；`cmd/server/main.go:checkPlatform` 启动时异步自检连通性
 - `ListDevices` 支持可选 `tenant_id` 单租户过滤（平台租户 ID，⊆ 商户绑定租户集，越界 403）——租户端设备列表依赖此参数（2026-10-08 起，双侧已同步）
 - 型号/物模型商户归属收敛（2026-10-08 起，跟随平台 `bdd1c9b9`）：`DeviceModel`/`TMNode` 带 `merchant_id`（0=通用 / >0=商户独立）；型号读=通用+本商户，创建 merchant_id 平台注入，**更新/删除仅本商户独立型号（通用/他商户统一 404，本服务 DeleteModel 不再幂等放行 404）**；物模型节点选择器同口径收敛；设备查询叠加型号可见性（他商户独立型号下设备列表过滤、子资源 404），设备注册 `model_id` 须对商户可见（否则 404）
+- 数据映射域（2026-10-09 起，平台 `/open-api/v1/data-mappings*`，scope `mapping:*`）：15 端点全量代理到本服务 `/api/v1/data-mappings*`（biz `MappingGateway` ← data `MappingGatewayAdapter` 纯透传，无本地表）；同口径商户收敛（读=通用+本商户、写仅本商户独立 404、创建 merchant_id 平台注入）；版本管理=单草稿制 + 发布不可变 + 追加式回滚（`publish=true` 一步回退）；`GET /data-mappings/effective?model_id=` 无已发布版本返回 `data: null`（非错误）；平台信封错误经 `platformErr`（内聚 SDK 错误归一）按状态码透传
 - 配置：`configs/config.yaml` 的 `platform` 节（`appKey/appSecret`、storage `baseURL/apiKeyID`）
 - **契约以平台仓库为准**（`embodied-platform/internal/server/openapi.go`）；接口/签名/字段变更须两侧仓库分别留痕（项目集根 `../../AGENTS.md`）
 

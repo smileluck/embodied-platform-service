@@ -588,3 +588,282 @@ func (c *Client) ResetAppUserPassword(ctx context.Context, id uint, password str
 func (c *Client) DeleteAppUser(ctx context.Context, id uint) error {
 	return c.do(ctx, http.MethodDelete, "/app-users/"+strconv.FormatUint(uint64(id), 10), nil, nil, nil, nil)
 }
+
+// ---- 租户用户域（scope tenant-user:* / tenant-role:*；租户门户运营账号，2026-10-08） ----
+
+// TenantUserFilter 租户用户列表过滤（tenant_id 为平台租户 ID，越界=空集而非报错）
+type TenantUserFilter struct {
+	Keyword  string // 用户名/昵称模糊
+	Phone    string // 手机号精确
+	Status   *int   // 1 启用 0 禁用
+	TenantID uint   // 平台租户 ID（0=不过滤）
+}
+
+// ListTenantUsers 本商户可见租户用户列表（归属租户∈商户租户集；页从 1 起）
+func (c *Client) ListTenantUsers(ctx context.Context, page, pageSize int, filter TenantUserFilter) ([]*TenantUser, *Page, error) {
+	q := url.Values{}
+	q.Set("page", strconv.Itoa(page))
+	q.Set("page_size", strconv.Itoa(pageSize))
+	if filter.Keyword != "" {
+		q.Set("kw", filter.Keyword)
+	}
+	if filter.Phone != "" {
+		q.Set("phone", filter.Phone)
+	}
+	if filter.Status != nil {
+		q.Set("status", strconv.Itoa(*filter.Status))
+	}
+	if filter.TenantID != 0 {
+		q.Set("tenant_id", strconv.FormatUint(uint64(filter.TenantID), 10))
+	}
+	var list []*TenantUser
+	pg, err := c.doList(ctx, "/tenant-users", q, &list)
+	return list, pg, err
+}
+
+// CreateTenantUser 创建租户门户运营账号（tenant_id 须∈商户租户集否则 403；username 冲突 409）
+func (c *Client) CreateTenantUser(ctx context.Context, req TenantUserCreateRequest) (*TenantUser, error) {
+	var out TenantUser
+	if err := c.do(ctx, http.MethodPost, "/tenant-users", nil, req, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// UpdateTenantUser 更新租户用户资料（本商户不可见/不存在统一 404；tenant_id 不可改）
+func (c *Client) UpdateTenantUser(ctx context.Context, id uint, req TenantUserUpdateRequest) error {
+	return c.do(ctx, http.MethodPut, "/tenant-users/"+strconv.FormatUint(uint64(id), 10), nil, req, nil, nil)
+}
+
+// SetTenantUserStatus 启用/禁用租户用户（禁用后门户登录/token 校验即时失败）
+func (c *Client) SetTenantUserStatus(ctx context.Context, id uint, enabled bool) error {
+	status := 0
+	if enabled {
+		status = 1
+	}
+	return c.do(ctx, http.MethodPut, "/tenant-users/"+strconv.FormatUint(uint64(id), 10)+"/status",
+		nil, &struct {
+			Status int `json:"status"`
+		}{Status: status}, nil, nil)
+}
+
+// ResetTenantUserPassword 管理员重置密码（旧密码立即失效；不可见/不存在 404）
+func (c *Client) ResetTenantUserPassword(ctx context.Context, id uint, password string) error {
+	return c.do(ctx, http.MethodPut, "/tenant-users/"+strconv.FormatUint(uint64(id), 10)+"/password",
+		nil, &struct {
+			Password string `json:"password"`
+		}{Password: password}, nil, nil)
+}
+
+// SetTenantUserRoles 全量替换角色（role_ids 须全部属于该用户归属租户且该租户在商户租户集内）
+func (c *Client) SetTenantUserRoles(ctx context.Context, id uint, roleIDs []uint) error {
+	return c.do(ctx, http.MethodPut, "/tenant-users/"+strconv.FormatUint(uint64(id), 10)+"/roles",
+		nil, &struct {
+			RoleIDs []uint `json:"role_ids"`
+		}{RoleIDs: roleIDs}, nil, nil)
+}
+
+// DeleteTenantUser 删除租户用户（平台软删+墓碑释放 username 槽位）
+func (c *Client) DeleteTenantUser(ctx context.Context, id uint) error {
+	return c.do(ctx, http.MethodDelete, "/tenant-users/"+strconv.FormatUint(uint64(id), 10), nil, nil, nil, nil)
+}
+
+// TenantRoleFilter 租户角色列表过滤
+type TenantRoleFilter struct {
+	Keyword  string // 名称/编码模糊
+	TenantID uint   // 平台租户 ID（0=不过滤）
+}
+
+// ListTenantRoles 本商户可见租户角色列表（页从 1 起）
+func (c *Client) ListTenantRoles(ctx context.Context, page, pageSize int, filter TenantRoleFilter) ([]*TenantRole, *Page, error) {
+	q := url.Values{}
+	q.Set("page", strconv.Itoa(page))
+	q.Set("page_size", strconv.Itoa(pageSize))
+	if filter.Keyword != "" {
+		q.Set("kw", filter.Keyword)
+	}
+	if filter.TenantID != 0 {
+		q.Set("tenant_id", strconv.FormatUint(uint64(filter.TenantID), 10))
+	}
+	var list []*TenantRole
+	pg, err := c.doList(ctx, "/tenant-roles", q, &list)
+	return list, pg, err
+}
+
+// CreateTenantRole 创建租户角色（tenant_id 须∈商户租户集否则 403；perm_codes 目录校验在平台）
+func (c *Client) CreateTenantRole(ctx context.Context, req TenantRoleCreateRequest) (*TenantRole, error) {
+	var out TenantRole
+	if err := c.do(ctx, http.MethodPost, "/tenant-roles", nil, req, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// UpdateTenantRole 更新租户角色（名称/备注/权限点；code 不可改；不可见统一 404）
+func (c *Client) UpdateTenantRole(ctx context.Context, id uint, req TenantRoleUpdateRequest) error {
+	return c.do(ctx, http.MethodPut, "/tenant-roles/"+strconv.FormatUint(uint64(id), 10), nil, req, nil, nil)
+}
+
+// SetTenantRolePerms 权限点全量替换（与更新共用语义，独立端点便于 scope 粒度控制）
+func (c *Client) SetTenantRolePerms(ctx context.Context, id uint, permCodes []string) error {
+	return c.do(ctx, http.MethodPut, "/tenant-roles/"+strconv.FormatUint(uint64(id), 10)+"/perms",
+		nil, &struct {
+			PermCodes []string `json:"perm_codes"`
+		}{PermCodes: permCodes}, nil, nil)
+}
+
+// DeleteTenantRole 删除租户角色（已分配用户时 409）
+func (c *Client) DeleteTenantRole(ctx context.Context, id uint) error {
+	return c.do(ctx, http.MethodDelete, "/tenant-roles/"+strconv.FormatUint(uint64(id), 10), nil, nil, nil, nil)
+}
+
+// ListTenantUserPerms 租户门户权限点目录（角色配权 UI 数据源；scope tenant-role:list。
+// 目录动态化：返回 = 平台 base 目录 ∪ 本商户注册码）
+func (c *Client) ListTenantUserPerms(ctx context.Context) ([]*TenantUserPermDef, error) {
+	var out []*TenantUserPermDef
+	if err := c.do(ctx, http.MethodGet, "/tenant-user-perms", nil, nil, &out, nil); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// SyncTenantUserPerms 商户权限码注册表全量同步（幂等、只增不删；scope tenant-role:syncPerms。
+// 商户端注册表是事实源，启动对账用；同步后注册码即可在本商户角色配权中勾选）
+func (c *Client) SyncTenantUserPerms(ctx context.Context, perms []TenantUserPermDef) error {
+	return c.do(ctx, http.MethodPut, "/tenant-user-perms", nil, TenantUserPermSyncRequest{Perms: perms}, nil, nil)
+}
+
+// ---- 数据映射域（scope mapping:*；2026-10-09）----
+// 收敛口径：读=通用+本商户、写=仅本商户独立资源（通用/他商户统一 404 不泄露存在性）、
+// 创建 merchant_id 服务端注入调用方（入参不收）。版本管理=单草稿制 + 发布不可变 + 追加式回滚。
+
+// ListMappingDefs 映射资源列表（kw 模糊 + 分页；范围=通用 + 本商户独立）
+func (c *Client) ListMappingDefs(ctx context.Context, kw string, page, pageSize int) ([]*DataMappingDef, *Page, error) {
+	q := url.Values{}
+	q.Set("page", strconv.Itoa(page))
+	q.Set("page_size", strconv.Itoa(pageSize))
+	if kw != "" {
+		q.Set("kw", kw)
+	}
+	var list []*DataMappingDef
+	pg, err := c.doList(ctx, "/data-mappings", q, &list)
+	return list, pg, err
+}
+
+// GetMappingDef 映射资源详情（不可见/不存在统一 404）
+func (c *Client) GetMappingDef(ctx context.Context, id uint) (*DataMappingDef, error) {
+	var out DataMappingDef
+	if err := c.do(ctx, http.MethodGet, "/data-mappings/"+strconv.FormatUint(uint64(id), 10), nil, nil, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// CreateMappingDef 创建映射资源 + 首版草稿（一步完成；merchant_id=调用方商户）
+func (c *Client) CreateMappingDef(ctx context.Context, req MappingCreateRequest) (*MappingCreateResult, error) {
+	var out MappingCreateResult
+	if err := c.do(ctx, http.MethodPost, "/data-mappings", nil, req, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// DeleteMappingDef 删除映射资源（仍有版本或型号绑定 409；仅本商户独立资源可删）
+func (c *Client) DeleteMappingDef(ctx context.Context, id uint) error {
+	return c.do(ctx, http.MethodDelete, "/data-mappings/"+strconv.FormatUint(uint64(id), 10), nil, nil, nil, nil)
+}
+
+// ListMappingVersions 资源版本列表（含草稿；def 不可见 404；响应 {list} 无分页）
+func (c *Client) ListMappingVersions(ctx context.Context, defID uint) ([]*DataMappingVersion, error) {
+	var raw struct {
+		List []*DataMappingVersion `json:"list"`
+	}
+	path := "/data-mappings/" + strconv.FormatUint(uint64(defID), 10) + "/versions"
+	if err := c.do(ctx, http.MethodGet, path, nil, nil, &raw, nil); err != nil {
+		return nil, err
+	}
+	return raw.List, nil
+}
+
+// CreateMappingDraft 资源下新建草稿（单草稿制：已有草稿 409；def 须本商户独立）
+func (c *Client) CreateMappingDraft(ctx context.Context, defID uint, req MappingDraftRequest) (*DataMappingVersion, error) {
+	var out DataMappingVersion
+	path := "/data-mappings/" + strconv.FormatUint(uint64(defID), 10) + "/versions"
+	if err := c.do(ctx, http.MethodPost, path, nil, req, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// GetMappingVersion 版本详情（所属 def 不可见 404）
+func (c *Client) GetMappingVersion(ctx context.Context, versionID uint) (*DataMappingVersion, error) {
+	var out DataMappingVersion
+	if err := c.do(ctx, http.MethodGet, "/data-mappings/versions/"+strconv.FormatUint(uint64(versionID), 10), nil, nil, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// UpdateMappingDraft 更新草稿（仅 draft 可改，已发布 409）
+func (c *Client) UpdateMappingDraft(ctx context.Context, versionID uint, req MappingDraftUpdateRequest) error {
+	return c.do(ctx, http.MethodPut, "/data-mappings/versions/"+strconv.FormatUint(uint64(versionID), 10), nil, req, nil, nil)
+}
+
+// PublishMapping 发布版本（对已绑定型号逐一做物模型一致性校验，不符 400/409）
+func (c *Client) PublishMapping(ctx context.Context, versionID uint) (*DataMappingVersion, error) {
+	var out DataMappingVersion
+	path := "/data-mappings/versions/" + strconv.FormatUint(uint64(versionID), 10) + "/publish"
+	if err := c.do(ctx, http.MethodPost, path, nil, nil, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// RollbackMapping 回退到指定已发布版本（publish=true 建回滚草稿后直接发布，一步完成）
+func (c *Client) RollbackMapping(ctx context.Context, versionID uint, publish bool) (*DataMappingVersion, error) {
+	var out DataMappingVersion
+	path := "/data-mappings/versions/" + strconv.FormatUint(uint64(versionID), 10) + "/rollback"
+	if err := c.do(ctx, http.MethodPost, path, nil, &MappingRollbackRequest{Publish: publish}, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// DeleteMappingVersion 删除版本（当前生效版本 409；仅可删草稿与历史已发布版本）
+func (c *Client) DeleteMappingVersion(ctx context.Context, versionID uint) error {
+	return c.do(ctx, http.MethodDelete, "/data-mappings/versions/"+strconv.FormatUint(uint64(versionID), 10), nil, nil, nil, nil)
+}
+
+// ListMappingBoundModels 资源已绑定的型号列表（def 不可见 404；响应 {list} 无分页）
+func (c *Client) ListMappingBoundModels(ctx context.Context, defID uint) ([]*DeviceModel, error) {
+	var raw struct {
+		List []*DeviceModel `json:"list"`
+	}
+	path := "/data-mappings/" + strconv.FormatUint(uint64(defID), 10) + "/bindings"
+	if err := c.do(ctx, http.MethodGet, path, nil, nil, &raw, nil); err != nil {
+		return nil, err
+	}
+	return raw.List, nil
+}
+
+// BindMappingModel 绑定型号（目标型号须对调用商户可见否则 404；商户归属不一致 409；重复绑定幂等）
+func (c *Client) BindMappingModel(ctx context.Context, defID, modelID uint) error {
+	path := "/data-mappings/" + strconv.FormatUint(uint64(defID), 10) + "/bindings"
+	return c.do(ctx, http.MethodPost, path, nil, &MappingBindRequest{ModelID: modelID}, nil, nil)
+}
+
+// UnbindMappingModel 解绑型号（未绑定幂等成功）
+func (c *Client) UnbindMappingModel(ctx context.Context, defID, modelID uint) error {
+	path := "/data-mappings/" + strconv.FormatUint(uint64(defID), 10) + "/bindings/" + strconv.FormatUint(uint64(modelID), 10)
+	return c.do(ctx, http.MethodDelete, path, nil, nil, nil, nil)
+}
+
+// GetPublishedMapping 型号当前生效映射版本（型号须对调用商户可见否则 404；无已发布版本返回 nil, nil）
+func (c *Client) GetPublishedMapping(ctx context.Context, modelID uint) (*DataMappingVersion, error) {
+	var out *DataMappingVersion
+	q := url.Values{"model_id": []string{strconv.FormatUint(uint64(modelID), 10)}}
+	if err := c.do(ctx, http.MethodGet, "/data-mappings/effective", q, nil, &out, nil); err != nil {
+		return nil, err
+	}
+	return out, nil
+}

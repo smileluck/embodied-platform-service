@@ -13,6 +13,12 @@ import type {
   CaptchaInfo,
   DashboardStats,
   DataEvent,
+  DataMappingCreateInput,
+  DataMappingCreateResult,
+  DataMappingDef,
+  DataMappingDraftInput,
+  DataMappingDraftUpdateInput,
+  DataMappingVersion,
   Device,
   DeviceCommand,
   DeviceModel,
@@ -53,6 +59,9 @@ import type {
   TMVersion,
   TelemetryHistory,
   Tenant,
+  TenantRole,
+  TenantUserAccount,
+  TenantUserPermDef,
   TokenPair,
   UsageStats,
   UserInfo,
@@ -150,7 +159,7 @@ export const syncTenant = (id: number) => request.post<R<Tenant>>(`/tenants/${id
 // kw 模糊匹配用户名/昵称，phone 精确匹配，tenant_id 按平台租户筛选
 export const listAppUsers = (params: { page: number; page_size: number; kw?: string; phone?: string; status?: number; tenant_id?: number }) =>
   request.get<R<PageResult<AppUser>>>('/app-users', { params })
-export const createAppUser = (data: { username: string; password: string; nickname?: string; phone?: string; email?: string; tenant_ids?: number[]; tenant_roles?: { tenant_id: number; role: string }[] }) =>
+export const createAppUser = (data: { username: string; password: string; nickname?: string; phone?: string; email?: string; tenant_ids?: number[] }) =>
   request.post<R<AppUser>>('/app-users', data)
 // username 创建后不可修改；tenant_ids 全量替换；status 可选（状态切换也走此接口）
 export const updateAppUser = (id: number, data: { nickname?: string; phone?: string; email?: string; status?: number; tenant_ids?: number[] }) =>
@@ -161,9 +170,36 @@ export const setAppUserStatus = (id: number, status: number) =>
 // 重置密码（新密码由管理员指定，旧密码立即失效）
 export const resetAppUserPassword = (id: number, password: string) =>
   request.put<R<null>>(`/app-users/${id}/password`, { password })
-// 设置租户端角色（tenant_id 为平台租户 ID，目标须已是该租户成员）
-export const setAppUserTenantRole = (id: number, tenantId: number, role: string) =>
-  request.put<R<null>>(`/app-users/${id}/tenant-role`, { tenant_id: tenantId, role })
+
+// ---- 租户用户/角色（平台第四套身份：经开放面实时消费；id/tenant_id/role_ids 均为平台 ID） ----
+// kw 模糊匹配用户名/昵称，phone 精确匹配，tenant_id 按平台租户筛选（单租户绑定）
+export const listTenantUsers = (params: { page: number; page_size: number; kw?: string; phone?: string; status?: number; tenant_id?: number }) =>
+  request.get<R<PageResult<TenantUserAccount>>>('/tenant-users', { params })
+export const createTenantUser = (data: { tenant_id: number; username: string; password: string; nickname?: string; phone?: string; email?: string; role_ids?: number[] }) =>
+  request.post<R<TenantUserAccount>>('/tenant-users', data)
+// username/tenant_id 创建后不可修改
+export const updateTenantUser = (id: number, data: { nickname?: string; phone?: string; email?: string }) =>
+  request.put<R<null>>(`/tenant-users/${id}`, data)
+export const setTenantUserStatus = (id: number, status: number) =>
+  request.put<R<null>>(`/tenant-users/${id}/status`, { status })
+// 重置密码（新密码由管理员指定，旧密码立即失效；禁用后门户登录即时失败）
+export const resetTenantUserPassword = (id: number, password: string) =>
+  request.put<R<null>>(`/tenant-users/${id}/password`, { password })
+// 角色全量替换（role_ids 须为该用户归属租户下的角色）
+export const setTenantUserRoles = (id: number, roleIds: number[]) =>
+  request.put<R<null>>(`/tenant-users/${id}/roles`, { role_ids: roleIds })
+export const deleteTenantUser = (id: number) => request.delete<R<null>>(`/tenant-users/${id}`)
+
+export const listTenantRoles = (params: { page: number; page_size: number; kw?: string; tenant_id?: number }) =>
+  request.get<R<PageResult<TenantRole>>>('/tenant-roles', { params })
+export const createTenantRole = (data: { tenant_id: number; name: string; code: string; remark?: string; perm_codes?: string[] }) =>
+  request.post<R<TenantRole>>('/tenant-roles', data)
+// code 创建后不可修改；perm_codes 全量替换
+export const updateTenantRole = (id: number, data: { name?: string; remark?: string; perm_codes?: string[] }) =>
+  request.put<R<null>>(`/tenant-roles/${id}`, data)
+export const deleteTenantRole = (id: number) => request.delete<R<null>>(`/tenant-roles/${id}`)
+// 租户门户权限点目录（角色配权 UI 数据源；平台下发）
+export const listTenantUserPerms = () => request.get<R<TenantUserPermDef[]>>('/tenant-user-perms')
 
 // ---- 服务器状态监控 ----
 // 只读快照：CPU%/网卡速率为后端 3s 窗口差值，页面轮询读最新值
@@ -212,6 +248,41 @@ export const listThingModelNodes = (params?: { layer?: string; kw?: string }) =>
 // 节点的已发布版本（后端已过滤 published）
 export const listThingModelVersions = (nodeId: number) =>
   request.get<R<TMVersion[]>>(`/thing-models/${nodeId}/versions`)
+
+// ---- 数据映射（平台开放面代理；读=通用+本商户，写仅本商户独立资源——通用/他商户写操作 404；
+//      版本管理=单草稿制 + 发布不可变 + 追加式回滚；错误透传平台 msg） ----
+export const listDataMappings = (params: { page: number; page_size: number; kw?: string }) =>
+  request.get<R<PageResult<DataMappingDef>>>('/data-mappings', { params })
+export const createDataMapping = (data: DataMappingCreateInput) =>
+  request.post<R<DataMappingCreateResult>>('/data-mappings', data)
+export const getDataMapping = (id: number) => request.get<R<DataMappingDef>>(`/data-mappings/${id}`)
+// 删除映射资源（仍有版本或型号绑定时平台 409）
+export const deleteDataMapping = (id: number) => request.delete<R<null>>(`/data-mappings/${id}`)
+// 型号当前生效映射版本（无已发布版本 data 为 null）
+export const getEffectiveMapping = (modelId: number) =>
+  request.get<R<DataMappingVersion | null>>('/data-mappings/effective', { params: { model_id: modelId } })
+export const listDataMappingVersions = (defId: number) =>
+  request.get<R<{ list: DataMappingVersion[] }>>(`/data-mappings/${defId}/versions`)
+export const createDataMappingDraft = (defId: number, data: DataMappingDraftInput) =>
+  request.post<R<DataMappingVersion>>(`/data-mappings/${defId}/versions`, data)
+export const getDataMappingVersion = (vid: number) =>
+  request.get<R<DataMappingVersion>>(`/data-mappings/versions/${vid}`)
+export const updateDataMappingDraft = (vid: number, data: DataMappingDraftUpdateInput) =>
+  request.put<R<null>>(`/data-mappings/versions/${vid}`, data)
+export const publishDataMapping = (vid: number) =>
+  request.post<R<DataMappingVersion>>(`/data-mappings/versions/${vid}/publish`)
+// 回滚到指定已发布版本：publish=true 建回滚草稿后直接发布，一步完成
+export const rollbackDataMapping = (vid: number, publish = false) =>
+  request.post<R<DataMappingVersion>>(`/data-mappings/versions/${vid}/rollback`, { publish })
+// 删除版本（当前生效版本平台 409）
+export const deleteDataMappingVersion = (vid: number) =>
+  request.delete<R<null>>(`/data-mappings/versions/${vid}`)
+export const listDataMappingBindings = (defId: number) =>
+  request.get<R<{ list: DeviceModel[] }>>(`/data-mappings/${defId}/bindings`)
+export const bindDataMappingModel = (defId: number, model_id: number) =>
+  request.post<R<null>>(`/data-mappings/${defId}/bindings`, { model_id })
+export const unbindDataMappingModel = (defId: number, modelId: number) =>
+  request.delete<R<null>>(`/data-mappings/${defId}/bindings/${modelId}`)
 
 // ---- IP 黑名单 ----
 export const listBlacklist = (params: { page: number; page_size: number; ip?: string }) =>

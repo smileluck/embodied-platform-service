@@ -15,7 +15,7 @@ import (
 	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizperm "github.com/smilex/smilex-admin-gin/internal/biz/permission"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
-	biztenantmember "github.com/smilex/smilex-admin-gin/internal/biz/tenantmember"
+	biztenantuser "github.com/smilex/smilex-admin-gin/internal/biz/tenantuser"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	"github.com/smilex/smilex-admin-gin/internal/server/middleware"
@@ -40,8 +40,9 @@ import (
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
 	skillsvc "github.com/smilex/smilex-admin-gin/internal/service/skill"
 	syssvc "github.com/smilex/smilex-admin-gin/internal/service/sysconfig"
-	tenantmembersvc "github.com/smilex/smilex-admin-gin/internal/service/tenantmember"
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
+	tenantmembersvc "github.com/smilex/smilex-admin-gin/internal/service/tenantmember"
+	tenantusersvc "github.com/smilex/smilex-admin-gin/internal/service/tenantuser"
 	"github.com/smilex/smilex-admin-gin/pkg/cache"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
@@ -52,40 +53,43 @@ import (
 
 // HTTPServer 聚合全部应用服务
 type HTTPServer struct {
-	cfg              *conf.Bootstrap
-	auth             *authsvc.Service
-	admission        *admissionsvc.Service
-	admissionUC      *bizadmission.Usecase // PlatformAuth 中间件直连领域用例（首登引导/准入判定）
-	role             *rolesvc.Service
-	perm             *permsvc.Service
-	log              *logsvc.Service
-	file             *filesvc.Service
-	export           *exportsvc.Service
-	blacklist        *blacklistsvc.Service
-	monitor          *monitorsvc.Service
-	agent            *agentsvc.Service
-	dict             *dictsvc.Service
-	syscfg           *syssvc.Service
-	notice           *noticesvc.Service
-	job              *jobsvc.Service
-	dashboard        *dashsvc.Service
-	notify           *notifysvc.Service
-	mcp              *mcpsvc.Service
-	skill            *skillsvc.Service
-	tenant           *tenantsvc.Service
-	appuser          *appusersvc.Service
-	tenantmember     *tenantmembersvc.Service // 租户端成员自助管理（/app-api/v1/members）
-	tenantmemberUC   *biztenantmember.Usecase // 租户端角色查询（profile/TenantAdmin 中间件）
-	appIds           bizauth.AppIdentitySource // AppAuth 中间件的平台应用用户身份源
-	tenantUC         *biztenant.Usecase        // AppAuth 租户闸门（按平台租户 ID 只读定位本地租户）
-	appIdentityCache *cache.TwoLevel           // App token 自省缓存（pat: 前缀）
-	device           *devicesvc.Service
-	devmodel         *devmodelsvc.Service
-	rdb              *redis.Client // 通用限流（固定窗口计数）
-	rbacCache        *cache.TwoLevel
-	identityCache    *cache.TwoLevel
-	engine           *gin.Engine
-	srv              *http.Server
+	cfg                 *conf.Bootstrap
+	auth                *authsvc.Service
+	admission           *admissionsvc.Service
+	admissionUC         *bizadmission.Usecase // PlatformAuth 中间件直连领域用例（首登引导/准入判定）
+	role                *rolesvc.Service
+	perm                *permsvc.Service
+	log                 *logsvc.Service
+	file                *filesvc.Service
+	export              *exportsvc.Service
+	blacklist           *blacklistsvc.Service
+	monitor             *monitorsvc.Service
+	agent               *agentsvc.Service
+	dict                *dictsvc.Service
+	syscfg              *syssvc.Service
+	notice              *noticesvc.Service
+	job                 *jobsvc.Service
+	dashboard           *dashsvc.Service
+	notify              *notifysvc.Service
+	mcp                 *mcpsvc.Service
+	skill               *skillsvc.Service
+	tenant              *tenantsvc.Service
+	appuser             *appusersvc.Service
+	tenantuser          *tenantusersvc.Service       // 租户用户/角色管理面（经平台开放面，本地无数据）
+	tenantmember        *tenantmembersvc.Service     // 门户成员自治（/tenant-api/v1/members，经开放面 tid 锁定）
+	appIds              bizauth.AppIdentitySource    // AppAuth 中间件的平台应用用户身份源
+	tenantIds           bizauth.TenantIdentitySource // TenantAuth 中间件的平台租户门户身份源
+	tenantUC            *biztenant.Usecase           // AppAuth/TenantAuth 租户闸门（按平台租户 ID 只读定位本地租户）
+	appIdentityCache    *cache.TwoLevel              // App token 自省缓存（pat: 前缀）
+	tenantIdentityCache *cache.TwoLevel              // 门户 tenant-access token 自省缓存（tnt: 前缀）
+	device              *devicesvc.Service
+	devmodel            *devmodelsvc.Service
+	mapping             *devmodelsvc.MappingService // 数据映射（平台开放面代理）
+	rdb                 *redis.Client // 通用限流（固定窗口计数）
+	rbacCache           *cache.TwoLevel
+	identityCache       *cache.TwoLevel
+	engine              *gin.Engine
+	srv                 *http.Server
 }
 
 // NewHTTPServer 构造并注册路由。
@@ -94,9 +98,10 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	admissionUC *bizadmission.Usecase, role *rolesvc.Service, perm *permsvc.Service, log *logsvc.Service,
 	file *filesvc.Service, export *exportsvc.Service, blacklist *blacklistsvc.Service,
 	tenant *tenantsvc.Service, appuser *appusersvc.Service,
-	tenantmember *tenantmembersvc.Service, tenantmemberUC *biztenantmember.Usecase,
-	appIds bizauth.AppIdentitySource, tenantUC *biztenant.Usecase,
-	device *devicesvc.Service, devmodel *devmodelsvc.Service,
+	tenantuser *tenantusersvc.Service,
+	tenantmember *tenantmembersvc.Service,
+	appIds bizauth.AppIdentitySource, tenantIds bizauth.TenantIdentitySource, tenantUC *biztenant.Usecase,
+	device *devicesvc.Service, devmodel *devmodelsvc.Service, mapping *devmodelsvc.MappingService,
 	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service, syscfg *syssvc.Service,
 	notice *noticesvc.Service, job *jobsvc.Service, dashboard *dashsvc.Service, notify *notifysvc.Service,
 	mcp *mcpsvc.Service, skill *skillsvc.Service,
@@ -119,17 +124,21 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	// 应用用户（C 端）自省缓存独立前缀（app-access token 哈希 → App 主体），
 	// 禁用生效延迟 = 平台查库即时 + 本缓存 TTL（30-60s），与 B 端同一权衡
 	appIdentityCache := cache.NewTwoLevel(rdb, "pat:", 30*time.Second, 60*time.Second, cfg.Cache.L2Enabled)
+	// 租户门户（tenant_users）自省缓存独立前缀（tenant-access token 哈希 → 门户主体），
+	// 平台 TenantAuth 按请求查库（用户+租户双启用），本缓存 TTL 内感知（同一权衡）
+	tenantIdentityCache := cache.NewTwoLevel(rdb, "tnt:", 30*time.Second, 60*time.Second, cfg.Cache.L2Enabled)
 
 	s := &HTTPServer{
 		cfg: cfg, auth: auth, admission: admission, admissionUC: admissionUC,
 		role: role, perm: perm, log: log,
 		file: file, export: export, blacklist: blacklist, tenant: tenant,
-		appuser: appuser,
-		tenantmember: tenantmember, tenantmemberUC: tenantmemberUC,
-		appIds:  appIds, tenantUC: tenantUC, appIdentityCache: appIdentityCache,
-		device: device, devmodel: devmodel, monitor: monitor, agent: agent, dict: dict, syscfg: syscfg,
+		appuser: appuser, tenantuser: tenantuser,
+		tenantmember: tenantmember,
+		appIds:       appIds, tenantIds: tenantIds, tenantUC: tenantUC,
+		appIdentityCache: appIdentityCache, tenantIdentityCache: tenantIdentityCache,
+		device: device, devmodel: devmodel, mapping: mapping, monitor: monitor, agent: agent, dict: dict, syscfg: syscfg,
 		notice: notice, job: job, dashboard: dashboard, notify: notify, mcp: mcp, skill: skill,
-		rdb:     rdb,
+		rdb:       rdb,
 		rbacCache: rbacCache.TwoLevel, identityCache: identityCache, engine: e,
 	}
 	s.registerRoutes()
@@ -188,25 +197,62 @@ func (s *HTTPServer) registerRoutes() {
 		appAPI.GET("/profile", s.appApiProfile)
 		// 本人修改密码：持本人 token 代理平台（平台校验旧密码并吊销其他端会话）
 		appAPI.PUT("/profile/password", s.appApiChangePassword)
+	}
 
-		// ---- 租户端成员自助管理（仅 tenant_admin：本地角色绑定默认拒绝） ----
-		// 移除成员=tenant_ids 差集更新（不删账号）；守卫（最后管理员/本人）在 biz 层
-		members := appAPI.Group("/members", middleware.TenantAdmin(s.tenantmemberUC))
+	// ---- 租户门户（/tenant-api/v1）：平台第四套身份 tenant_users（2026-10-08） ----
+	// 登录/刷新经本服务后端代理平台公开 API（服务端挂 LoginIPGuard/限流；平台侧
+	// 同款防护以服务出口 IP 计数，客户端 IP 由本侧守卫覆盖）；token 双用于平台与本
+	// 系统。业务端点 TenantAuth 自省（tid 单租户绑定，不信任请求头）+ 本地租户闸门
+	// （停用即拒）+ RequireTenantPerm 精确匹配平台租户 RBAC 权限码；per-uid 限流。
+	tenantAPI := s.engine.Group("/tenant-api/v1")
+	{
+		tenantAPI.POST("/auth/login",
+			middleware.LoginIPGuard(s.blacklist.LoginGuard()),
+			middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
+				KeyPrefix: "bl:rl:", Max: 10, Window: time.Minute, MessageKey: "security.login_frequent",
+			}),
+			s.tenantPortalLogin)
+		tenantAPI.POST("/auth/refresh",
+			middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
+				KeyPrefix: "rl:tenant-auth-refresh:", Max: 60, Window: time.Minute, MessageKey: "security.rate_limited",
+			}),
+			s.tenantPortalRefresh)
+
+		authed := tenantAPI.Group("",
+			middleware.TenantAuth(s.tenantIds, s.tenantUC, s.tenantIdentityCache),
+			middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
+				KeyPrefix: "rl:tenant-api:", Max: 120, Window: time.Minute,
+				SubjectFunc: func(c *gin.Context) string { return middleware.TenantAuthSubjectUID(c) },
+				MessageKey:  "security.rate_limited",
+			}))
 		{
-			members.GET("", s.appApiListMembers)
-			members.POST("", s.appApiCreateMember)
-			members.PUT("/:id", s.appApiUpdateMember)
-			members.PUT("/:id/status", s.appApiSetMemberStatus)
-			members.PUT("/:id/password", s.appApiResetMemberPassword)
-			members.PUT("/:id/role", s.appApiSetMemberRole)
-			members.DELETE("/:id", s.appApiRemoveMember)
-		}
+			// 自身数据（本人信息/改密，无越权面，不做权限码校验）
+			authed.GET("/profile", s.tenantPortalProfile)
+			authed.PUT("/profile/password", s.tenantPortalChangePassword)
 
-		// ---- 租户端设备只读（归属即准入：成员可读，无指令下发） ----
-		appAPI.GET("/devices", s.appApiListDevices)
-		appAPI.GET("/devices/:id", s.appApiGetDevice)
-		appAPI.GET("/devices/:id/shadow", s.appApiGetDeviceShadow)
-		appAPI.GET("/devices/:id/telemetry", s.appApiGetDeviceTelemetry)
+			// 成员自治（门户对本租户 tenant_users 的自助管理，经开放面 tid 锁定；
+			// 守卫：本人不可自操作、最后一名成员管理员不可失格）
+			members := authed.Group("/members")
+			{
+				members.GET("", middleware.RequireTenantPerm(biztenantuser.PermMemberUserList), s.tenantApiListMembers)
+				members.GET("/roles", middleware.RequireTenantPerm(biztenantuser.PermMemberRoleList), s.tenantApiListMemberRoles)
+				members.POST("", middleware.RequireTenantPerm(biztenantuser.PermMemberUserCreate), s.tenantApiCreateMember)
+				members.PUT("/:id", middleware.RequireTenantPerm(biztenantuser.PermMemberUserUpdate), s.tenantApiUpdateMember)
+				members.PUT("/:id/status", middleware.RequireTenantPerm(biztenantuser.PermMemberUserUpdate), s.tenantApiSetMemberStatus)
+				members.PUT("/:id/password", middleware.RequireTenantPerm(biztenantuser.PermMemberUserResetPassword), s.tenantApiResetMemberPassword)
+				members.PUT("/:id/roles", middleware.RequireTenantPerm(biztenantuser.PermMemberUserSetRoles), s.tenantApiSetMemberRoles)
+				members.DELETE("/:id", middleware.RequireTenantPerm(biztenantuser.PermMemberUserDelete), s.tenantApiRemoveMember)
+			}
+
+			// 设备只读（列表强制按 tid 过滤，单查先验归属；无指令下发）
+			devices := authed.Group("/devices", middleware.RequireTenantPerm(biztenantuser.PermDeviceList))
+			{
+				devices.GET("", s.tenantApiListDevices)
+				devices.GET("/:id", s.tenantApiGetDevice)
+				devices.GET("/:id/shadow", s.tenantApiGetDeviceShadow)
+				devices.GET("/:id/telemetry", s.tenantApiGetDeviceTelemetry)
+			}
+		}
 	}
 
 	// ---- 自身数据接口：仅平台认证（token 自省 + 本地准入），不做 RBAC ----
@@ -377,17 +423,38 @@ func (s *HTTPServer) registerRoutes() {
 
 	// 应用用户管理：2026-10-05 起经平台开放面实时消费（平台为唯一事实源；
 	// tenant_ids/tenant_id 均为平台租户 ID；开放面无单查端点，编辑用列表行数据）
-		appUsers := protected.Group("/app-users")
-		{
-			appUsers.GET("", s.listAppUsers)
-			appUsers.POST("", s.createAppUser)
-			appUsers.PUT("/:id", s.updateAppUser)
-			appUsers.DELETE("/:id", s.deleteAppUser)
-			// 重置密码（新密码由管理员指定，旧密码立即失效）
-			appUsers.PUT("/:id/password", s.resetAppUserPassword)
-			// 租户端角色（管理面设置/修复租户管理员；目标须已是该租户成员）
-			appUsers.PUT("/:id/tenant-role", s.setAppUserTenantRole)
-		}
+	appUsers := protected.Group("/app-users")
+	{
+		appUsers.GET("", s.listAppUsers)
+		appUsers.POST("", s.createAppUser)
+		appUsers.PUT("/:id", s.updateAppUser)
+		appUsers.DELETE("/:id", s.deleteAppUser)
+		// 重置密码（新密码由管理员指定，旧密码立即失效）
+		appUsers.PUT("/:id/password", s.resetAppUserPassword)
+	}
+
+	// 租户用户/角色管理（2026-10-08 起经平台开放面实时消费：平台第四套身份
+	// tenant_users 单租户绑定+租户 RBAC；本地无数据面，ID 均为平台口径）
+	tenantUsers := protected.Group("/tenant-users")
+	{
+		tenantUsers.GET("", s.listTenantUsers)
+		tenantUsers.POST("", s.createTenantUser)
+		tenantUsers.PUT("/:id", s.updateTenantUser)
+		tenantUsers.PUT("/:id/status", s.setTenantUserStatus)
+		tenantUsers.PUT("/:id/password", s.resetTenantUserPassword)
+		tenantUsers.PUT("/:id/roles", s.setTenantUserRoles)
+		tenantUsers.DELETE("/:id", s.deleteTenantUser)
+	}
+	tenantRoles := protected.Group("/tenant-roles")
+	{
+		tenantRoles.GET("", s.listTenantRoles)
+		tenantRoles.POST("", s.createTenantRole)
+		tenantRoles.PUT("/:id", s.updateTenantRole)
+		tenantRoles.PUT("/:id/perms", s.setTenantRolePerms)
+		tenantRoles.DELETE("/:id", s.deleteTenantRole)
+	}
+	// 权限点目录（租户角色配权 UI 数据源；经开放面透出平台目录）
+	protected.GET("/tenant-user-perms", s.listTenantUserPermCatalog)
 
 	// 服务器状态监控（只读快照；CPU%/网卡速率由后台采样器固定 3s 窗口差值计算）
 	monitors := protected.Group("/monitor")
@@ -586,6 +653,27 @@ func (s *HTTPServer) registerRoutes() {
 	{
 		tms.GET("", s.listThingModelNodes)
 		tms.GET("/:id/versions", s.listThingModelVersions)
+	}
+
+	// 数据映射（纯代理平台开放面 /data-mappings；/effective 与 /versions/:vid 为静态段，
+	// 与同层参数段 /:id 共存时 gin 静态段优先匹配）
+	mappings := protected.Group("/data-mappings")
+	{
+		mappings.GET("", s.listMappingDefs)
+		mappings.POST("", s.createMappingDef)
+		mappings.GET("/effective", s.getPublishedMapping)
+		mappings.GET("/versions/:vid", s.getMappingVersion)
+		mappings.PUT("/versions/:vid", s.updateMappingDraft)
+		mappings.DELETE("/versions/:vid", s.deleteMappingVersion)
+		mappings.POST("/versions/:vid/publish", s.publishMapping)
+		mappings.POST("/versions/:vid/rollback", s.rollbackMapping)
+		mappings.GET("/:id", s.getMappingDef)
+		mappings.DELETE("/:id", s.deleteMappingDef)
+		mappings.GET("/:id/versions", s.listMappingVersions)
+		mappings.POST("/:id/versions", s.createMappingDraft)
+		mappings.GET("/:id/bindings", s.listMappingBoundModels)
+		mappings.POST("/:id/bindings", s.bindMappingModel)
+		mappings.DELETE("/:id/bindings/:mid", s.unbindMappingModel)
 	}
 }
 

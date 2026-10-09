@@ -21,11 +21,8 @@
           <span class="crumb-title">{{ currentTitle }}</span>
         </div>
         <div class="header-right">
-          <!-- 租户切换器（多租户归属时可见；X-Tenant-ID 全链路口径=平台租户 ID） -->
-          <n-select
-            v-if="tenantOptions.length > 0" v-model:value="tenantSel" :options="tenantOptions"
-            size="small" style="width: 180px" @update:value="onTenantSwitch"
-          />
+          <!-- 当前租户标签（tenant_users 单租户绑定：tid 在 token 内，无切换概念） -->
+          <n-tag v-if="store.tenant" size="small" :bordered="false">{{ store.tenant.name }}</n-tag>
           <n-tooltip placement="bottom" :show-arrow="false" :delay="400">
             <template #trigger>
               <n-button quaternary circle :focusable="false" :aria-label="isDarkRef ? t('layout.toLight') : t('layout.toDark')" @click="toggleTheme">
@@ -45,7 +42,7 @@
         </div>
       </n-layout-header>
       <n-layout-content class="content">
-        <router-view v-if="store.contextLoaded && store.tenantId" />
+        <router-view v-if="store.contextLoaded" />
         <n-spin v-else class="boot-spin" />
       </n-layout-content>
     </n-layout>
@@ -53,12 +50,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, ref, watch } from 'vue'
+import { computed, h, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NButton, NDropdown, NIcon, NLayout, NLayoutContent, NLayoutHeader, NLayoutSider,
-  NMenu, NSelect, NSpin, NTag, NTooltip, type DropdownOption, type MenuOption,
+  NMenu, NSpin, NTag, NTooltip, type DropdownOption, type MenuOption,
 } from 'naive-ui'
 import { MoonOutline, SunnyOutline, PeopleOutline, HardwareChipOutline, PersonOutline } from '@vicons/ionicons5'
 import { useTenantUserStore } from '../stores/tenantUser'
@@ -70,12 +67,7 @@ const router = useRouter()
 const store = useTenantUserStore()
 const collapsed = ref(false)
 
-const tenantOptions = computed(() =>
-  store.accessibleTenants.map((x) => ({ label: x.name, value: x.platform_id })),
-)
-const tenantSel = ref(store.tenantId)
-
-// 菜单：静态定义按角色过滤（member 不见成员管理；无后端菜单面）
+// 菜单：静态定义按权限过滤（无成员自治权限不见成员管理；无后端菜单面）
 const menuOptions = computed<MenuOption[]>(() => {
   const opts: MenuOption[] = [
     { label: t('tenantPortal.menu.devices'), key: '/tenant-portal/devices', icon: () => h(NIcon, null, { default: () => h(HardwareChipOutline) }) },
@@ -104,12 +96,6 @@ function onMenuSelect(key: string) {
   router.push(key)
 }
 
-// 切换租户：写 store 并整页重载（所有页面数据随 X-Tenant-ID 变化，重载最稳）
-function onTenantSwitch(value: number) {
-  store.switchTenant(value)
-  window.location.href = '/tenant-portal/devices'
-}
-
 const userDropdown = computed<DropdownOption[]>(() => [
   { label: t('tenantPortal.menu.profile'), key: 'profile' },
   { type: 'divider', key: 'd1' },
@@ -124,9 +110,6 @@ async function onUserAction(key: string | number) {
     window.location.href = '/tenant-portal/login'
   }
 }
-
-// 外部（登录流程）更新 store.tenantId 后同步下拉选中值
-watch(() => store.tenantId, (v) => { tenantSel.value = v })
 </script>
 
 <style scoped>

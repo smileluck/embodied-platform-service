@@ -107,6 +107,12 @@ var messagesEn = map[string]string{
 	"tenant_member.last_admin":           "The last tenant admin cannot be removed, demoted or disabled",
 	"tenant_member.self_forbidden":       "You cannot perform this operation on yourself; ask another admin",
 	"tenant_member.device_not_in_tenant": "Device not found or not in the current tenant",
+	// Tenant users/roles (platform 4th identity, via open API)
+	"tenant_user.not_found":    "Tenant user not found",
+	"tenant_role.not_found":    "Tenant role not found",
+	"tenant_role.code_exists":  "Role code already exists, please choose another one",
+	"tenant_role.in_use":       "The role is assigned to tenant users; unassign it first",
+	"tenant_role.invalid_perm": "Invalid permission code (not in the platform catalog or over the limit)",
 	// Server monitor
 	"monitor.collect_failed": "Failed to collect server metrics, please try again later",
 	// Agent (LLM configuration base)
@@ -214,4 +220,6 @@ var messagesEn = map[string]string{
 	"menu.menu:sysConfig":     "System Configs",
 	"menu.menu:notice":        "Messages",
 	"menu.menu:job":           "Scheduled Jobs",
+	"menu.menu:thingModel":    "Thing Models",
+	"menu.menu:dataMapping":   "Data Mappings",
 }

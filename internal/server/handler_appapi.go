@@ -1,13 +1,16 @@
 // App 面（/app-api/v1）试点端点：AppAuth 之后返回应用用户身份与可访问租户的本地视图。
 // 作为 App 直调本系统的授权验收探针；业务端点后续按需求逐个挂入本组。
+// 2026-10-08 起不再返回租户端角色（门户运营账号收敛为平台 tenant_users，
+// C 端应用用户无门户角色语义；门户见 /tenant-api/v1）。
 package server
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	biztenantmember "github.com/smilex/smilex-admin-gin/internal/biz/tenantmember"
+	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	"github.com/smilex/smilex-admin-gin/internal/server/middleware"
+	"github.com/smilex/smilex-admin-gin/pkg/i18n"
 	"github.com/smilex/smilex-admin-gin/pkg/response"
 )
 
@@ -37,10 +40,9 @@ type appAPIProfileVO struct {
 	User       appAPIUserVO     `json:"user"`
 	Tenant     appAPITenantVO   `json:"tenant"`             // 本次请求上下文租户（X-Tenant-ID 解析命中）
 	Accessible []appAPITenantVO `json:"accessible_tenants"` // 归属 ∩ 本地已同步
-	Role       string           `json:"role"`               // 本租户内角色（tenant_admin | member；无绑定为 member）
 }
 
-// appApiProfile GET /app-api/v1/profile：App 用户 + 可访问租户（本地视图）+ 本租户内角色
+// appApiProfile GET /app-api/v1/profile：App 用户 + 可访问租户（本地视图）
 func (s *HTTPServer) appApiProfile(c *gin.Context) {
 	sub := middleware.AppAuthSubject(c)
 	if sub == nil {
@@ -50,14 +52,9 @@ func (s *HTTPServer) appApiProfile(c *gin.Context) {
 	vo := appAPIProfileVO{
 		User:       appAPIUserVO{ID: sub.UserID, Username: sub.Username, Nickname: sub.Nickname},
 		Accessible: []appAPITenantVO{},
-		Role:       string(biztenantmember.RoleMember),
 	}
 	if tn := middleware.AppAuthTenant(c); tn != nil {
 		vo.Tenant = newAppAPITenantVO(tn.PlatformID, tn.ID, tn.Name, tn.Code, int(tn.Status))
-		// 本租户内角色（查询失败降级 member，不阻断身份探针）
-		if role, err := s.tenantmemberUC.RoleOf(c.Request.Context(), sub.UserID, tn.PlatformID); err == nil {
-			vo.Role = string(role)
-		}
 	}
 	// 归属租户批量解析（一次查询；本地未同步的不出现在本地视图）
 	if tenants, err := s.tenantUC.GetByPlatformIDs(c.Request.Context(), sub.TenantIDs); err == nil {
@@ -66,4 +63,32 @@ func (s *HTTPServer) appApiProfile(c *gin.Context) {
 		}
 	}
 	response.OK(c, vo)
+}
+
+// appApiChangePassword PUT /app-api/v1/profile/password：本人修改密码（持本人 token
+// 代理平台 /app-auth/password，平台校验旧密码并吊销其他端会话）
+func (s *HTTPServer) appApiChangePassword(c *gin.Context) {
+	if middleware.AppAuthSubject(c) == nil {
+		response.FailI18n(c, http.StatusUnauthorized, response.CodeUnauthorized, nil)
+		return
+	}
+	var req struct {
+		OldPassword string `json:"old_password" binding:"required,min=6,max=64"`
+		NewPassword string `json:"new_password" binding:"required,min=6,max=20"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	err := s.appIds.AppChangePassword(c.Request.Context(), middleware.AppAuthToken(c), req.OldPassword, req.NewPassword)
+	switch {
+	case err == nil:
+		response.OK(c, nil)
+	case isErr(err, bizauth.ErrInvalidToken):
+		response.FailI18n(c, http.StatusUnauthorized, response.CodeUnauthorized, err)
+	case isErr(err, bizauth.ErrPlatformUnavailable):
+		response.FailI18n(c, http.StatusServiceUnavailable, response.CodeErr, err)
+	default:
+		s.platformErr(c, err) // 旧密码错误等平台 4xx 按状态码透传
+	}
 }

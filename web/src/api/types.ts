@@ -174,8 +174,7 @@ export interface Tenant {
   updated_at: string
 }
 
-// 应用用户（含租户关联，不含密码；status: 1 启用 0 禁用；
-// tenant_roles 为租户端角色标注 [{tenant_id(平台租户ID), role: tenant_admin|member}]）
+// 应用用户（含租户关联，不含密码；status: 1 启用 0 禁用）
 export interface AppUser {
   id: number
   username: string
@@ -185,9 +184,43 @@ export interface AppUser {
   status: number
   tenant_ids: number[]
   tenant_names: string[]
-  tenant_roles: { tenant_id: number; role: string }[]
   created_at: string
   updated_at: string
+}
+
+// 租户用户（平台第四套身份：租户门户运营账号，单租户绑定；本地无数据面，
+// 经开放面实时消费；id/tenant_id/role_ids 均为平台口径）
+export interface TenantUserAccount {
+  id: number
+  tenant_id: number
+  tenant_name: string
+  username: string
+  nickname: string
+  phone: string
+  email: string
+  status: number
+  role_ids: number[]
+  created_at: string
+  updated_at: string
+}
+
+// 租户角色（租户作用域 RBAC；perm_codes 为平台租户门户权限点目录内的码）
+export interface TenantRole {
+  id: number
+  tenant_id: number
+  tenant_name: string
+  name: string
+  code: string
+  remark: string
+  perm_codes: string[]
+  created_at: string
+  updated_at: string
+}
+
+// 租户门户权限点目录项（group 为资源域：device/alarm/dataset/appuser/member）
+export interface TenantUserPermDef {
+  code: string
+  group: string
 }
 
 // 文件元数据（object_key 不下发；driver: platform | local 历史存量）
@@ -428,6 +461,69 @@ export interface TMVersion {
   status: 'draft' | 'published'
   published_at: string
   created_at: string
+}
+
+// ---- 数据映射（平台开放面契约镜像；读=通用+本商户，写仅本商户独立资源） ----
+
+// 单条映射规则：source_topic → 数据分类 + 字段提取/触发
+//（source_topic 支持设备占位符 {sn}/{device_id}/{name}/{model_id}）
+export interface Mapping {
+  source_topic: string // 通道内主题（socket 帧 topic / MQTT topic）
+  topic_match?: 'exact' | 'glob' | '' // exact（默认，空=省略）| glob
+  data_category: 'shadow' | 'telemetry' | 'event' | 'alarm' | 'media' | string
+  data_type: string // shadow=物模型属性名；event=物模型事件名；telemetry/alarm=自定义
+  sample_rate_hz?: number // 0/缺省=不限流
+  field_extract?: Record<string, string> // 目标字段 → 提取表达式
+  fields?: string[]
+  trigger?: string
+}
+
+// 数据映射资源（merchant_id=0 通用 / >0 商户独立）
+export interface DataMappingDef {
+  id: number
+  name: string
+  merchant_id: number
+  created_at: string
+  updated_at: string
+}
+
+// 映射版本（资源内版本号自增；draft→published 发布不可变；revert_of 记录回滚来源版本 ID）
+export interface DataMappingVersion {
+  id: number
+  def_id: number
+  version: number
+  label?: string
+  mappings: Mapping[]
+  status: 'draft' | 'published'
+  revert_of?: number | null
+  published_at: string
+  created_at: string
+  updated_at: string
+}
+
+// 创建映射资源应答：资源 + 首版草稿
+export interface DataMappingCreateResult {
+  def: DataMappingDef
+  version: DataMappingVersion
+}
+
+// 创建映射资源入参（资源 + 首版草稿一步完成；merchant_id 服务端注入，入参不收）
+export interface DataMappingCreateInput {
+  name: string
+  label?: string
+  mappings: Mapping[]
+}
+
+// 新建草稿入参（单草稿制：已有草稿平台 409）
+export interface DataMappingDraftInput {
+  label?: string
+  mappings: Mapping[]
+}
+
+// 更新草稿入参（label 省略=不修改；仅 draft 可改）
+export interface DataMappingDraftUpdateInput {
+  label?: string
+  mappings: Mapping[]
 }
 
 // 对话会话（本人数据；AgentName 冗余，Agent 删除后历史仍可读）

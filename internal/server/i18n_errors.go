@@ -21,7 +21,8 @@ import (
 	bizskill "github.com/smilex/smilex-admin-gin/internal/biz/skill"
 	bizsys "github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
-	biztenantmember "github.com/smilex/smilex-admin-gin/internal/biz/tenantmember"
+	biztenantuser "github.com/smilex/smilex-admin-gin/internal/biz/tenantuser"
+	tenantmembersvc "github.com/smilex/smilex-admin-gin/internal/service/tenantmember"
 	"github.com/smilex/smilex-admin-gin/pkg/response"
 )
 
@@ -79,10 +80,17 @@ var errKeys = []struct {
 	{bizappuser.ErrDuplicateUsername, "appuser.name_exists"},
 	{bizappuser.ErrTenantNotInScope, "tenant.not_in_scope"},
 	{bizappuser.ErrCrossMerchantDelete, "appuser.cross_merchant_delete"},
-	// 租户成员（租户端授权层）
-	{biztenantmember.ErrMemberNotInTenant, "tenant_member.not_in_tenant"},
-	{biztenantmember.ErrLastTenantAdmin, "tenant_member.last_admin"},
-	{biztenantmember.ErrCannotModifySelf, "tenant_member.self_forbidden"},
+	// 租户门户成员（/tenant-api/v1/members 守卫 + 开放面 tenant-user 域哨兵）
+	{tenantmembersvc.ErrMemberNotInTenant, "tenant_member.not_in_tenant"},
+	{tenantmembersvc.ErrLastTenantAdmin, "tenant_member.last_admin"},
+	{tenantmembersvc.ErrCannotModifySelf, "tenant_member.self_forbidden"},
+	{biztenantuser.ErrTenantUserNotFound, "tenant_user.not_found"},
+	{biztenantuser.ErrDuplicateUsername, "appuser.name_exists"},
+	{biztenantuser.ErrTenantRoleNotFound, "tenant_role.not_found"},
+	{biztenantuser.ErrDuplicateRoleCode, "tenant_role.code_exists"},
+	{biztenantuser.ErrRoleInUse, "tenant_role.in_use"},
+	{biztenantuser.ErrTenantNotInScope, "tenant.not_in_scope"},
+	{biztenantuser.ErrInvalidPerm, "tenant_role.invalid_perm"},
 	{errDeviceNotInTenant, "tenant_member.device_not_in_tenant"},
 	// 服务器监控
 	{bizmonitor.ErrCollectFailed, "monitor.collect_failed"},

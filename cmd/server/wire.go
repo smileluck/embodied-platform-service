@@ -6,8 +6,8 @@ package main
 import (
 	"github.com/google/wire"
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
-	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	bizagent "github.com/smilex/smilex-admin-gin/internal/biz/agent"
+	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 
 	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
@@ -31,7 +31,7 @@ import (
 
 	bizskill "github.com/smilex/smilex-admin-gin/internal/biz/skill"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
-	biztenantmember "github.com/smilex/smilex-admin-gin/internal/biz/tenantmember"
+	biztenantuser "github.com/smilex/smilex-admin-gin/internal/biz/tenantuser"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	dataadmission "github.com/smilex/smilex-admin-gin/internal/data/admission"
 	dataagent "github.com/smilex/smilex-admin-gin/internal/data/agent"
@@ -58,7 +58,6 @@ import (
 	dataskill "github.com/smilex/smilex-admin-gin/internal/data/skill"
 	datasys "github.com/smilex/smilex-admin-gin/internal/data/sysconfig"
 	datatenant "github.com/smilex/smilex-admin-gin/internal/data/tenant"
-	datatenantmember "github.com/smilex/smilex-admin-gin/internal/data/tenantmember"
 	"github.com/smilex/smilex-admin-gin/internal/server"
 	admissionsvc "github.com/smilex/smilex-admin-gin/internal/service/admission"
 	agentsvc "github.com/smilex/smilex-admin-gin/internal/service/agent"
@@ -85,8 +84,9 @@ import (
 	rolesvc "github.com/smilex/smilex-admin-gin/internal/service/role"
 
 	skillsvc "github.com/smilex/smilex-admin-gin/internal/service/skill"
-	tenantmembersvc "github.com/smilex/smilex-admin-gin/internal/service/tenantmember"
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
+	tenantmembersvc "github.com/smilex/smilex-admin-gin/internal/service/tenantmember"
+	tenantusersvc "github.com/smilex/smilex-admin-gin/internal/service/tenantuser"
 )
 
 var bizSet = wire.NewSet(
@@ -99,6 +99,7 @@ var bizSet = wire.NewSet(
 	biztenant.NewUsecase,
 	bizdevice.NewUsecase,
 	bizdevmodel.NewUsecase,
+	bizdevmodel.NewMappingUsecase,
 	bizdict.NewUsecase,
 	bizdash.NewUsecase,
 	bizsys.NewUsecase,
@@ -110,7 +111,6 @@ var bizSet = wire.NewSet(
 	bizmcp.NewUsecase,
 	bizskill.NewUsecase,
 	bizexport.NewUsecase,
-	biztenantmember.NewUsecase,
 	bizexport.NewRegistry,
 	bizexport.NewUserExporter,
 	bizexport.NewOpLogExporter,
@@ -121,7 +121,7 @@ var bizSet = wire.NewSet(
 	// 设备注册自愈：平台 403 时经租户用例补链重建（LinkOrCreate 幂等）
 	wire.Bind(new(bizdevice.TenantRelinker), new(*biztenant.Usecase)),
 	wire.Bind(new(appusersvc.TenantNameResolver), new(*biztenant.Usecase)),
-	wire.Bind(new(appusersvc.TenantRoleReader), new(*biztenantmember.Usecase)),
+	wire.Bind(new(tenantusersvc.TenantNameResolver), new(*biztenant.Usecase)),
 	wire.Bind(new(bizjob.TenantReconciler), new(*biztenant.Usecase)),
 	// 智能体内置只读工具：服务器状态查询复用 monitor 用例
 	wire.Bind(new(bizagent.ServerStatusReader), new(*bizmonitor.Usecase)),
@@ -143,7 +143,6 @@ var dataRepoSet = wire.NewSet(
 	datafile.NewStorageManager,
 	datablacklist.NewRepo,
 	datatenant.NewRepo,
-	datatenantmember.NewRepo,
 
 	dataagent.NewRepo,
 
@@ -165,22 +164,28 @@ var dataRepoSet = wire.NewSet(
 	// 平台集成层（商户 HMAC 开放面 + 身份自省 + 存储）
 	platform.NewIdentityClient,
 	platform.NewAppIdentityClient,
+	platform.NewTenantIdentityClient,
 	platform.NewStorageClient,
 	platform.NewOpenAPIClient,
 	platform.NewMerchantIdentity,
 	// 平台网关适配器
 	datadevice.NewGatewayAdapter,
 	datadevmodel.NewGatewayAdapter,
+	datadevmodel.NewMappingGatewayAdapter,
 	datatenant.NewSyncer,
 	datatenant.NewTenantAvailability,
 	dataadmission.NewPlatformGateway,
 	dataauth.NewIdentityAdapter,
 	dataauth.NewAppIdentityAdapter,
+	dataauth.NewTenantIdentityAdapter,
 	platform.NewAppUserGateway,
+	platform.NewTenantUserGateway,
 	// 跨上下文最小依赖接口绑定（provider 与 bind 需同 set）
 	wire.Bind(new(auth.IdentitySource), new(*dataauth.IdentityAdapter)),
 	wire.Bind(new(auth.AppIdentitySource), new(*dataauth.AppIdentityAdapter)),
+	wire.Bind(new(auth.TenantIdentitySource), new(*dataauth.TenantIdentityAdapter)),
 	wire.Bind(new(bizappuser.Gateway), new(*platform.AppUserGateway)),
+	wire.Bind(new(biztenantuser.Gateway), new(*platform.TenantUserGateway)),
 	wire.Bind(new(bizjob.LogCleaner), new(*datalog.Repo)),
 	wire.Bind(new(bizjob.ExportCleaner), new(*dataexport.Worker)),
 	wire.Bind(new(bizagent.Repo), new(*dataagent.Repo)),
@@ -194,6 +199,7 @@ var dataRepoSet = wire.NewSet(
 	wire.Bind(new(biztenant.PlatformSyncer), new(*datatenant.Syncer)),
 	wire.Bind(new(bizdevice.Gateway), new(*datadevice.GatewayAdapter)),
 	wire.Bind(new(bizdevmodel.Gateway), new(*datadevmodel.GatewayAdapter)),
+	wire.Bind(new(bizdevmodel.MappingGateway), new(*datadevmodel.MappingGatewayAdapter)),
 	wire.Bind(new(bizadmission.MemberGateway), new(*dataadmission.PlatformGateway)),
 	wire.Bind(new(bizadmission.MerchantIdentity), new(*platform.MerchantIdentity)),
 	wire.Bind(new(bizadmission.DecisionCache), new(*data.RBACCache)),
@@ -211,9 +217,11 @@ var serviceSet = wire.NewSet(
 	exportsvc.NewService,
 	tenantsvc.NewService,
 	appusersvc.NewService,
+	tenantusersvc.NewService,
 	tenantmembersvc.NewService,
 	devicesvc.NewService,
 	devmodelsvc.NewService,
+	devmodelsvc.NewMappingService,
 	monitorsvc.NewService,
 	agentsvc.NewService,
 	mcpsvc.NewService,

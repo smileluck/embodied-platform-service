@@ -1,6 +1,27 @@
 {
-  "generatedAt": "2026-10-08T09:31:11.746Z",
+  "generatedAt": "2026-10-09T03:37:52.974Z",
   "commits": [
+    {
+      "hash": "8cb6d7754",
+      "date": "2026-10-09",
+      "type": "feat",
+      "scope": "devmodel",
+      "message": "对齐平台型号商户归属收敛——merchant_id 全链路透出 + DeleteModel 404 透传 + 型号页归属列与通用型号只读"
+    },
+    {
+      "hash": "292bb44d4",
+      "date": "2026-10-08",
+      "type": "feat",
+      "scope": "auth",
+      "message": "管理端登录改后端代理平台——恢复登录日志模块，首页统计改用真实登录数据"
+    },
+    {
+      "hash": "c218f4a72",
+      "date": "2026-10-08",
+      "type": "feat",
+      "scope": "web",
+      "message": "主题恢复工业琥珀配色——替换清水蓝，保留亮暗双套并修复暗色可读性"
+    },
     {
       "hash": "670003bd2",
       "date": "2026-10-08",

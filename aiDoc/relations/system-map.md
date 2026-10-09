@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-08 -->
+<!-- last-updated: 2026-10-09 -->
 # 系统地图（system map）
 
 > 系统架构与组件关系。结构描述必须与真实目录一致，禁止虚构目录。
@@ -77,7 +77,7 @@ web/src/locales/{zh-CN,en-US}（i18n 语言包，后端按 Accept-Language 同�
 | `biz/blacklist` / `biz/monitor` / `biz/log` | `views/system/Blacklist.vue`、`views/system/ServerMonitor.vue`、`views/log/OperationLogs.vue` |
 | `biz/tenant` / `biz/appuser` | `views/tenant/{Tenants,AppUsers}.vue` |
 | `biz/tenantmember`（租户端授权层：/app-api/v1 成员自助管理 + 设备只读，见 [../notes/implemented/architecture/2026-10-08-tenant-user-system.md](../notes/implemented/architecture/2026-10-08-tenant-user-system.md)） | `views/tenant-portal/*`（租户端，/tenant-portal/* 路由树 + `layout/TenantLayout.vue`） |
-| `biz/device` / `biz/devmodel`（平台开放面） | `views/device/{Devices,DeviceModels}.vue` |
+| `biz/device` / `biz/devmodel`（平台开放面；devmodel 含数据映射子域 `MappingGateway`/`MappingUsecase`） | `views/device/{Devices,DeviceModels}.vue`（物模型/数据映射页随 `plans/active/2026-10-09-thingmodel-datamapping-pages.md` 阶段 3 落地） |
 | `biz/agent` / `biz/mcp` / `biz/skill` | `views/agent/*`、`views/mcp/Servers.vue`、`views/skill/Skills.vue` |
 | `biz/notify` | `views/notify/{Channels,Rules,Records}.vue` |
 | `biz/dashboard` / `biz/export` | `views/dashboard/Dashboard.vue`（导出复用各列表页按钮） |

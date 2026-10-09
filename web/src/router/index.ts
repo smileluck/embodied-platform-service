@@ -51,14 +51,13 @@ const tenantLoginRedirect = () => ({ path: '/tenant-portal/login', query: { reas
 // 用返回值而非 next()——导航被 401 拦截器的新导航取消时，返回值会被安全忽略，
 // 不会像"对已取消导航调 next()"那样抛异常导致白屏。
 router.beforeEach(async (to) => {
-  // ---- 租户端分流：/tenant-portal/* 用租户端 token（与管理端完全隔离；
-  // 前缀与管理端 /tenant/* 菜单不重叠，见 staticRoutes 注释） ----
+  // ---- 租户端分流：/tenant-portal/* 用租户门户 token（与管理端完全隔离；
+  // 前缀与管理端 /tenant/* 菜单不重叠，见 staticRoutes 注释。
+  // 2026-10-08 起门户身份=平台 tenant_users：tid 单租户绑定在 token 内，无租户选择） ----
   if (to.path.startsWith('/tenant-portal')) {
     const store = useTenantUserStore()
     if (to.path === '/tenant-portal/login') return true
-    if (!store.accessToken || !store.tenantId) {
-      // 当前租户在登录时已按平台归属集自举（见 stores/tenantUser.ts login），
-      // 此处无租户即视为会话不完整
+    if (!store.accessToken) {
       return tenantLoginRedirect()
     }
     if (!store.contextLoaded) {
@@ -70,7 +69,7 @@ router.beforeEach(async (to) => {
         return tenantLoginRedirect()
       }
     }
-    // member 访问 admin-only 页面（成员管理）跳回设备列表
+    // 无成员自治权限者访问 admin-only 页面（成员管理）跳回设备列表
     if (to.meta?.adminOnly && !store.isAdmin) {
       return { path: '/tenant-portal/devices', replace: true }
     }

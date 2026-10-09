@@ -38,32 +38,10 @@
       <n-form-item :label="t('appUser.tenants')" path="tenant_ids">
         <n-select v-model:value="form.tenant_ids" :options="tenantOptions" multiple filterable clearable :placeholder="t('common.pleaseSelect')" />
       </n-form-item>
-      <n-form-item v-if="!editing" :label="t('appUser.tenantRole')" path="tenant_role">
-        <n-select v-model:value="form.tenant_role" :options="tenantRoleOptions" />
-      </n-form-item>
     </n-form>
     <template #action>
       <n-button @click="showModal = false">{{ t('common.cancel') }}</n-button>
       <n-button type="primary" :loading="saving" @click="save">{{ t('common.confirm') }}</n-button>
-    </template>
-  </n-modal>
-
-  <!-- 设置租户端角色：选择用户归属的租户 + 角色（租户首管理员的管理面来源） -->
-  <n-modal v-model:show="showRole" preset="dialog" :title="t('appUser.setTenantRoleTitle')" style="width: 420px">
-    <n-form :model="roleForm" label-placement="left" label-width="80">
-      <n-form-item :label="t('appUser.username')">
-        <span>{{ roleTarget?.username }}</span>
-      </n-form-item>
-      <n-form-item :label="t('appUser.tenants')">
-        <n-select v-model:value="roleForm.tenant_id" :options="roleTenantOptions" filterable :placeholder="t('common.pleaseSelect')" />
-      </n-form-item>
-      <n-form-item :label="t('appUser.tenantRole')">
-        <n-select v-model:value="roleForm.role" :options="tenantRoleOptions" />
-      </n-form-item>
-    </n-form>
-    <template #action>
-      <n-button @click="showRole = false">{{ t('common.cancel') }}</n-button>
-      <n-button type="primary" :loading="saving" @click="doSetTenantRole">{{ t('common.confirm') }}</n-button>
     </template>
   </n-modal>
 
@@ -88,7 +66,7 @@ import { NAlert, NCard, NInput, NButton, NDataTable, NModal, NForm, NFormItem, N
 import { renderActions, type TableAction } from '../../utils/tableActions'
 import SearchCard from '../../components/SearchCard.vue'
 import { useI18n } from 'vue-i18n'
-import { createAppUser, deleteAppUser, listAppUsers, listTenants, resetAppUserPassword, setAppUserStatus, setAppUserTenantRole, updateAppUser } from '../../api'
+import { createAppUser, deleteAppUser, listAppUsers, listTenants, resetAppUserPassword, setAppUserStatus, updateAppUser } from '../../api'
 import { usePagination } from '../../utils/pagination'
 import { useUserStore } from '../../stores/user'
 import type { AppUser } from '../../api/types'
@@ -109,47 +87,8 @@ const tenantOptions = ref<{ label: string; value: number }[]>([])
 const showModal = ref(false)
 const editing = ref(false)
 const editId = ref(0)
-const form = reactive({ username: '', password: '', nickname: '', phone: '', email: '', tenant_ids: [] as number[], tenant_role: 'member' })
+const form = reactive({ username: '', password: '', nickname: '', phone: '', email: '', tenant_ids: [] as number[] })
 const formRef = ref<FormInst | null>(null)
-
-// 租户端角色（创建时对所选租户统一生效；后续可在行内按租户调整）
-const tenantRoleOptions = computed(() => [
-  { label: t('tenantPortal.role.member'), value: 'member' },
-  { label: t('tenantPortal.role.admin'), value: 'tenant_admin' },
-])
-
-// 设置角色弹窗（目标用户的归属租户下拉）
-const showRole = ref(false)
-const roleTarget = ref<AppUser | null>(null)
-const roleForm = reactive({ tenant_id: null as number | null, role: 'member' })
-const roleTenantOptions = computed(() =>
-  (roleTarget.value?.tenant_ids || [])
-    .map((tid) => tenantOptions.value.find((o) => o.value === tid))
-    .filter((o): o is { label: string; value: number } => !!o),
-)
-
-function openSetRole(row: AppUser) {
-  roleTarget.value = row
-  const first = row.tenant_roles?.[0]
-  roleForm.tenant_id = first?.tenant_id ?? row.tenant_ids?.[0] ?? null
-  roleForm.role = first?.role ?? 'member'
-  showRole.value = true
-}
-
-async function doSetTenantRole() {
-  if (!roleTarget.value || !roleForm.tenant_id) return
-  saving.value = true
-  try {
-    await setAppUserTenantRole(roleTarget.value.id, roleForm.tenant_id, roleForm.role)
-    message.success(t('common.saveSuccess'))
-    showRole.value = false
-    load()
-  } catch (e: any) {
-    message.error(e?.response?.data?.msg || t('appUser.saveFailed'))
-  } finally {
-    saving.value = false
-  }
-}
 
 const showReset = ref(false)
 const resetTarget = ref<AppUser | null>(null)
@@ -233,7 +172,7 @@ function resetQuery() {
 
 function openCreate() {
   editing.value = false
-  Object.assign(form, { username: '', password: '', nickname: '', phone: '', email: '', tenant_ids: [], tenant_role: 'member' })
+  Object.assign(form, { username: '', password: '', nickname: '', phone: '', email: '', tenant_ids: [] })
   showModal.value = true
 }
 
@@ -267,8 +206,6 @@ async function save() {
         phone: form.phone.trim() || undefined,
         email: form.email.trim() || undefined,
         tenant_ids: form.tenant_ids.length ? form.tenant_ids : undefined,
-        // 创建时角色对所选租户统一生效（首管理员的常规来源）
-        tenant_roles: form.tenant_ids.map((tid) => ({ tenant_id: tid, role: form.tenant_role })),
       })
     }
     message.success(t('common.saveSuccess'))
@@ -348,19 +285,6 @@ const columns = computed<DataTableColumns<AppUser>>(() => [
       : '—',
   },
   {
-    title: t('appUser.tenantRole'), key: 'tenant_roles', width: 180,
-    render: (row) => {
-      const roles = row.tenant_roles || []
-      if (!roles.length) return '—'
-      const nameOf = (tid: number) => tenantOptions.value.find((o) => o.value === tid)?.label || `#${tid}`
-      return h('span', { style: 'display:inline-flex;gap:4px;flex-wrap:wrap' }, roles.map((r) => h(
-        NTag,
-        { size: 'small', bordered: false, type: r.role === 'tenant_admin' ? 'primary' : 'default' },
-        { default: () => (r.role === 'tenant_admin' ? `${nameOf(r.tenant_id)}·${t('tenantPortal.role.admin')}` : nameOf(r.tenant_id)) },
-      )))
-    },
-  },
-  {
     title: t('common.status'), key: 'status', width: 80,
     render: (row) => h(NTag, { type: row.status === 1 ? 'success' : 'error', size: 'small' }, { default: () => (row.status === 1 ? t('common.enabled') : t('common.disabled')) }),
   },
@@ -371,9 +295,6 @@ const columns = computed<DataTableColumns<AppUser>>(() => [
       const actions: TableAction[] = []
       if (userStore.has('appUser:update')) {
         actions.push({ label: t('common.edit'), accent: true, onClick: () => openEdit(row) })
-      }
-      if (userStore.has('appUser:update')) {
-        actions.push({ label: t('appUser.setTenantRole'), onClick: () => openSetRole(row) })
       }
       if (userStore.has('appUser:resetPwd')) {
         actions.push({ label: t('appUser.resetPassword'), onClick: () => openReset(row) })

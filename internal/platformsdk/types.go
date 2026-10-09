@@ -30,6 +30,14 @@ const (
 	ScopeModelDelete = "model:delete"
 	// 物模型只读（2026-09-16）：型号选择器（版本仅 published）
 	ScopeThingModelRead = "thing-model:read"
+	// 数据映射域（2026-10-09）：读=通用+本商户，写=仅本商户独立资源（通用/他商户统一 404）；
+	// 创建 merchant_id 服务端注入调用方（入参不收）；publish 覆盖发布与回滚
+	ScopeMappingList    = "mapping:list"
+	ScopeMappingGet     = "mapping:get"
+	ScopeMappingCreate  = "mapping:create"
+	ScopeMappingUpdate  = "mapping:update"
+	ScopeMappingDelete  = "mapping:delete"
+	ScopeMappingPublish = "mapping:publish"
 )
 
 // Device 设备（开放面视图；时间为 RFC3339）
@@ -215,6 +223,81 @@ type TMVersion struct {
 	PublishedAt string `json:"published_at"`
 }
 
+// ---- 数据映射域（2026-10-09，scope mapping:*）----
+
+// Mapping 单条数据映射规则（source_topic → 数据分类 + 字段提取/触发；
+// source_topic 支持设备占位符 {sn}/{device_id}/{name}/{model_id}）
+type Mapping struct {
+	SourceTopic  string            `json:"source_topic"`          // 通道内主题（socket 帧 topic / MQTT topic）
+	TopicMatch   string            `json:"topic_match,omitempty"` // exact（默认）| glob（预留）
+	DataCategory string            `json:"data_category"`         // shadow | telemetry | event | alarm | media
+	DataType     string            `json:"data_type"`             // shadow=物模型属性名；event=物模型事件名；telemetry/alarm=自定义
+	SampleRateHz float64           `json:"sample_rate_hz,omitempty"`
+	FieldExtract map[string]string `json:"field_extract,omitempty"`
+	Fields       []string          `json:"fields,omitempty"`
+	Trigger      string            `json:"trigger,omitempty"`
+}
+
+// DataMappingDef 数据映射资源（merchant_id=0 通用 / >0 商户独立；开放面读=通用+本商户，写仅本商户独立）
+type DataMappingDef struct {
+	ID         uint   `json:"id"`
+	Name       string `json:"name"`
+	MerchantID uint   `json:"merchant_id"`
+	CreatedAt  string `json:"created_at"`
+	UpdatedAt  string `json:"updated_at"`
+}
+
+// DataMappingVersion 映射版本（资源内版本号自增；draft→published 发布不可变；回滚=复制来源版本追加新草稿）
+type DataMappingVersion struct {
+	ID          uint      `json:"id"`
+	DefID       uint      `json:"def_id"`
+	Version     int       `json:"version"`
+	Label       string    `json:"label,omitempty"`
+	Mappings    []Mapping `json:"mappings"`
+	Status      string    `json:"status"`              // draft | published
+	RevertOf    *uint     `json:"revert_of,omitempty"` // 回滚来源版本 ID
+	PublishedAt string    `json:"published_at"`
+	CreatedAt   string    `json:"created_at"`
+	UpdatedAt   string    `json:"updated_at"`
+}
+
+// MappingCreateRequest 创建映射资源入参（资源 + 首版草稿一步完成；
+// merchant_id 服务端注入调用方商户，入参不收）
+type MappingCreateRequest struct {
+	Name     string    `json:"name"`
+	Label    string    `json:"label,omitempty"`
+	Mappings []Mapping `json:"mappings"`
+}
+
+// MappingDraftRequest 资源下新建草稿入参（单草稿制：已有草稿 409）
+type MappingDraftRequest struct {
+	Label    string    `json:"label,omitempty"`
+	Mappings []Mapping `json:"mappings"`
+}
+
+// MappingDraftUpdateRequest 更新草稿入参（label 指针可选，nil=不修改；仅 draft 可改）
+type MappingDraftUpdateRequest struct {
+	Label    *string   `json:"label,omitempty"`
+	Mappings []Mapping `json:"mappings"`
+}
+
+// MappingBindRequest 绑定型号入参（目标型号须对调用商户可见；
+// 商户一致性：通用型号只绑通用映射，商户独立型号只绑通用或同商户映射，违反 409）
+type MappingBindRequest struct {
+	ModelID uint `json:"model_id"`
+}
+
+// MappingRollbackRequest 回滚入参（publish=true 建回滚草稿后直接发布，一步完成回退）
+type MappingRollbackRequest struct {
+	Publish bool `json:"publish"`
+}
+
+// MappingCreateResult 创建应答：资源 + 首版草稿
+type MappingCreateResult struct {
+	Def     *DataMappingDef     `json:"def"`
+	Version *DataMappingVersion `json:"version"`
+}
+
 // Page 分页信息（列表响应 data.page）
 type Page struct {
 	Page     int   `json:"page"`
@@ -333,4 +416,95 @@ type AppUserUpdateRequest struct {
 // AppUserResetPasswordRequest 重置密码入参（旧密码立即失效）
 type AppUserResetPasswordRequest struct {
 	Password string `json:"password"`
+}
+
+// ---- 租户用户域（scope tenant-user:* / tenant-role:*；租户门户运营账号，2026-10-08） ----
+
+const (
+	ScopeTenantUserList          = "tenant-user:list"
+	ScopeTenantUserCreate        = "tenant-user:create"
+	ScopeTenantUserUpdate        = "tenant-user:update"
+	ScopeTenantUserDelete        = "tenant-user:delete"
+	ScopeTenantUserSetStatus     = "tenant-user:setStatus"
+	ScopeTenantUserResetPassword = "tenant-user:resetPassword"
+	ScopeTenantUserSetRoles      = "tenant-user:setRoles"
+
+	ScopeTenantRoleList     = "tenant-role:list"
+	ScopeTenantRoleCreate   = "tenant-role:create"
+	ScopeTenantRoleUpdate   = "tenant-role:update"
+	ScopeTenantRoleDelete   = "tenant-role:delete"
+	ScopeTenantRoleSetPerms = "tenant-role:setPerms"
+)
+
+// TenantUser 租户门户运营账号（单租户绑定，tenant_id 天然在商户租户集内）
+type TenantUser struct {
+	ID        uint   `json:"id"`
+	TenantID  uint   `json:"tenant_id"`
+	Username  string `json:"username"`
+	Nickname  string `json:"nickname"`
+	Phone     string `json:"phone"`
+	Email     string `json:"email"`
+	Status    int    `json:"status"` // 1 启用 0 禁用（禁用后门户登录/token 校验即时失败）
+	RoleIDs   []uint `json:"role_ids"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+// TenantUserCreateRequest 创建租户用户入参（tenant_id 须∈商户租户集否则 403；
+// username 冲突 409；role_ids 须为本商户租户集内角色）
+type TenantUserCreateRequest struct {
+	TenantID uint   `json:"tenant_id"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Nickname string `json:"nickname,omitempty"`
+	Phone    string `json:"phone,omitempty"`
+	Email    string `json:"email,omitempty"`
+	RoleIDs  []uint `json:"role_ids,omitempty"`
+}
+
+// TenantUserUpdateRequest 更新入参（指针可选，nil/省略=不修改；tenant_id 不可改）
+type TenantUserUpdateRequest struct {
+	Nickname *string `json:"nickname,omitempty"`
+	Phone    *string `json:"phone,omitempty"`
+	Email    *string `json:"email,omitempty"`
+	Status   *int    `json:"status,omitempty"`
+}
+
+// TenantRole 租户角色（租户作用域 RBAC；(tenant_id, code) 唯一由平台保证）
+type TenantRole struct {
+	ID        uint     `json:"id"`
+	TenantID  uint     `json:"tenant_id"`
+	Name      string   `json:"name"`
+	Code      string   `json:"code"`
+	Remark    string   `json:"remark"`
+	PermCodes []string `json:"perm_codes"`
+	CreatedAt string   `json:"created_at"`
+	UpdatedAt string   `json:"updated_at"`
+}
+
+// TenantRoleCreateRequest 创建租户角色入参（perm_codes 须在平台权限点目录内）
+type TenantRoleCreateRequest struct {
+	TenantID  uint     `json:"tenant_id"`
+	Name      string   `json:"name"`
+	Code      string   `json:"code"`
+	Remark    string   `json:"remark,omitempty"`
+	PermCodes []string `json:"perm_codes,omitempty"`
+}
+
+// TenantRoleUpdateRequest 更新入参（name/remark/perm_codes 指针可选；code 不可改）
+type TenantRoleUpdateRequest struct {
+	Name      *string   `json:"name,omitempty"`
+	Remark    *string   `json:"remark,omitempty"`
+	PermCodes *[]string `json:"perm_codes,omitempty"`
+}
+
+// TenantUserPermDef 租户门户权限点目录项（group 为资源域：device/alarm/dataset/appuser/member）
+type TenantUserPermDef struct {
+	Code  string `json:"code"`
+	Group string `json:"group"`
+}
+
+// TenantUserPermSyncRequest 商户权限码注册表全量同步入参（幂等、只增不删、按商户隔离）
+type TenantUserPermSyncRequest struct {
+	Perms []TenantUserPermDef `json:"perms"`
 }

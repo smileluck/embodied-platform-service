@@ -11,9 +11,13 @@ import loginLog from './loginLog'
 import blacklist from './blacklist'
 import device from './device'
 import model from './model'
+import thingModel from './thingModel'
+import dataMapping from './dataMapping'
 import tenant from './tenant'
 import tenantPortal from './tenantPortal'
 import appUser from './appUser'
+import tenantUser from './tenantUser'
+import tenantRole from './tenantRole'
 import file from './file'
 import exportRecords from './exportRecords'
 import profile from './profile'
@@ -43,9 +47,13 @@ export default {
   blacklist,
   device,
   model,
+  thingModel,
+  dataMapping,
   tenant,
   tenantPortal,
   appUser,
+  tenantUser,
+  tenantRole,
   file,
   exportRecords,
   profile,

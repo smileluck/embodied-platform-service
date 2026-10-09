@@ -2,6 +2,8 @@
 package server
 
 import (
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	devmodelsvc "github.com/smilex/smilex-admin-gin/internal/service/devmodel"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
@@ -100,4 +102,230 @@ func (s *HTTPServer) listThingModelVersions(c *gin.Context) {
 		return
 	}
 	response.OK(c, vs)
+}
+
+// ---- 数据映射（纯代理平台开放面 /data-mappings；错误一律 platformErr 透传）----
+
+// mappingIDParam 解析指定名称的 uint 路径参数（vid/mid；id 走公共 idParam）
+func mappingIDParam(c *gin.Context, name string) (uint, bool) {
+	id, err := strconv.ParseUint(c.Param(name), 10, 64)
+	if err != nil || id == 0 {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return 0, false
+	}
+	return uint(id), true
+}
+
+func (s *HTTPServer) listMappingDefs(c *gin.Context) {
+	page, size := s.pageParams(c)
+	var req devmodelsvc.MappingListRequest
+	_ = c.ShouldBindQuery(&req)
+	defs, pg, err := s.mapping.List(c.Request.Context(), req, page, size)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, listResult{List: defs, Page: pg})
+}
+
+func (s *HTTPServer) createMappingDef(c *gin.Context) {
+	var req devmodelsvc.MappingCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	res, err := s.mapping.Create(c.Request.Context(), req)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, res)
+}
+
+func (s *HTTPServer) getMappingDef(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	def, err := s.mapping.Get(c.Request.Context(), id)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, def)
+}
+
+func (s *HTTPServer) deleteMappingDef(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	if err := s.mapping.Delete(c.Request.Context(), id); err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+// getPublishedMapping 型号当前生效映射版本（?model_id=；无已发布版本返回 null）
+func (s *HTTPServer) getPublishedMapping(c *gin.Context) {
+	modelID, err := strconv.ParseUint(c.Query("model_id"), 10, 64)
+	if err != nil || modelID == 0 {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	v, err := s.mapping.PublishedForModel(c.Request.Context(), uint(modelID))
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, v)
+}
+
+func (s *HTTPServer) listMappingVersions(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	vs, err := s.mapping.Versions(c.Request.Context(), id)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, listResult{List: vs})
+}
+
+func (s *HTTPServer) createMappingDraft(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	var req devmodelsvc.MappingDraftRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	v, err := s.mapping.CreateDraft(c.Request.Context(), id, req)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, v)
+}
+
+func (s *HTTPServer) getMappingVersion(c *gin.Context) {
+	vid, ok := mappingIDParam(c, "vid")
+	if !ok {
+		return
+	}
+	v, err := s.mapping.GetVersion(c.Request.Context(), vid)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, v)
+}
+
+func (s *HTTPServer) updateMappingDraft(c *gin.Context) {
+	vid, ok := mappingIDParam(c, "vid")
+	if !ok {
+		return
+	}
+	var req devmodelsvc.MappingDraftUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	if err := s.mapping.UpdateDraft(c.Request.Context(), vid, req); err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) publishMapping(c *gin.Context) {
+	vid, ok := mappingIDParam(c, "vid")
+	if !ok {
+		return
+	}
+	v, err := s.mapping.Publish(c.Request.Context(), vid)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, v)
+}
+
+// rollbackMapping 回滚到指定已发布版本（body 可省略，默认仅创建回滚草稿不直接发布）
+func (s *HTTPServer) rollbackMapping(c *gin.Context) {
+	vid, ok := mappingIDParam(c, "vid")
+	if !ok {
+		return
+	}
+	var req devmodelsvc.MappingRollbackRequest
+	_ = c.ShouldBindJSON(&req)
+	v, err := s.mapping.Rollback(c.Request.Context(), vid, req)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, v)
+}
+
+func (s *HTTPServer) deleteMappingVersion(c *gin.Context) {
+	vid, ok := mappingIDParam(c, "vid")
+	if !ok {
+		return
+	}
+	if err := s.mapping.DeleteVersion(c.Request.Context(), vid); err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) listMappingBoundModels(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	models, err := s.mapping.BoundModels(c.Request.Context(), id)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, listResult{List: models})
+}
+
+func (s *HTTPServer) bindMappingModel(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	var req devmodelsvc.MappingBindRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	if err := s.mapping.BindModel(c.Request.Context(), id, req); err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) unbindMappingModel(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	mid, ok := mappingIDParam(c, "mid")
+	if !ok {
+		return
+	}
+	if err := s.mapping.UnbindModel(c.Request.Context(), id, mid); err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, nil)
 }

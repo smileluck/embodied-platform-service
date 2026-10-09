@@ -1,6 +1,11 @@
 <!-- last-updated: 2026-10-08 -->
 # 租户用户体系：开放租户端给企业租户使用
 
+> **[2026-10-08 下午已被取代]** 身份模型改为平台第四套身份 tenant_users（门户登录经本服务代理平台 /tenant-api/v1、
+> 本地 tenant_user_roles 退役、成员管理经开放面 tid 锁定），见
+> [2026-10-08-tenant-portal-tenantusers-migration.md](2026-10-08-tenant-portal-tenantusers-migration.md)。
+> 本文的登录自举/守卫语义/设备租户过滤骨架被延续吸收。
+
 > 路径：`aiDoc/notes/implemented/architecture/2026-10-08-tenant-user-system.md`
 
 ## 问题
@@ -12,7 +17,7 @@
 **身份复用平台应用用户（AppUser），本服务只补「租户级授权层」**：
 
 1. **租户端用户 = 平台 AppUser**：登录由租户端前端直调平台 `POST /api/v1/app-auth/login`（token 双用于平台与本服务 `/app-api/v1`），平台零改动即获得完整身份链（账密/禁用即时生效/token 刷新）。AppAuth 中间件（自省 + `X-Tenant-ID` 租户闸门）原样复用。
-2. **本地授权层（新上下文 `internal/biz/tenantmember/`）**：新表 `tenant_user_roles(app_user_id, tenant_platform_id, role)`，内置双角色 `tenant_admin`/`member`（**不建角色表**，绑定缺失视为 member）。成员资料经 `appuser.Gateway` 实时消费平台开放面，本地不落成员数据面——与 B 端 admission 投影同一哲学：身份在平台，授权在本地。
+2. **本地授权层（新上下文 `biz/tenantmember`，已随下午迁移退役删除）**：新表 `tenant_user_roles(app_user_id, tenant_platform_id, role)`，内置双角色 `tenant_admin`/`member`（**不建角色表**，绑定缺失视为 member）。成员资料经 `appuser.Gateway` 实时消费平台开放面，本地不落成员数据面——与 B 端 admission 投影同一哲学：身份在平台，授权在本地。
 3. **鉴权分档**：读面（设备列表/详情/影子/遥测、profile）「归属即准入」不挂角色校验；成员管理面挂 `middleware.TenantAdmin`（默认拒绝，仅 tenant_admin 放行）。绑定表主键双列点查，v1 不加缓存（per-uid 限流 120/min 兜底）。
 4. **成员语义**：「移除成员」= `UpdateAppUser` tenant_ids **差集更新**（保留本商户其他租户归属与他商户归属），不删账号；硬删仅存在于 B 端管理面。
 5. **守卫**：最后一个 tenant_admin 不可移除/降级/禁用（防租户失管）；本人不可移除/降级/禁用自己。
@@ -39,7 +44,7 @@
 - [x] 最后一个 tenant_admin 不可移除/降级/禁用；本人不可自我移除/降级/禁用（单测覆盖）
 - [x] 跨租户操作被本地拒绝（成员定位按租户过滤；设备越权 404 语义不泄露存在性）
 - [x] B 端创建应用用户时可设置租户端角色 + 行内调整
-- [x] `go build ./...`、`go vet`、`go test ./internal/biz/tenantmember/... ./internal/server/middleware/...` 通过；`web` `vue-tsc -b` + `npm run build` + `npm run lint`（0 错误）通过；平台侧 `go test ./internal/service/openapi/` 通过
+- [x] `go build ./...`、`go vet`、`go test ./biz/tenantmember/... ./internal/server/middleware/...`（当时口径） 通过；`web` `vue-tsc -b` + `npm run build` + `npm run lint`（0 错误）通过；平台侧 `go test ./internal/service/openapi/` 通过
 - [ ] 端到端冒烟（登录→租户切换→设备/成员/个人中心全链路）依赖平台联调环境，**未执行**
 
 ## 风险与后果
@@ -56,7 +61,7 @@
 - 前置决策：[2026-10-05-appauth-and-appuser-unification.md](2026-10-05-appauth-and-appuser-unification.md)（AppAuth 骨架与「归属即准入」）、[2026-10-05-tenant-reconcile-and-gate-status.md](2026-10-05-tenant-reconcile-and-gate-status.md)（租户闸门启停校验）
 - 变更计划：`aiDoc/plans/completed/2026-10-08-tenant-portal-user-system.md`
 - 业务需求：`aiDoc/memory/business/2026-10-08-租户用户体系.md`
-- 关键代码：`internal/biz/tenantmember/`、`internal/server/handler_tenantapi.go`、`internal/server/middleware/middleware.go:TenantAdmin`、`web/src/api/tenant.ts`、`web/src/stores/tenantUser.ts`、`web/src/views/tenant-portal/`
+- 关键代码：`biz/tenantmember`（已退役）、`internal/server/handler_tenantapi.go`、`internal/server/middleware/middleware.go:TenantAdmin`、`web/src/api/tenant.ts`、`web/src/stores/tenantUser.ts`、`web/src/views/tenant-portal/`
 - 平台侧配套：`embodied-platform/internal/service/openapi/device.go`（ListDevices tenant_id 过滤）+ `sdk/client.go`（同口径变更已手工同步本仓 `internal/platformsdk`）
 
 ## 未涵盖（显式不做）

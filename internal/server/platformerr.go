@@ -20,9 +20,11 @@ type platformError = platform.Error
 func errorsAs(err error, target **platformError) bool { return errors.As(err, target) }
 
 // platformErr 平台调用失败统一映射：
+//   - SDK 的 *platformsdk.Error 先归一为平台信封错误（devmodel/mapping 等 SDK 代理链路直调本函数）
 //   - 平台信封错误：HTTP 状态与 msg 原样透传（401/403/404/409/429 语义保留）
 //   - 网络/未知错误：502（上游不可达）
 func (s *HTTPServer) platformErr(c *gin.Context, err error) {
+	err = normalizeSDKError(err)
 	var perr *platform.Error
 	if errors.As(err, &perr) {
 		response.Fail(c, perr.HTTPStatus, response.CodeErr, perr.Msg)

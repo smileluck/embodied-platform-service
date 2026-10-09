@@ -12,6 +12,11 @@ export default defineConfig({
         target: 'http://localhost:28180',
         changeOrigin: true,
       },
+      // 租户门户（/tenant-api/v1 认证代理 + 业务端点）
+      '/tenant-api': {
+        target: 'http://localhost:28180',
+        changeOrigin: true,
+      },
     },
   },
 })

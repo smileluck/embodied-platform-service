@@ -15,7 +15,6 @@ import (
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
-	biztenantmember "github.com/smilex/smilex-admin-gin/internal/biz/tenantmember"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	"github.com/smilex/smilex-admin-gin/pkg/cache"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
@@ -337,6 +336,139 @@ func AppAuthToken(c *gin.Context) string {
 	return ""
 }
 
+// ---- 租户门户认证（第四套身份 tenant_users，2026-10-08） ----
+
+const (
+	ctxTenantAuthSubjectKey = "tenantauth.subject"
+	ctxTenantAuthTenantKey  = "tenantauth.tenant"
+	ctxTenantAuthTokenKey   = "tenantauth.token"
+)
+
+// TenantAuth 租户门户认证：Bearer tenant-access token →（缓存）平台
+// /tenant-api/v1/profile 自省 → 本地租户闸门。与 AppAuth 同骨架但上下文不同：
+//   - 门户登录经本服务后端代理平台 /tenant-api/v1/auth（token 双用于平台与本系统），
+//     本系统对门户侧不碰账密、不签发、不换签、无本地投影；
+//   - 自省结果按 token 哈希缓存 30-60s：平台 TenantAuth 按请求查库（用户+租户双启用），
+//     禁用即时 401，本系统在缓存 TTL 内感知（与 B/C 端同一权衡）；
+//   - 闸门：单租户绑定，tid 取自 token 自省（不信任请求头/参数）；本地租户
+//     （tenants.platform_id）须已同步且启用，否则 403（停用即拒，口径对齐 AppAuth）；
+//   - 平台不可达 fail-closed（503），不降级放行。
+func TenantAuth(ids auth.TenantIdentitySource, tenants TenantResolver, idCache *cache.TwoLevel) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		h := c.GetHeader("Authorization")
+		token, ok := strings.CutPrefix(h, "Bearer ")
+		if !ok || token == "" {
+			response.Unauthorized(c, "missing bearer token")
+			c.Abort()
+			return
+		}
+		sum := sha256.Sum256([]byte(token))
+		key := "t:" + hex.EncodeToString(sum[:16])
+		val, err := idCache.Load(c.Request.Context(), key, func(ctx context.Context) (string, error) {
+			sub, err := ids.TenantProfile(ctx, token)
+			if err != nil {
+				return "", err
+			}
+			b, err := json.Marshal(sub)
+			if err != nil {
+				return "", err
+			}
+			return string(b), nil
+		})
+		if err != nil {
+			switch {
+			case errors.Is(err, auth.ErrInvalidToken):
+				response.Unauthorized(c, "invalid or expired token")
+			case errors.Is(err, auth.ErrPlatformUnavailable):
+				response.ServiceUnavailable(c, "platform unavailable")
+			default:
+				response.ServerError(c, "authenticate failed")
+			}
+			c.Abort()
+			return
+		}
+		var sub auth.TenantSubject
+		if err := json.Unmarshal([]byte(val), &sub); err != nil || sub.UserID == 0 || sub.TenantID == 0 {
+			response.Unauthorized(c, "invalid or expired token")
+			c.Abort()
+			return
+		}
+
+		// 本地租户闸门：tid 来自 token（单租户绑定），本地投影须已同步且启用
+		tn, err := tenants.GetByPlatformID(c.Request.Context(), sub.TenantID)
+		if err != nil || tn == nil || tn.ID == 0 || !tn.Enabled() {
+			response.Forbidden(c, "tenant not accessible for this account")
+			c.Abort()
+			return
+		}
+
+		c.Set(ctxTenantAuthSubjectKey, &sub)
+		c.Set(ctxTenantAuthTenantKey, tn)
+		c.Set(ctxTenantAuthTokenKey, token)
+		c.Next()
+	}
+}
+
+// TenantAuthSubject 从 context 取租户门户主体（TenantAuth 之后可用；UserID 为平台
+// tenant_user ID，TenantID 为平台租户 ID，PermCodes 为平台租户 RBAC 权限码集合）
+func TenantAuthSubject(c *gin.Context) *auth.TenantSubject {
+	if v, ok := c.Get(ctxTenantAuthSubjectKey); ok {
+		if s, ok := v.(*auth.TenantSubject); ok {
+			return s
+		}
+	}
+	return nil
+}
+
+// TenantAuthTenant 从 context 取本次请求的本地租户上下文（TenantAuth 之后可用）
+func TenantAuthTenant(c *gin.Context) *biztenant.Tenant {
+	if v, ok := c.Get(ctxTenantAuthTenantKey); ok {
+		if t, ok := v.(*biztenant.Tenant); ok {
+			return t
+		}
+	}
+	return nil
+}
+
+// TenantAuthToken 从 context 取当前请求的 tenant-access token（代理平台门户接口用）
+func TenantAuthToken(c *gin.Context) string {
+	if v, ok := c.Get(ctxTenantAuthTokenKey); ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+// TenantAuthSubjectUID 限流 SubjectFunc 用：取门户主体 UID（未认证返回空串=按 IP 计）
+func TenantAuthSubjectUID(c *gin.Context) string {
+	if sub := TenantAuthSubject(c); sub != nil {
+		return strconv.FormatUint(uint64(sub.UserID), 10)
+	}
+	return ""
+}
+
+// RequireTenantPerm 租户门户权限点校验（TenantAuth 之后挂载）：对自省下发
+// perm_codes 精确匹配（平台目录无通配形态，与平台 RequireTenantPerm 同口径）
+func RequireTenantPerm(code string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sub := TenantAuthSubject(c)
+		if sub == nil {
+			response.Unauthorized(c, "unauthenticated")
+			c.Abort()
+			return
+		}
+		for _, p := range sub.PermCodes {
+			if p == code {
+				c.Next()
+				return
+			}
+		}
+		response.Forbidden(c, "permission denied")
+		c.Abort()
+	}
+}
+
 func containsUint(ids []uint, id uint) bool {
 	for _, v := range ids {
 		if v == id {
@@ -376,35 +508,6 @@ func RBAC(authSvc *authsvc.Service, cache *cache.TwoLevel) gin.HandlerFunc {
 	}
 }
 
-// TenantRoleReader 租户端角色查询最小接口（*biztenantmember.Usecase 满足）
-type TenantRoleReader interface {
-	RoleOf(ctx context.Context, appUserID, tenantPlatformID uint) (biztenantmember.Role, error)
-}
-
-// TenantAdmin 租户端管理员鉴权（AppAuth 之后）：按 (app_user_id, X-Tenant-ID)
-// 查本地角色绑定，仅 tenant_admin 放行。绑定缺失=普通成员（读面不挂本中间件，
-// 归属即准入；成员管理面默认拒绝）。主键双列点查 + per-uid 限流兜底，暂不加缓存
-// （与 B 端 RBAC 的缓存权衡不同：本查询无权限点 JOIN，成本恒定）。
-func TenantAdmin(roles TenantRoleReader) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sub := AppAuthSubject(c)
-		tn := AppAuthTenant(c)
-		if sub == nil || tn == nil {
-			response.Unauthorized(c, "unauthenticated")
-			c.Abort()
-			return
-		}
-		role, err := roles.RoleOf(c.Request.Context(), sub.UserID, tn.PlatformID)
-		if err != nil {
-			response.ServerError(c, "authorize failed")
-			c.Abort()
-			return
-		}
-		if role != biztenantmember.RoleTenantAdmin {
-			response.Forbidden(c, "permission denied")
-			c.Abort()
-			return
-		}
-		c.Next()
-	}
-}
+// TenantRoleReader 租户端角色查询最小接口已随本地 tenant_user_roles 退役删除
+// （2026-10-08 门户身份切换到平台 tenant_users，鉴权改为 RequireTenantPerm 精确
+// 匹配自省下发的 perm_codes，见上方 TenantAuth 段）。

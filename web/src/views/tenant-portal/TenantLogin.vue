@@ -57,20 +57,15 @@ async function onLogin() {
   }
   loading.value = true
   try {
-    // 登录直调平台 /app-auth（token 双用于平台与本系统 /app-api/v1）；
-    // 返回租户归属集用于自举当前租户（X-Tenant-ID 需先于 profile 确定）
-    const tenantIds = await store.login(form.username.trim(), form.password)
-    if (!tenantIds.length || !store.tenantId) {
-      store.clearAuth()
-      message.error(t('tenantPortal.login.noTenant'))
-      return
-    }
-    // 平台登录成功 ≠ 可进入租户端：加载上下文验证本地租户同步状态与角色
+    // 门户登录经本服务后端代理平台 /tenant-api/v1/auth（token 双用；
+    // tenant_users 单租户绑定，租户上下文在 token 内，无需前端自举）
+    await store.login(form.username.trim(), form.password)
+    // 登录成功 ≠ 可进入门户：加载上下文验证本地租户同步/启用状态（闸门在 TenantAuth）
     try {
       await store.loadContext()
     } catch (e: any) {
       store.clearAuth()
-      // 403：token 有效但选定租户未同步/未启用（本地闸门拒绝）
+      // 403：token 有效但本地租户投影未同步/已停用（TenantAuth 闸门拒绝）
       if (e?.response?.status === 403) {
         message.error(t('tenantPortal.login.tenantNotAccessible'))
       } else {
@@ -85,7 +80,7 @@ async function onLogin() {
     if (networkFailed) {
       message.error(t('tenantPortal.login.platformUnreachable'))
     } else {
-      message.error(e?.message || t('tenantPortal.login.failed'))
+      message.error(e?.response?.data?.msg || t('tenantPortal.login.failed'))
     }
   } finally {
     loading.value = false
@@ -95,9 +90,6 @@ async function onLogin() {
 onMounted(() => {
   if (route.query.reason === 'expired') {
     message.warning(t('tenantPortal.login.sessionExpired'))
-  }
-  if (route.query.reason === 'noTenant') {
-    message.warning(t('tenantPortal.login.noTenant'))
   }
 })
 </script>

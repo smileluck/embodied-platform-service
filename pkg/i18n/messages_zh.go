@@ -107,6 +107,12 @@ var messagesZh = map[string]string{
 	"tenant_member.last_admin":           "租户内最后一名管理员不可移除、降级或禁用",
 	"tenant_member.self_forbidden":       "不可对本人执行该操作，请由其他管理员处理",
 	"tenant_member.device_not_in_tenant": "设备不存在或不属于当前租户",
+	// 租户用户/角色（平台第四套身份，经开放面）
+	"tenant_user.not_found":    "租户用户不存在",
+	"tenant_role.not_found":    "租户角色不存在",
+	"tenant_role.code_exists":  "角色编码已存在，请更换",
+	"tenant_role.in_use":       "该角色已分配给租户用户，请先解除分配",
+	"tenant_role.invalid_perm": "权限点无效（不在平台目录内或超上限）",
 	// 服务器监控
 	"monitor.collect_failed": "服务器指标采集失败，请稍后重试",
 	// 智能体（LLM 配置底座）
@@ -214,4 +220,6 @@ var messagesZh = map[string]string{
 	"menu.menu:sysConfig":     "系统参数",
 	"menu.menu:notice":        "消息通知",
 	"menu.menu:job":           "定时任务",
+	"menu.menu:thingModel":    "物模型",
+	"menu.menu:dataMapping":   "数据映射",
 }

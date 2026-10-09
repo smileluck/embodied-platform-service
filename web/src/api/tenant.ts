@@ -1,6 +1,7 @@
-// 租户端 API：独立 axios 实例（/app-api/v1），与管理端（api/request.ts）隔离。
-// 请求自动附带 Bearer app-access token + X-Tenant-ID（平台租户 ID，全链路唯一口径）；
-// 401 时单飞刷新（直调平台 /app-auth/refresh）后重放。
+// 租户门户 API：独立 axios 实例（/tenant-api/v1），与管理端（api/request.ts）隔离。
+// 2026-10-08 起门户身份=平台第四套身份 tenant_users（单租户绑定）：登录/刷新经本服务
+// 后端代理平台 /tenant-api/v1/auth（token 双用），请求只附 Bearer tenant-access token——
+// 租户上下文在 token 内（tid 自省解析），不再携带 X-Tenant-ID；401 时单飞刷新后重放。
 import axios from 'axios'
 import { useTenantUserStore } from '../stores/tenantUser'
 import { getLocale } from '../locales'
@@ -19,7 +20,7 @@ declare module 'axios' {
 const { message: globalMessage } = createDiscreteApi(['message'])
 
 const tenantRequest = axios.create({
-  baseURL: '/app-api/v1',
+  baseURL: '/tenant-api/v1',
   timeout: 15000,
 })
 
@@ -27,9 +28,6 @@ tenantRequest.interceptors.request.use((config) => {
   const store = useTenantUserStore()
   if (store.accessToken) {
     config.headers.Authorization = `Bearer ${store.accessToken}`
-  }
-  if (store.tenantId) {
-    config.headers['X-Tenant-ID'] = String(store.tenantId)
   }
   config.headers['Accept-Language'] = getLocale()
   if (config.data && typeof config.data === 'object') {
@@ -73,27 +71,58 @@ tenantRequest.interceptors.response.use(
 
 export default tenantRequest
 
-// ---- 类型 ----
+// ---- 认证（经本服务代理平台 /tenant-api/v1/auth） ----
 
-// 租户端身份（GET /profile）：本人 + 当前租户 + 可访问租户 + 本租户内角色
-export interface TenantProfile {
-  user: { id: number; username: string; nickname: string }
-  tenant: { platform_id: number; local_id: number; name: string; code: string; status: number } | null
-  accessible_tenants: { platform_id: number; local_id: number; name: string; code: string; status: number }[]
-  role: 'tenant_admin' | 'member'
+// 令牌对（登录/刷新响应）
+export interface TenantTokenPair {
+  access_token: string
+  refresh_token: string
+  expires_at: string
 }
 
-// 租户成员（/members；role 为本租户内角色）
+export function tenantPortalLogin(data: { username: string; password: string }) {
+  return tenantRequest.post<R<TenantTokenPair>>('/auth/login', data)
+}
+
+export function tenantPortalRefresh(refresh_token: string) {
+  return tenantRequest.post<R<TenantTokenPair>>('/auth/refresh', { refresh_token })
+}
+
+export function changeTenantPassword(data: { old_password: string; new_password: string }) {
+  return tenantRequest.put<R<null>>('/profile/password', data)
+}
+
+// ---- 身份 ----
+
+// 租户门户身份（GET /profile）：本人 + 当前租户 + 平台租户 RBAC 权限码集合
+export interface TenantProfile {
+  user: { id: number; username: string; nickname: string; tenant_id: number }
+  tenant: { platform_id: number; local_id: number; name: string; code: string; status: number } | null
+  perm_codes: string[]
+}
+
+// 租户成员（/members；role_ids 为本租户下租户角色，平台口径）
 export interface TenantMember {
   id: number
+  tenant_id: number
   username: string
   nickname: string
   phone: string
   email: string
   status: number
-  role: 'tenant_admin' | 'member'
+  role_ids: number[]
   created_at: string
   updated_at: string
+}
+
+// 租户角色（/members/roles；本租户下的角色选项）
+export interface TenantRoleOption {
+  id: number
+  tenant_id: number
+  name: string
+  code: string
+  remark: string
+  perm_codes: string[]
 }
 
 // 设备（与管理端 Device 同构，走租户面只读口径）
@@ -137,14 +166,14 @@ export function getTenantProfile() {
   return tenantRequest.get<R<TenantProfile>>('/profile')
 }
 
-export function changeTenantPassword(data: { old_password: string; new_password: string }) {
-  return tenantRequest.put<R<null>>('/profile/password', data)
-}
-
-// ---- 成员自助管理（tenant_admin） ----
+// ---- 成员自治（member:* 权限码；tenant_id 锁定 token 内 tid） ----
 
 export function listTenantMembers(params: { page: number; page_size: number; kw?: string }) {
   return tenantRequest.get<R<PageResult<TenantMember>>>('/members', { params })
+}
+
+export function listTenantMemberRoles() {
+  return tenantRequest.get<R<TenantRoleOption[]>>('/members/roles')
 }
 
 export function createTenantMember(data: {
@@ -153,7 +182,7 @@ export function createTenantMember(data: {
   nickname?: string
   phone?: string
   email?: string
-  role?: 'tenant_admin' | 'member'
+  role_ids?: number[]
 }) {
   return tenantRequest.post<R<TenantMember>>('/members', data)
 }
@@ -163,15 +192,15 @@ export function updateTenantMember(id: number, data: { nickname?: string; phone?
 }
 
 export function setTenantMemberStatus(id: number, status: number) {
-  return tenantRequest.put<R<null>>(`/members/${id}`, { status })
+  return tenantRequest.put<R<null>>(`/members/${id}/status`, { status })
 }
 
 export function resetTenantMemberPassword(id: number, password: string) {
-  return tenantRequest.put<R<null>>(`/members/${id}`, { password })
+  return tenantRequest.put<R<null>>(`/members/${id}/password`, { password })
 }
 
-export function setTenantMemberRole(id: number, role: 'tenant_admin' | 'member') {
-  return tenantRequest.put<R<null>>(`/members/${id}`, { role })
+export function setTenantMemberRoles(id: number, roleIds: number[]) {
+  return tenantRequest.put<R<null>>(`/members/${id}/roles`, { role_ids: roleIds })
 }
 
 export function removeTenantMember(id: number) {

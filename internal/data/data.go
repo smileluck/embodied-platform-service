@@ -136,7 +136,6 @@ func (d *Data) migrateAndSeed() error {
 		&model.OperationLogPO{}, &model.LoginLogPO{},
 		&model.FilePO{}, &model.ExportRecordPO{}, &model.IPBlacklistPO{},
 		&model.TenantPO{},
-		&model.TenantUserRolePO{},
 		&model.AgentProviderPO{}, &model.AgentModelPO{}, &model.AgentPO{},
 		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{}, &model.SysConfigPO{}, &model.NoticePO{}, &model.NoticeReadPO{}, &model.NoticeTargetPO{}, &model.JobPO{}, &model.JobLogPO{}, &model.MonitorSnapshotPO{},
 		&model.NotifyChannelPO{}, &model.NotifyRulePO{}, &model.NotifyRecordPO{},
@@ -154,6 +153,13 @@ func (d *Data) migrateAndSeed() error {
 	}
 	if d.DB.Migrator().HasTable("app_users") {
 		if err := d.DB.Migrator().DropTable("app_users"); err != nil {
+			return err
+		}
+	}
+	// 本地租户成员角色下线（2026-10-08，门户运营账号收敛为平台 tenant_users）：
+	// 幂等清理存量绑定表
+	if d.DB.Migrator().HasTable("tenant_user_roles") {
+		if err := d.DB.Migrator().DropTable("tenant_user_roles"); err != nil {
 			return err
 		}
 	}
@@ -198,6 +204,8 @@ var systemMenus = []systemMenuDef{
 	{Name: "设备中心", Code: "menu:deviceCenter", Type: "dir", Icon: "HardwareChipOutline", Sort: 3},
 	{Name: "设备管理", Code: "menu:device", Path: "/device/devices", Icon: "HardwareChipOutline", Sort: 1, ParentCode: "menu:deviceCenter"},
 	{Name: "型号管理", Code: "menu:deviceModel", Path: "/device/models", Icon: "CubeOutline", Sort: 2, ParentCode: "menu:deviceCenter"},
+	{Name: "物模型", Code: "menu:thingModel", Path: "/device/thing-models", Icon: "CubeOutline", Sort: 3, ParentCode: "menu:deviceCenter"},
+	{Name: "数据映射", Code: "menu:dataMapping", Path: "/device/data-mappings", Icon: "SwapHorizontalOutline", Sort: 4, ParentCode: "menu:deviceCenter"},
 	// 租户中心（顶级目录分组）
 	{Name: "租户中心", Code: "menu:tenantCenter", Type: "dir", Icon: "BusinessOutline", Sort: 4},
 	{Name: "数据字典", Code: "menu:dict", Path: "/system/dicts", Icon: "BookOutline", Sort: 10, ParentCode: "menu:system"},
@@ -214,6 +222,8 @@ var systemMenus = []systemMenuDef{
 	{Name: "租户中心", Code: "menu:tenantCenter", Type: "dir", Icon: "BusinessOutline", Sort: 2},
 	{Name: "租户管理", Code: "menu:tenant", Path: "/tenant/tenants", Icon: "BusinessOutline", Sort: 1, ParentCode: "menu:tenantCenter"},
 	{Name: "应用用户", Code: "menu:appUser", Path: "/tenant/app-users", Icon: "PeopleOutline", Sort: 2, ParentCode: "menu:tenantCenter"},
+	{Name: "租户用户", Code: "menu:tenantUser", Path: "/tenant/tenant-users", Icon: "PersonCircleOutline", Sort: 3, ParentCode: "menu:tenantCenter"},
+	{Name: "租户角色", Code: "menu:tenantRole", Path: "/tenant/tenant-roles", Icon: "KeyOutline", Sort: 4, ParentCode: "menu:tenantCenter"},
 	// 智能体（LLM 配置底座，顶级目录分组，父级先于子菜单声明以解析 ParentCode）
 	{Name: "智能体", Code: "menu:agent", Type: "dir", Icon: "SparklesOutline", Sort: 8},
 	{Name: "模型供应商", Code: "menu:agentProvider", Path: "/agent/providers", Icon: "ServerOutline", Sort: 1, ParentCode: "menu:agent"},
@@ -275,7 +285,9 @@ func (d *Data) ensureMerchantAdminRole() error {
 var merchantRoleBound bool
 
 // ensureSystemMenus 幂等补齐系统菜单并绑定商户管理员角色（每次启动执行）：
-// 按 code 查找（type 兼容 menu/dir，存量迁移会翻转类型），缺失则插入（父级按 code 解析，缺失时落为顶级菜单）
+// 按 code 查找（type 兼容 menu/dir，存量迁移会翻转类型），缺失则插入（父级按 code 解析，缺失时落为顶级菜单）；
+// 软删残留恢复（种子菜单被误删后重启自愈，与 ensureSystemButtonPerms 的软删恢复同口径——
+// 不恢复则按钮自愈的父级解析查不到软删菜单，按钮 parent_id 落 0 孤儿化）
 func (d *Data) ensureSystemMenus() error {
 	for _, m := range systemMenus {
 		var po model.PermissionPO
@@ -300,6 +312,25 @@ func (d *Data) ensureSystemMenus() error {
 				return err
 			}
 			logger.Info("ensured system menu", zap.String("code", m.Code))
+		} else if po.DeletedAt.Valid {
+			// 软删恢复：种子定义字段一并校正（用户改名等存量漂移不纳入——仅软删行才走到这里）
+			t := m.Type
+			if t == "" {
+				t = string(permission.TypeMenu)
+			}
+			updates := map[string]interface{}{
+				"name": m.Name, "type": t, "path": m.Path, "icon": m.Icon, "sort": m.Sort, "deleted_at": nil,
+			}
+			if m.ParentCode != "" {
+				var parent model.PermissionPO
+				if err := d.DB.Where("code = ? AND type IN ?", m.ParentCode, []string{string(permission.TypeDir), string(permission.TypeMenu)}).First(&parent).Error; err == nil {
+					updates["parent_id"] = parent.ID
+				}
+			}
+			if err := d.DB.Unscoped().Model(&po).Updates(updates).Error; err != nil {
+				return err
+			}
+			logger.Info("restored soft-deleted system menu", zap.String("code", m.Code))
 		}
 		// 商户管理员角色随种子同步持有全部菜单（可用时）
 		if merchantRoleBound {
@@ -378,6 +409,25 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "删除型号", Code: "model:delete", Menu: "menu:deviceModel", Method: "DELETE", Path: "/api/v1/device-models/*", Sort: 5},
 	{Name: "物模型选择器", Code: "model:tmPicker", Menu: "menu:deviceModel", Method: "GET", Path: "/api/v1/thing-models", Sort: 6},
 	{Name: "物模型版本选择器", Code: "model:tmVersion", Menu: "menu:deviceModel", Method: "GET", Path: "/api/v1/thing-models/*/versions", Sort: 7},
+	// 物模型只读浏览（与 model:tmPicker/model:tmVersion 同 path，RBAC 任一码匹配即放行）
+	{Name: "查询物模型", Code: "thingModel:list", Menu: "menu:thingModel", Method: "GET", Path: "/api/v1/thing-models", Sort: 1},
+	{Name: "物模型版本", Code: "thingModel:version", Menu: "menu:thingModel", Method: "GET", Path: "/api/v1/thing-models/*/versions", Sort: 2},
+	// 数据映射（平台开放面代理；子资源（版本/绑定/发布/回滚）按单段 * 通配单列权限点，
+	// 防止粗粒度点越级覆盖；mapping:view 的单段 * 同时覆盖 /:id 详情与 /effective 生效查询）
+	{Name: "查询映射", Code: "mapping:list", Menu: "menu:dataMapping", Method: "GET", Path: "/api/v1/data-mappings", Sort: 1},
+	{Name: "映射详情", Code: "mapping:view", Menu: "menu:dataMapping", Method: "GET", Path: "/api/v1/data-mappings/*", Sort: 2},
+	{Name: "版本列表", Code: "mapping:versionList", Menu: "menu:dataMapping", Method: "GET", Path: "/api/v1/data-mappings/*/versions", Sort: 3},
+	{Name: "版本详情", Code: "mapping:versionView", Menu: "menu:dataMapping", Method: "GET", Path: "/api/v1/data-mappings/versions/*", Sort: 4},
+	{Name: "绑定型号列表", Code: "mapping:bindingList", Menu: "menu:dataMapping", Method: "GET", Path: "/api/v1/data-mappings/*/bindings", Sort: 5},
+	{Name: "新增映射", Code: "mapping:create", Menu: "menu:dataMapping", Method: "POST", Path: "/api/v1/data-mappings", Sort: 6},
+	{Name: "新建草稿", Code: "mapping:draft", Menu: "menu:dataMapping", Method: "POST", Path: "/api/v1/data-mappings/*/versions", Sort: 7},
+	{Name: "编辑草稿", Code: "mapping:updateDraft", Menu: "menu:dataMapping", Method: "PUT", Path: "/api/v1/data-mappings/versions/*", Sort: 8},
+	{Name: "删除映射", Code: "mapping:delete", Menu: "menu:dataMapping", Method: "DELETE", Path: "/api/v1/data-mappings/*", Sort: 9},
+	{Name: "删除版本", Code: "mapping:deleteVersion", Menu: "menu:dataMapping", Method: "DELETE", Path: "/api/v1/data-mappings/versions/*", Sort: 10},
+	{Name: "发布版本", Code: "mapping:publish", Menu: "menu:dataMapping", Method: "POST", Path: "/api/v1/data-mappings/versions/*/publish", Sort: 11},
+	{Name: "回滚版本", Code: "mapping:rollback", Menu: "menu:dataMapping", Method: "POST", Path: "/api/v1/data-mappings/versions/*/rollback", Sort: 12},
+	{Name: "绑定型号", Code: "mapping:bind", Menu: "menu:dataMapping", Method: "POST", Path: "/api/v1/data-mappings/*/bindings", Sort: 13},
+	{Name: "解绑型号", Code: "mapping:unbind", Menu: "menu:dataMapping", Method: "DELETE", Path: "/api/v1/data-mappings/*/bindings/*", Sort: 14},
 	// 日志管理
 	{Name: "查询登录日志", Code: "log:login:list", Menu: "menu:loginLog", Method: "GET", Path: "/api/v1/login-logs", Sort: 1},
 	{Name: "清理登录日志", Code: "log:login:clear", Menu: "menu:loginLog", Method: "DELETE", Path: "/api/v1/login-logs", Sort: 2},
@@ -409,6 +459,21 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "编辑应用用户", Code: "appUser:update", Menu: "menu:appUser", Method: "PUT", Path: "/api/v1/app-users/*", Sort: 4},
 	{Name: "删除应用用户", Code: "appUser:delete", Menu: "menu:appUser", Method: "DELETE", Path: "/api/v1/app-users/*", Sort: 5},
 	{Name: "重置密码", Code: "appUser:resetPwd", Menu: "menu:appUser", Method: "PUT", Path: "/api/v1/app-users/*/password", Sort: 6},
+	// 租户用户（平台第四套身份：经开放面实时消费，本地无数据面）
+	{Name: "查询租户用户", Code: "tenantUser:list", Menu: "menu:tenantUser", Method: "GET", Path: "/api/v1/tenant-users", Sort: 1},
+	{Name: "新增租户用户", Code: "tenantUser:create", Menu: "menu:tenantUser", Method: "POST", Path: "/api/v1/tenant-users", Sort: 2},
+	{Name: "编辑租户用户", Code: "tenantUser:update", Menu: "menu:tenantUser", Method: "PUT", Path: "/api/v1/tenant-users/*", Sort: 3},
+	{Name: "租户用户状态", Code: "tenantUser:status", Menu: "menu:tenantUser", Method: "PUT", Path: "/api/v1/tenant-users/*/status", Sort: 4},
+	{Name: "重置租户用户密码", Code: "tenantUser:resetPwd", Menu: "menu:tenantUser", Method: "PUT", Path: "/api/v1/tenant-users/*/password", Sort: 5},
+	{Name: "分配租户角色", Code: "tenantUser:setRoles", Menu: "menu:tenantUser", Method: "PUT", Path: "/api/v1/tenant-users/*/roles", Sort: 6},
+	{Name: "删除租户用户", Code: "tenantUser:delete", Menu: "menu:tenantUser", Method: "DELETE", Path: "/api/v1/tenant-users/*", Sort: 7},
+	// 租户角色（租户作用域 RBAC；权限码目录由平台下发）
+	{Name: "查询租户角色", Code: "tenantRole:list", Menu: "menu:tenantRole", Method: "GET", Path: "/api/v1/tenant-roles", Sort: 1},
+	{Name: "新增租户角色", Code: "tenantRole:create", Menu: "menu:tenantRole", Method: "POST", Path: "/api/v1/tenant-roles", Sort: 2},
+	{Name: "编辑租户角色", Code: "tenantRole:update", Menu: "menu:tenantRole", Method: "PUT", Path: "/api/v1/tenant-roles/*", Sort: 3},
+	{Name: "分配权限点", Code: "tenantRole:setPerms", Menu: "menu:tenantRole", Method: "PUT", Path: "/api/v1/tenant-roles/*/perms", Sort: 4},
+	{Name: "删除租户角色", Code: "tenantRole:delete", Menu: "menu:tenantRole", Method: "DELETE", Path: "/api/v1/tenant-roles/*", Sort: 5},
+	{Name: "权限点目录", Code: "tenantRole:catalog", Menu: "menu:tenantRole", Method: "GET", Path: "/api/v1/tenant-user-perms", Sort: 6},
 	// 服务器状态监控
 	{Name: "查询服务器状态", Code: "monitor:list", Menu: "menu:monitor", Method: "GET", Path: "/api/v1/monitor", Sort: 1},
 	{Name: "查询监控历史", Code: "monitor:history", Menu: "menu:monitor", Method: "GET", Path: "/api/v1/monitor/history", Sort: 2},

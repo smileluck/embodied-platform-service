@@ -196,18 +196,8 @@ type TenantPO struct {
 
 func (TenantPO) TableName() string { return "tenants" }
 
-// TenantUserRolePO 租户成员角色绑定表（租户端授权：平台 app_user × 平台租户 ID，
-// role 为内置双角色 tenant_admin/member；绑定即授权，无软删——解除即物理删除，
-// 孤儿绑定在 AppAuth 闸门处天然失效）
-type TenantUserRolePO struct {
-	AppUserID        uint   `gorm:"primaryKey"`
-	TenantPlatformID uint   `gorm:"primaryKey;index"`
-	Role             string `gorm:"size:32;not null"` // tenant_admin | member
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-}
-
-func (TenantUserRolePO) TableName() string { return "tenant_user_roles" }
+// 租户成员角色绑定表（tenant_user_roles）自 2026-10-08 起移除：门户运营账号收敛为
+// 平台 tenant_users（租户作用域 RBAC），本地授权层退役（存量经 migrateLegacy 幂等 DropTable）
 
 // 应用用户本地表自 2026-10-05 起移除（平台为唯一事实源；存量经 migrateLegacy 幂等 DropTable）
 
