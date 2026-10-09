@@ -28,8 +28,11 @@ const (
 	ScopeModelCreate = "model:create"
 	ScopeModelUpdate = "model:update"
 	ScopeModelDelete = "model:delete"
-	// 物模型只读（2026-09-16）：型号选择器（版本仅 published）
-	ScopeThingModelRead = "thing-model:read"
+	// 物模型（2026-09-16 只读选择器：版本仅 published；2026-10-09 起放写面）：
+	// read=节点/版本/resolve/继承状态读；write=节点 CRUD + 版本草稿/发布/回滚/删除
+	// （写仅本商户独立节点，创建 merchant_id 服务端注入调用方）
+	ScopeThingModelRead  = "thing-model:read"
+	ScopeThingModelWrite = "thing-model:write"
 	// 数据映射域（2026-10-09）：读=通用+本商户，写=仅本商户独立资源（通用/他商户统一 404）；
 	// 创建 merchant_id 服务端注入调用方（入参不收）；publish 覆盖发布与回滚
 	ScopeMappingList    = "mapping:list"
@@ -201,7 +204,7 @@ type ModelUpdateRequest struct {
 	Transport    string `json:"transport,omitempty"`
 }
 
-// ---- 物模型只读选择器（2026-09-16，scope thing-model:read）----
+// ---- 物模型（2026-09-16 只读选择器；2026-10-09 起含写面，scope thing-model:read/write）----
 
 // TMNode 物模型节点（开放面节点列表按 通用+本商户 收敛）
 type TMNode struct {
@@ -214,13 +217,98 @@ type TMNode struct {
 	MerchantID uint   `json:"merchant_id"` // 0=通用，>0=商户独立
 }
 
-// TMVersion 物模型版本（开放面仅 published）
+// TMProperty 物模型属性要素
+type TMProperty struct {
+	DataType    string   `json:"data_type"` // int / float / bool / string / enum / json
+	Unit        string   `json:"unit,omitempty"`
+	Writable    bool     `json:"writable"`
+	Enum        []string `json:"enum,omitempty"`
+	Min         *float64 `json:"min,omitempty"`
+	Max         *float64 `json:"max,omitempty"`
+	Description string   `json:"description,omitempty"`
+}
+
+// TMParam 服务入参/事件出参定义
+type TMParam struct {
+	DataType    string   `json:"data_type"`
+	Required    bool     `json:"required,omitempty"`
+	Enum        []string `json:"enum,omitempty"`
+	Description string   `json:"description,omitempty"`
+}
+
+// TMService 服务要素
+type TMService struct {
+	CallType    string             `json:"call_type"` // sync / async
+	Params      map[string]TMParam `json:"params,omitempty"`
+	Description string             `json:"description,omitempty"`
+}
+
+// TMEvent 事件要素
+type TMEvent struct {
+	Params      map[string]TMParam `json:"params,omitempty"`
+	Description string             `json:"description,omitempty"`
+}
+
+// TMSchema 物模型 Schema（三类要素以名称为主键）
+type TMSchema struct {
+	Properties map[string]TMProperty `json:"properties,omitempty"`
+	Services   map[string]TMService  `json:"services,omitempty"`
+	Events     map[string]TMEvent    `json:"events,omitempty"`
+}
+
+// TMVersion 物模型版本（GET /thing-models/:id/versions 仅返回 published 的选择器视图；
+// 写面动作（建草稿/发布/回滚）返回完整版本含 draft 状态与 schema）
 type TMVersion struct {
-	ID          uint   `json:"id"`
-	NodeID      uint   `json:"node_id"`
-	Version     int    `json:"version"`
-	Status      string `json:"status"` // published
-	PublishedAt string `json:"published_at"`
+	ID             uint      `json:"id"`
+	NodeID         uint      `json:"node_id"`
+	Version        int       `json:"version"`
+	Schema         *TMSchema `json:"schema,omitempty"`
+	Status         string    `json:"status"` // draft | published（选择器列表仅 published）
+	ParentVersions string    `json:"parent_versions,omitempty"`
+	RevertOf       *uint     `json:"revert_of,omitempty"`
+	PublishedAt    string    `json:"published_at"`
+	CreatedAt      string    `json:"created_at,omitempty"`
+	UpdatedAt      string    `json:"updated_at,omitempty"`
+}
+
+// TMNodeCreateRequest 创建物模型节点（不收 merchant_id——归属服务端注入调用方商户）
+type TMNodeCreateRequest struct {
+	Layer    string `json:"layer"` // base/category/model/instance
+	ParentID uint   `json:"parent_id,omitempty"`
+	Code     string `json:"code"`
+	Name     string `json:"name"`
+}
+
+// TMNodeUpdateRequest 更新物模型节点（code 与 merchant_id 创建后开放面不可改）
+type TMNodeUpdateRequest struct {
+	Name   string `json:"name"`
+	Status int    `json:"status"` // 1=启用 2=禁用
+}
+
+// TMChainLink 继承链单元（节点与其参与合并的版本）
+type TMChainLink struct {
+	Node    *TMNode    `json:"node"`
+	Version *TMVersion `json:"version"`
+}
+
+// TMResolveResult 合并解析结果（schema + 参与合并的链路版本）
+type TMResolveResult struct {
+	Schema *TMSchema      `json:"schema"`
+	Chain  []*TMChainLink `json:"chain"`
+}
+
+// TMInheritanceUpdate 父层版本差异明细（快照基线 vs 当前最新已发布）
+type TMInheritanceUpdate struct {
+	Node            *TMNode    `json:"node"`
+	SnapshotVersion *TMVersion `json:"snapshot_version"`
+	LatestVersion   *TMVersion `json:"latest_version"`
+}
+
+// TMInheritanceStatus 继承状态（基线的父链快照是否落后于各父层最新已发布版本）
+type TMInheritanceStatus struct {
+	UpToDate bool                   `json:"up_to_date"`
+	Baseline string                 `json:"baseline"` // draft | published | none
+	Updates  []*TMInheritanceUpdate `json:"updates,omitempty"`
 }
 
 // ---- 数据映射域（2026-10-09，scope mapping:*）----
@@ -418,7 +506,8 @@ type AppUserResetPasswordRequest struct {
 	Password string `json:"password"`
 }
 
-// ---- 租户用户域（scope tenant-user:* / tenant-role:*；租户门户运营账号，2026-10-08） ----
+// ---- 租户用户域（scope tenant-user:*；租户门户运营账号身份面，2026-10-08。
+// 租户 RBAC 自 2026-10-09 本地化：tenant-role:* 域与 tenant-user:setRoles 已退役） ----
 
 const (
 	ScopeTenantUserList          = "tenant-user:list"
@@ -427,16 +516,10 @@ const (
 	ScopeTenantUserDelete        = "tenant-user:delete"
 	ScopeTenantUserSetStatus     = "tenant-user:setStatus"
 	ScopeTenantUserResetPassword = "tenant-user:resetPassword"
-	ScopeTenantUserSetRoles      = "tenant-user:setRoles"
-
-	ScopeTenantRoleList     = "tenant-role:list"
-	ScopeTenantRoleCreate   = "tenant-role:create"
-	ScopeTenantRoleUpdate   = "tenant-role:update"
-	ScopeTenantRoleDelete   = "tenant-role:delete"
-	ScopeTenantRoleSetPerms = "tenant-role:setPerms"
 )
 
-// TenantUser 租户门户运营账号（单租户绑定，tenant_id 天然在商户租户集内）
+// TenantUser 租户门户运营账号（单租户绑定，tenant_id 天然在商户租户集内；
+// 角色绑定本地落库，平台身份面不涉）
 type TenantUser struct {
 	ID        uint   `json:"id"`
 	TenantID  uint   `json:"tenant_id"`
@@ -445,13 +528,11 @@ type TenantUser struct {
 	Phone     string `json:"phone"`
 	Email     string `json:"email"`
 	Status    int    `json:"status"` // 1 启用 0 禁用（禁用后门户登录/token 校验即时失败）
-	RoleIDs   []uint `json:"role_ids"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 }
 
-// TenantUserCreateRequest 创建租户用户入参（tenant_id 须∈商户租户集否则 403；
-// username 冲突 409；role_ids 须为本商户租户集内角色）
+// TenantUserCreateRequest 创建租户用户入参（tenant_id 须∈商户租户集否则 403；username 冲突 409）
 type TenantUserCreateRequest struct {
 	TenantID uint   `json:"tenant_id"`
 	Username string `json:"username"`
@@ -459,7 +540,6 @@ type TenantUserCreateRequest struct {
 	Nickname string `json:"nickname,omitempty"`
 	Phone    string `json:"phone,omitempty"`
 	Email    string `json:"email,omitempty"`
-	RoleIDs  []uint `json:"role_ids,omitempty"`
 }
 
 // TenantUserUpdateRequest 更新入参（指针可选，nil/省略=不修改；tenant_id 不可改）
@@ -470,41 +550,3 @@ type TenantUserUpdateRequest struct {
 	Status   *int    `json:"status,omitempty"`
 }
 
-// TenantRole 租户角色（租户作用域 RBAC；(tenant_id, code) 唯一由平台保证）
-type TenantRole struct {
-	ID        uint     `json:"id"`
-	TenantID  uint     `json:"tenant_id"`
-	Name      string   `json:"name"`
-	Code      string   `json:"code"`
-	Remark    string   `json:"remark"`
-	PermCodes []string `json:"perm_codes"`
-	CreatedAt string   `json:"created_at"`
-	UpdatedAt string   `json:"updated_at"`
-}
-
-// TenantRoleCreateRequest 创建租户角色入参（perm_codes 须在平台权限点目录内）
-type TenantRoleCreateRequest struct {
-	TenantID  uint     `json:"tenant_id"`
-	Name      string   `json:"name"`
-	Code      string   `json:"code"`
-	Remark    string   `json:"remark,omitempty"`
-	PermCodes []string `json:"perm_codes,omitempty"`
-}
-
-// TenantRoleUpdateRequest 更新入参（name/remark/perm_codes 指针可选；code 不可改）
-type TenantRoleUpdateRequest struct {
-	Name      *string   `json:"name,omitempty"`
-	Remark    *string   `json:"remark,omitempty"`
-	PermCodes *[]string `json:"perm_codes,omitempty"`
-}
-
-// TenantUserPermDef 租户门户权限点目录项（group 为资源域：device/alarm/dataset/appuser/member）
-type TenantUserPermDef struct {
-	Code  string `json:"code"`
-	Group string `json:"group"`
-}
-
-// TenantUserPermSyncRequest 商户权限码注册表全量同步入参（幂等、只增不删、按商户隔离）
-type TenantUserPermSyncRequest struct {
-	Perms []TenantUserPermDef `json:"perms"`
-}

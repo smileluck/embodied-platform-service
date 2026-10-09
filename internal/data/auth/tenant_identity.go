@@ -35,9 +35,10 @@ func (a *TenantIdentityAdapter) TenantProfile(ctx context.Context, token string)
 		}
 		return nil, err
 	}
+	// PermCodes 由中间件装载时本地解析填充（RBAC 本地化），此处只组装身份字段
 	return &bizauth.TenantSubject{
 		UserID: p.User.ID, Username: p.User.Username, Nickname: p.User.Nickname,
-		TenantID: p.User.TenantID, PermCodes: p.PermCodes,
+		TenantID: p.User.TenantID,
 	}, nil
 }
 

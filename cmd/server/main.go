@@ -3,17 +3,14 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	biztenantuser "github.com/smilex/smilex-admin-gin/internal/biz/tenantuser"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/internal/data/platform"
-	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"go.uber.org/zap"
 )
@@ -56,10 +53,6 @@ func main() {
 	// 平台连通性自检（异步、不阻断启动：失败仅告警，具体同步/代理操作会报明确错误）
 	if cfg.Platform.Enabled() {
 		go checkPlatform(cfg)
-		// 权限码注册表对账（目录动态化契约；依赖商户 HMAC，scope 前置 tenant-role:syncPerms）
-		if cfg.Platform.AppKey != "" {
-			go syncTenantPermCatalog(cfg)
-		}
 	}
 
 	go func() {
@@ -105,31 +98,3 @@ func checkPlatform(cfg *conf.Bootstrap) {
 	}
 }
 
-// syncTenantPermCatalog 租户门户权限码注册表向平台同步（启动异步，目录动态化契约）：
-// 商户端注册表（biz/tenantuser/permcatalog.go）是事实源，同步后注册码即可在本商户角色
-// 配权中勾选。网络/服务端错误每 30s 重试至成功；4xx（scope 未配 tenant-role:syncPerms、
-// 注册表格式被拒）为永久错误，记 error 后放弃——修复配置后重启服务重新对账。
-func syncTenantPermCatalog(cfg *conf.Bootstrap) {
-	defs := make([]platformsdk.TenantUserPermDef, 0, len(biztenantuser.Catalog))
-	for _, d := range biztenantuser.Catalog {
-		defs = append(defs, platformsdk.TenantUserPermDef{Code: d.Code, Group: d.Group})
-	}
-	client := platform.NewOpenAPIClient(cfg)
-	for attempt := 1; ; attempt++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		err := client.SyncTenantUserPerms(ctx, defs)
-		cancel()
-		if err == nil {
-			logger.Info("tenant perm catalog synced（注册码已对账，角色配权可勾选）", zap.Int("perms", len(defs)))
-			return
-		}
-		var apiErr *platformsdk.Error
-		if errors.As(err, &apiErr) && apiErr.HTTPStatus >= 400 && apiErr.HTTPStatus < 500 {
-			logger.Error("tenant perm catalog sync 被拒绝（检查商户 scope tenant-role:syncPerms 与注册表格式），放弃重试",
-				zap.Int("status", apiErr.HTTPStatus), zap.String("msg", apiErr.Msg))
-			return
-		}
-		logger.Warn("tenant perm catalog sync failed, 30s 后重试", zap.Int("attempt", attempt), zap.Error(err))
-		time.Sleep(30 * time.Second)
-	}
-}

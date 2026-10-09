@@ -15,6 +15,7 @@ import (
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	"github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
+	biztenantuser "github.com/smilex/smilex-admin-gin/internal/biz/tenantuser"
 	authsvc "github.com/smilex/smilex-admin-gin/internal/service/auth"
 	"github.com/smilex/smilex-admin-gin/pkg/cache"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
@@ -345,15 +346,19 @@ const (
 )
 
 // TenantAuth 租户门户认证：Bearer tenant-access token →（缓存）平台
-// /tenant-api/v1/profile 自省 → 本地租户闸门。与 AppAuth 同骨架但上下文不同：
+// /tenant-api/v1/profile 自省（身份）+ 本地权限解析（RBAC）→ 本地租户闸门。
+// 与 AppAuth 同骨架但上下文不同：
 //   - 门户登录经本服务后端代理平台 /tenant-api/v1/auth（token 双用于平台与本系统），
-//     本系统对门户侧不碰账密、不签发、不换签、无本地投影；
-//   - 自省结果按 token 哈希缓存 30-60s：平台 TenantAuth 按请求查库（用户+租户双启用），
-//     禁用即时 401，本系统在缓存 TTL 内感知（与 B/C 端同一权衡）；
+//     本系统对门户侧不碰账密、不签发、不换签；账号身份事实源在平台；
+//   - 授权本地化（2026-10-09）：PermCodes 由本地三表 JOIN（binds→roles→role_perms）
+//     在缓存装载时解析，与身份一并进 tnt: 缓存——权限变更 ≤60s 生效（与平台下发时同语义）；
+//   - 平台 TenantAuth 按请求查库（用户+租户双启用），禁用即时 401，本系统在缓存 TTL 内感知
+//     （与 B/C 端同一权衡）；
 //   - 闸门：单租户绑定，tid 取自 token 自省（不信任请求头/参数）；本地租户
 //     （tenants.platform_id）须已同步且启用，否则 403（停用即拒，口径对齐 AppAuth）；
-//   - 平台不可达 fail-closed（503），不降级放行。
-func TenantAuth(ids auth.TenantIdentitySource, tenants TenantResolver, idCache *cache.TwoLevel) gin.HandlerFunc {
+//   - 平台不可达 fail-closed（503），不降级放行；本地权限解析失败按空集保守处理
+//     （default deny，不阻断认证面自身的 profile/改密）。
+func TenantAuth(ids auth.TenantIdentitySource, tenants TenantResolver, perms biztenantuser.PermResolver, idCache *cache.TwoLevel) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h := c.GetHeader("Authorization")
 		token, ok := strings.CutPrefix(h, "Bearer ")
@@ -369,6 +374,12 @@ func TenantAuth(ids auth.TenantIdentitySource, tenants TenantResolver, idCache *
 			if err != nil {
 				return "", err
 			}
+			// 授权本地化：权限码来自本地三表（≤缓存 TTL 内生效；失败按空集，认证面不受影响）
+			codes, perr := perms.ResolvePerms(ctx, sub.UserID, sub.TenantID)
+			if perr != nil {
+				codes = []string{}
+			}
+			sub.PermCodes = codes
 			b, err := json.Marshal(sub)
 			if err != nil {
 				return "", err
@@ -410,7 +421,7 @@ func TenantAuth(ids auth.TenantIdentitySource, tenants TenantResolver, idCache *
 }
 
 // TenantAuthSubject 从 context 取租户门户主体（TenantAuth 之后可用；UserID 为平台
-// tenant_user ID，TenantID 为平台租户 ID，PermCodes 为平台租户 RBAC 权限码集合）
+// tenant_user ID，TenantID 为平台租户 ID，PermCodes 为本地租户 RBAC 权限码集合）
 func TenantAuthSubject(c *gin.Context) *auth.TenantSubject {
 	if v, ok := c.Get(ctxTenantAuthSubjectKey); ok {
 		if s, ok := v.(*auth.TenantSubject); ok {
@@ -448,8 +459,8 @@ func TenantAuthSubjectUID(c *gin.Context) string {
 	return ""
 }
 
-// RequireTenantPerm 租户门户权限点校验（TenantAuth 之后挂载）：对自省下发
-// perm_codes 精确匹配（平台目录无通配形态，与平台 RequireTenantPerm 同口径）
+// RequireTenantPerm 租户门户权限点校验（TenantAuth 之后挂载）：对主体
+// perm_codes 精确匹配（本地注册表目录无通配形态）
 func RequireTenantPerm(code string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sub := TenantAuthSubject(c)

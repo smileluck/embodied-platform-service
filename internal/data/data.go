@@ -136,6 +136,8 @@ func (d *Data) migrateAndSeed() error {
 		&model.OperationLogPO{}, &model.LoginLogPO{},
 		&model.FilePO{}, &model.ExportRecordPO{}, &model.IPBlacklistPO{},
 		&model.TenantPO{},
+		// 租户 RBAC 本地三表（2026-10-09 自平台下沉；tenant_id/user_id 为平台 ID，无外键引用）
+		&model.TenantRolePO{}, &model.TenantRolePermPO{}, &model.TenantUserRoleBindPO{},
 		&model.AgentProviderPO{}, &model.AgentModelPO{}, &model.AgentPO{},
 		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{}, &model.SysConfigPO{}, &model.NoticePO{}, &model.NoticeReadPO{}, &model.NoticeTargetPO{}, &model.JobPO{}, &model.JobLogPO{}, &model.MonitorSnapshotPO{},
 		&model.NotifyChannelPO{}, &model.NotifyRulePO{}, &model.NotifyRecordPO{},

@@ -1,8 +1,19 @@
-// 租户门户权限码注册表（商户侧事实源）。平台目录自 2026-10-09 动态化：本表在服务启动时
-// 经开放面 PUT /open-api/v1/tenant-user-perms 向平台同步（幂等、只增不删、按商户隔离），
-// 有效目录 = 平台 base 目录 ∪ 本表。新增门户功能权限码：本表加一行 + 路由挂载引用常量
-// （RequireTenantPerm）+ 前端 i18n 文案（tenantRole.perm/permGroup），同发版即生效，无需平台改码。
+// 租户门户权限码注册表（本地唯一真源，2026-10-09 起随租户 RBAC 本地化——不再向平台同步，
+// 平台目录动态化链路已退役）。新增门户功能权限码：本表加一行 + 路由挂载引用常量
+// （RequireTenantPerm）+ 前端 i18n 文案（tenantRole.perm/permGroup），同发版即生效。
 package tenantuser
+
+import (
+	"errors"
+	"sort"
+	"strings"
+)
+
+// MaxPerms 单角色权限点数上限（防滥用与误配巨集）
+const MaxPerms = 128
+
+// ErrInvalidPerm 权限点不在本地注册表目录内或超上限
+var ErrInvalidPerm = errors.New("权限点无效")
 
 // 设备域
 const (
@@ -81,4 +92,46 @@ var Catalog = []PermDefView{
 	{Code: PermMemberRoleUpdate, Group: "member"},
 	{Code: PermMemberRoleDelete, Group: "member"},
 	{Code: PermMemberRoleSetPerms, Group: "member"},
+}
+
+// knownPermCodes 目录码索引（NormalizePerms 校验用，包初始化构建）
+var knownPermCodes = func() map[string]bool {
+	m := make(map[string]bool, len(Catalog))
+	for _, d := range Catalog {
+		m[d.Code] = true
+	}
+	return m
+}()
+
+// NormalizePerms 校验并归一化待保存的权限点集合（本地注册表目录口径）：每项须为目录精确码；
+// 去重、按字典序稳定排序；超过 MaxPerms 拒绝。返回可落库集合。
+func NormalizePerms(perms []string) ([]string, error) {
+	seen := make(map[string]bool, len(perms))
+	out := make([]string, 0, len(perms))
+	for _, p := range perms {
+		p = strings.TrimSpace(p)
+		if p == "" || seen[p] {
+			continue
+		}
+		if !knownPermCodes[p] {
+			return nil, ErrInvalidPerm
+		}
+		seen[p] = true
+		out = append(out, p)
+	}
+	if len(out) > MaxPerms {
+		return nil, ErrInvalidPerm
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// PermAllowed 判断权限码集合是否覆盖单个操作码（精确匹配，无通配形态）
+func PermAllowed(perms []string, code string) bool {
+	for _, p := range perms {
+		if p == code {
+			return true
+		}
+	}
+	return false
 }

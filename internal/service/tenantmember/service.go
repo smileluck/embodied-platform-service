@@ -1,8 +1,7 @@
-// Package tenantmember 租户门户成员应用服务（/tenant-api/v1/members，2026-10-08
-// 门户身份切换到平台 tenant_users）。成员=平台租户用户（单租户绑定运营账号），
-// 经开放面 tenant-user 域实时消费，本地无数据面；tenant_id 一律锁定为认证主体
-// 的 tid（DTO 不接受客户端指定），角色为该租户下的租户角色（tenant_roles）。
-// 防失管守卫（本人/最后管理员）在本层实现（开放面无此语义，门户自治约束）。
+// Package tenantmember 租户门户成员应用服务（/tenant-api/v1/members）。
+// 成员=平台租户用户（账号身份事实源在平台，经开放面实时消费）；角色与绑定自 2026-10-09
+// 本地化（RoleUsecase）。tenant_id 一律锁定为认证主体的 tid（DTO 不接受客户端指定）。
+// 防失管守卫（本人/最后管理员）在本层实现：启停状态按平台账号、权限按本地绑定判定。
 package tenantmember
 
 import (
@@ -28,12 +27,15 @@ var (
 const memberPermPrefix = "member:"
 
 type Service struct {
-	gw biztenantuser.Gateway // 平台开放面租户用户网关（tenant_id 由本层锁定）
+	gw    biztenantuser.Gateway      // 平台开放面租户用户网关（账号身份；tenant_id 由本层锁定）
+	roles *biztenantuser.RoleUsecase // 本地租户角色用例（角色/绑定/权限）
 }
 
-func NewService(gw biztenantuser.Gateway) *Service { return &Service{gw: gw} }
+func NewService(gw biztenantuser.Gateway, roles *biztenantuser.RoleUsecase) *Service {
+	return &Service{gw: gw, roles: roles}
+}
 
-// CreateRequest 新增成员入参（role_ids 为本租户下租户角色，缺省无角色）
+// CreateRequest 新增成员入参（role_ids 为本租户下本地租户角色，缺省无角色）
 type CreateRequest struct {
 	Username string `json:"username" binding:"required,min=3,max=64"`
 	Password string `json:"password" binding:"required,min=6,max=20"`
@@ -65,7 +67,7 @@ type SetRolesRequest struct {
 	RoleIDs []uint `json:"role_ids"`
 }
 
-// VO 成员视图（id/role_ids 均为平台口径；tenant_id 为平台租户 ID）
+// VO 成员视图（id/role_ids 均为平台/本地口径；tenant_id 为平台租户 ID）
 type VO struct {
 	ID        uint   `json:"id"`
 	TenantID  uint   `json:"tenant_id"`
@@ -79,19 +81,21 @@ type VO struct {
 	UpdatedAt string `json:"updated_at"`
 }
 
-func toVO(u *biztenantuser.TenantUserView) *VO {
+func toVO(u *biztenantuser.TenantUserView, roleIDs []uint) *VO {
 	vo := &VO{
 		ID: u.ID, TenantID: u.TenantID, Username: u.Username, Nickname: u.Nickname,
-		Phone: u.Phone, Email: u.Email, Status: u.Status, RoleIDs: u.RoleIDs,
+		Phone: u.Phone, Email: u.Email, Status: u.Status,
 		CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt,
 	}
-	if vo.RoleIDs == nil {
-		vo.RoleIDs = []uint{}
+	if roleIDs == nil {
+		roleIDs = []uint{}
 	}
+	vo.RoleIDs = roleIDs
 	return vo
 }
 
-// listAllUsers 拉取本租户全部成员（分页循环；单租户运营账号规模有限，20 页×100 兜底）
+// listAllUsers 拉取本租户全部成员（分页循环；启停状态事实源在平台——最后管理员守卫用；
+// 单租户运营账号规模有限，20 页×100 兜底）
 func (s *Service) listAllUsers(ctx context.Context, tid uint) ([]*biztenantuser.TenantUserView, error) {
 	var all []*biztenantuser.TenantUserView
 	for page := 1; page <= 20; page++ {
@@ -107,26 +111,21 @@ func (s *Service) listAllUsers(ctx context.Context, tid uint) ([]*biztenantuser.
 	return all, nil
 }
 
-// locateMember 在本租户内定位成员（越界/不存在统一 ErrMemberNotInTenant）
+// locateMember 在本租户内定位成员（平台按 id 单查；越界/不存在统一 ErrMemberNotInTenant）
 func (s *Service) locateMember(ctx context.Context, tid, id uint) (*biztenantuser.TenantUserView, error) {
-	list, err := s.listAllUsers(ctx, tid)
+	u, err := s.gw.GetUser(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, ErrMemberNotInTenant
 	}
-	for _, u := range list {
-		if u.ID == id {
-			if u.TenantID != tid {
-				return nil, ErrMemberNotInTenant
-			}
-			return u, nil
-		}
+	if u.TenantID != tid {
+		return nil, ErrMemberNotInTenant
 	}
-	return nil, ErrMemberNotInTenant
+	return u, nil
 }
 
-// permCodesOfRoles 角色 ID → 权限码集合（仅本租户角色；角色列表加载失败按空集保守处理）
+// rolePerms 本租户角色 ID → 权限码集合（本地库直查；角色列表加载失败按空集保守处理）
 func (s *Service) rolePerms(ctx context.Context, tid uint) (map[uint][]string, error) {
-	roles, _, err := s.gw.ListRoles(ctx, biztenantuser.RoleListParams{TenantID: &tid}, 1, 0)
+	roles, _, err := s.roles.ListRoles(ctx, biztenantuser.RoleListParams{TenantID: &tid}, 1, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +150,7 @@ func hasMemberPerms(roleIDs []uint, rolePerms map[uint][]string) bool {
 
 // guardNotLastAdmin 防失管守卫：目标成员是本租户最后一名启用中的成员自治管理员，
 // 且本次操作会使其失去该能力时拒绝（禁用/移除/角色替换为无 member 权限）。
+// 启停状态按平台账号（事实源），权限映射按本地角色（一条查询）。
 func (s *Service) guardNotLastAdmin(ctx context.Context, tid, targetID uint, newRoleIDs *[]uint) error {
 	list, err := s.listAllUsers(ctx, tid)
 	if err != nil {
@@ -160,19 +160,23 @@ func (s *Service) guardNotLastAdmin(ctx context.Context, tid, targetID uint, new
 	if err != nil {
 		return err
 	}
-	var target *biztenantuser.TenantUserView
+	roleMap, err := s.roles.UserRoleIDs(ctx, memberIDs(list))
+	if err != nil {
+		return err
+	}
+	var targetFound bool
 	others := 0
 	for _, u := range list {
-		if !hasMemberPerms(u.RoleIDs, rolePerms) || u.Status != 1 {
+		if !hasMemberPerms(roleMap[u.ID], rolePerms) || u.Status != 1 {
 			continue
 		}
 		if u.ID == targetID {
-			target = u
+			targetFound = true
 			continue
 		}
 		others++
 	}
-	if target == nil || others > 0 {
+	if !targetFound || others > 0 {
 		return nil // 目标本就不持成员权限，或仍有其他管理员
 	}
 	if newRoleIDs != nil && hasMemberPerms(*newRoleIDs, rolePerms) {
@@ -181,29 +185,47 @@ func (s *Service) guardNotLastAdmin(ctx context.Context, tid, targetID uint, new
 	return ErrLastTenantAdmin
 }
 
-// List 本租户成员列表
+// memberIDs 提取成员 id 集（本地绑定批量查询用）
+func memberIDs(list []*biztenantuser.TenantUserView) []uint {
+	ids := make([]uint, 0, len(list))
+	for _, u := range list {
+		ids = append(ids, u.ID)
+	}
+	return ids
+}
+
+// List 本租户成员列表（账号来自平台；role_ids 本地绑定补齐）
 func (s *Service) List(ctx context.Context, tid uint, kw string, page, pageSize int) ([]*VO, pagination.Page, error) {
 	list, pg, err := s.gw.ListUsers(ctx, biztenantuser.UserListParams{Keyword: kw, TenantID: &tid}, page, pageSize)
 	if err != nil {
 		return nil, pagination.Page{}, err
 	}
+	roleMap, err := s.roles.UserRoleIDs(ctx, memberIDs(list))
+	if err != nil {
+		return nil, pagination.Page{}, err
+	}
 	out := make([]*VO, 0, len(list))
 	for _, u := range list {
-		out = append(out, toVO(u))
+		out = append(out, toVO(u, roleMap[u.ID]))
 	}
 	return out, pg, nil
 }
 
-// Create 在本租户新增成员（tenant_id 锁定 tid）
+// Create 在本租户新增成员（tenant_id 锁定 tid）：平台建号 + 本地落角色绑定
 func (s *Service) Create(ctx context.Context, tid uint, req CreateRequest) (*VO, error) {
 	u, err := s.gw.CreateUser(ctx, biztenantuser.UserCreateParams{
 		TenantID: tid, Username: req.Username, Password: req.Password,
-		Nickname: req.Nickname, Phone: req.Phone, Email: req.Email, RoleIDs: req.RoleIDs,
+		Nickname: req.Nickname, Phone: req.Phone, Email: req.Email,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return toVO(u), nil
+	if len(req.RoleIDs) > 0 {
+		if err := s.roles.SetUserRoles(ctx, tid, u.ID, req.RoleIDs); err != nil {
+			return nil, err
+		}
+	}
+	return toVO(u, req.RoleIDs), nil
 }
 
 // Update 更新成员资料
@@ -240,7 +262,8 @@ func (s *Service) ResetPassword(ctx context.Context, tid, id uint, password stri
 	return s.gw.ResetUserPassword(ctx, id, password)
 }
 
-// Remove 删除成员（平台软删；不可对本人操作，受最后管理员守卫）
+// Remove 删除成员（平台软删账号；不可对本人操作，受最后管理员守卫。
+// 本地角色绑定随账号失能自然失义，零投影原则不做对账清理）
 func (s *Service) Remove(ctx context.Context, tid, id, actorID uint) error {
 	if _, err := s.locateMember(ctx, tid, id); err != nil {
 		return err
@@ -254,7 +277,7 @@ func (s *Service) Remove(ctx context.Context, tid, id, actorID uint) error {
 	return s.gw.DeleteUser(ctx, id)
 }
 
-// SetRoles 全量替换成员角色（不可对本人操作，受最后管理员守卫）
+// SetRoles 全量替换成员角色（本地绑定；不可对本人操作，受最后管理员守卫）
 func (s *Service) SetRoles(ctx context.Context, tid, id, actorID uint, roleIDs []uint) error {
 	if _, err := s.locateMember(ctx, tid, id); err != nil {
 		return err
@@ -265,7 +288,7 @@ func (s *Service) SetRoles(ctx context.Context, tid, id, actorID uint, roleIDs [
 	if err := s.guardNotLastAdmin(ctx, tid, id, &roleIDs); err != nil {
 		return err
 	}
-	return s.gw.SetUserRoles(ctx, id, roleIDs)
+	return s.roles.SetUserRoles(ctx, tid, id, roleIDs)
 }
 
 // RoleVO 角色选项视图（门户成员表单数据源；snake_case 与管理面 RoleVO 口径一致）
@@ -278,9 +301,9 @@ type RoleVO struct {
 	PermCodes []string `json:"perm_codes"`
 }
 
-// ListRoles 本租户角色列表（门户成员表单数据源）
+// ListRoles 本租户角色列表（门户成员表单数据源；本地库直查）
 func (s *Service) ListRoles(ctx context.Context, tid uint) ([]*RoleVO, error) {
-	roles, _, err := s.gw.ListRoles(ctx, biztenantuser.RoleListParams{TenantID: &tid}, 1, 0)
+	roles, _, err := s.roles.ListRoles(ctx, biztenantuser.RoleListParams{TenantID: &tid}, 1, 0)
 	if err != nil {
 		return nil, err
 	}

@@ -3,7 +3,6 @@ package platformsdk
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -88,30 +87,3 @@ func TestClient_ListPagination(t *testing.T) {
 	}
 }
 
-// TestClient_TenantUserPermSync 权限码注册表同步对账：PUT /open-api/v1/tenant-user-perms，
-// body 为 {perms:[{code,group}...]}（目录动态化契约，与平台 sdk 同口径）
-func TestClient_TenantUserPermSync(t *testing.T) {
-	var hit struct{ Method, Path, Body string }
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hit.Method, hit.Path = r.Method, r.URL.RequestURI()
-		b, _ := io.ReadAll(r.Body)
-		hit.Body = string(b)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"code":0,"msg":"ok","data":{"inserted":2}}`))
-	}))
-	defer srv.Close()
-
-	c := NewClient(srv.URL, "mk_x", "s")
-	if err := c.SyncTenantUserPerms(context.Background(), []TenantUserPermDef{
-		{Code: "ticket:list", Group: "ticket"},
-		{Code: "dataset:upload", Group: "dataset"},
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if hit.Method != http.MethodPut || hit.Path != "/open-api/v1/tenant-user-perms" {
-		t.Errorf("sync: %s %s", hit.Method, hit.Path)
-	}
-	if !strings.Contains(hit.Body, `"perms":[{"code":"ticket:list","group":"ticket"},{"code":"dataset:upload","group":"dataset"}]`) {
-		t.Errorf("sync body: %s", hit.Body)
-	}
-}

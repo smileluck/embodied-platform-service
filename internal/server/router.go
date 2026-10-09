@@ -75,10 +75,11 @@ type HTTPServer struct {
 	skill               *skillsvc.Service
 	tenant              *tenantsvc.Service
 	appuser             *appusersvc.Service
-	tenantuser          *tenantusersvc.Service       // 租户用户/角色管理面（经平台开放面，本地无数据）
-	tenantmember        *tenantmembersvc.Service     // 门户成员自治（/tenant-api/v1/members，经开放面 tid 锁定）
+	tenantuser          *tenantusersvc.Service       // 租户用户管理面（账号经平台开放面；角色本地 RBAC）
+	tenantmember        *tenantmembersvc.Service     // 门户成员自治（/tenant-api/v1/members，账号经开放面 tid 锁定）
 	appIds              bizauth.AppIdentitySource    // AppAuth 中间件的平台应用用户身份源
 	tenantIds           bizauth.TenantIdentitySource // TenantAuth 中间件的平台租户门户身份源
+	tenantPerms         biztenantuser.PermResolver   // TenantAuth 本地权限解析（租户 RBAC 本地化）
 	tenantUC            *biztenant.Usecase           // AppAuth/TenantAuth 租户闸门（按平台租户 ID 只读定位本地租户）
 	appIdentityCache    *cache.TwoLevel              // App token 自省缓存（pat: 前缀）
 	tenantIdentityCache *cache.TwoLevel              // 门户 tenant-access token 自省缓存（tnt: 前缀）
@@ -100,7 +101,8 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	tenant *tenantsvc.Service, appuser *appusersvc.Service,
 	tenantuser *tenantusersvc.Service,
 	tenantmember *tenantmembersvc.Service,
-	appIds bizauth.AppIdentitySource, tenantIds bizauth.TenantIdentitySource, tenantUC *biztenant.Usecase,
+	appIds bizauth.AppIdentitySource, tenantIds bizauth.TenantIdentitySource,
+	tenantPerms biztenantuser.PermResolver, tenantUC *biztenant.Usecase,
 	device *devicesvc.Service, devmodel *devmodelsvc.Service, mapping *devmodelsvc.MappingService,
 	monitor *monitorsvc.Service, agent *agentsvc.Service, dict *dictsvc.Service, syscfg *syssvc.Service,
 	notice *noticesvc.Service, job *jobsvc.Service, dashboard *dashsvc.Service, notify *notifysvc.Service,
@@ -134,7 +136,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 		file: file, export: export, blacklist: blacklist, tenant: tenant,
 		appuser: appuser, tenantuser: tenantuser,
 		tenantmember: tenantmember,
-		appIds:       appIds, tenantIds: tenantIds, tenantUC: tenantUC,
+		appIds:       appIds, tenantIds: tenantIds, tenantPerms: tenantPerms, tenantUC: tenantUC,
 		appIdentityCache: appIdentityCache, tenantIdentityCache: tenantIdentityCache,
 		device: device, devmodel: devmodel, mapping: mapping, monitor: monitor, agent: agent, dict: dict, syscfg: syscfg,
 		notice: notice, job: job, dashboard: dashboard, notify: notify, mcp: mcp, skill: skill,
@@ -219,7 +221,7 @@ func (s *HTTPServer) registerRoutes() {
 			s.tenantPortalRefresh)
 
 		authed := tenantAPI.Group("",
-			middleware.TenantAuth(s.tenantIds, s.tenantUC, s.tenantIdentityCache),
+			middleware.TenantAuth(s.tenantIds, s.tenantUC, s.tenantPerms, s.tenantIdentityCache),
 			middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
 				KeyPrefix: "rl:tenant-api:", Max: 120, Window: time.Minute,
 				SubjectFunc: func(c *gin.Context) string { return middleware.TenantAuthSubjectUID(c) },

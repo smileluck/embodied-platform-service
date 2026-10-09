@@ -1,8 +1,8 @@
 // Package tenantuser 租户用户应用服务（管理面）。
-// 平台（/open-api/v1/tenant-users*、/open-api/v1/tenant-roles*）为唯一事实源，
-// 经开放面实时消费，本地不落数据；tenant_id 全链路为平台租户 ID
-// （tenant_name 由本地租户按 platform_id 映射补齐）。
-// 租户门户认证/成员自助管理见 /tenant-api/v1 代理组（Phase 3），与本章管理面共用本网关。
+// 账号身份经平台开放面实时消费（/open-api/v1/tenant-users*，本地不落数据）；
+// 租户 RBAC 自 2026-10-09 本地化：角色与用户角色绑定走本地 RoleUsecase。
+// tenant_id 全链路为平台租户 ID（tenant_name 由本地租户按 platform_id 映射补齐）。
+// 租户门户认证/成员自助管理见 /tenant-api/v1 代理组，与本管理面共用网关与角色用例。
 package tenantuser
 
 import (
@@ -20,17 +20,18 @@ type TenantNameResolver interface {
 }
 
 type Service struct {
-	gw      biztenantuser.Gateway // 平台开放面租户用户/角色网关（唯一事实源）
-	tenants TenantNameResolver    // tenant_names 本地映射（展示用）
+	gw      biztenantuser.Gateway        // 平台开放面租户用户网关（账号身份事实源）
+	roles   *biztenantuser.RoleUsecase   // 本地租户角色用例（RBAC 本地化）
+	tenants TenantNameResolver           // tenant_names 本地映射（展示用）
 }
 
-func NewService(gw biztenantuser.Gateway, tenants TenantNameResolver) *Service {
-	return &Service{gw: gw, tenants: tenants}
+func NewService(gw biztenantuser.Gateway, roles *biztenantuser.RoleUsecase, tenants TenantNameResolver) *Service {
+	return &Service{gw: gw, roles: roles, tenants: tenants}
 }
 
-// ---- 租户用户 ----
+// ---- 租户用户（账号在平台，角色绑定在本地） ----
 
-// UserCreateRequest 创建租户用户入参（校验口径与平台开放面一致）
+// UserCreateRequest 创建租户用户入参（校验口径与平台开放面一致；role_ids 为本地角色）
 type UserCreateRequest struct {
 	TenantID uint   `json:"tenant_id" binding:"required"`
 	Username string `json:"username" binding:"required,min=3,max=64"`
@@ -54,12 +55,13 @@ type ResetPasswordRequest struct {
 	Password string `json:"password" binding:"required,min=6,max=20"`
 }
 
-// SetRolesRequest 角色全量替换入参
+// SetRolesRequest 角色全量替换入参（本地绑定；角色须与用户同租户）
 type SetRolesRequest struct {
 	RoleIDs []uint `json:"role_ids"`
 }
 
-// UserVO 租户用户视图（tenant_names 由本地租户映射补齐；角色展示由前端按角色列表解析）
+// UserVO 租户用户视图（tenant_names 由本地租户映射补齐；role_ids 由本地绑定补齐，
+// 角色名称展示由前端按角色列表解析）
 type UserVO struct {
 	ID         uint   `json:"id"`
 	TenantID   uint   `json:"tenant_id"`
@@ -74,11 +76,11 @@ type UserVO struct {
 	UpdatedAt  string `json:"updated_at"`
 }
 
-func (s *Service) toUserVO(u *biztenantuser.TenantUserView, nameMap map[uint]string) *UserVO {
+func (s *Service) toUserVO(u *biztenantuser.TenantUserView, roleIDs []uint, nameMap map[uint]string) *UserVO {
 	vo := &UserVO{
 		ID: u.ID, TenantID: u.TenantID, Username: u.Username, Nickname: u.Nickname,
 		Phone: u.Phone, Email: u.Email, Status: u.Status,
-		RoleIDs: u.RoleIDs, CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt,
+		RoleIDs: roleIDs, CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt,
 	}
 	if vo.RoleIDs == nil {
 		vo.RoleIDs = []uint{}
@@ -103,7 +105,7 @@ func (s *Service) tenantNameMap(ctx context.Context, ids []uint) map[uint]string
 	return m
 }
 
-// ListUsers 租户用户列表（实时来自平台开放面）
+// ListUsers 租户用户列表（账号实时来自平台开放面；role_ids 本地绑定批量补齐）
 func (s *Service) ListUsers(ctx context.Context, q biztenantuser.UserListParams, page, pageSize int) ([]*UserVO, pagination.Page, error) {
 	list, pg, err := s.gw.ListUsers(ctx, q, page, pageSize)
 	if err != nil {
@@ -114,22 +116,42 @@ func (s *Service) ListUsers(ctx context.Context, q biztenantuser.UserListParams,
 		ids = append(ids, u.TenantID)
 	}
 	nameMap := s.tenantNameMap(ctx, ids)
+	roleMap := s.userRoleMap(ctx, list)
 	out := make([]*UserVO, 0, len(list))
 	for _, u := range list {
-		out = append(out, s.toUserVO(u, nameMap))
+		out = append(out, s.toUserVO(u, roleMap[u.ID], nameMap))
 	}
 	return out, pg, nil
 }
 
+// userRoleMap 批量取本地角色绑定（user_id -> role_ids；失败按空集处理不阻断列表）
+func (s *Service) userRoleMap(ctx context.Context, list []*biztenantuser.TenantUserView) map[uint][]uint {
+	ids := make([]uint, 0, len(list))
+	for _, u := range list {
+		ids = append(ids, u.ID)
+	}
+	m, err := s.roles.UserRoleIDs(ctx, ids)
+	if err != nil {
+		return map[uint][]uint{}
+	}
+	return m
+}
+
+// CreateUser 创建租户用户：平台建号 + 本地落角色绑定
 func (s *Service) CreateUser(ctx context.Context, req UserCreateRequest) (*UserVO, error) {
 	u, err := s.gw.CreateUser(ctx, biztenantuser.UserCreateParams{
 		TenantID: req.TenantID, Username: req.Username, Password: req.Password,
-		Nickname: req.Nickname, Phone: req.Phone, Email: req.Email, RoleIDs: req.RoleIDs,
+		Nickname: req.Nickname, Phone: req.Phone, Email: req.Email,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return s.toUserVO(u, s.tenantNameMap(ctx, []uint{u.TenantID})), nil
+	if len(req.RoleIDs) > 0 {
+		if err := s.roles.SetUserRoles(ctx, u.TenantID, u.ID, req.RoleIDs); err != nil {
+			return nil, err
+		}
+	}
+	return s.toUserVO(u, req.RoleIDs, s.tenantNameMap(ctx, []uint{u.TenantID})), nil
 }
 
 func (s *Service) UpdateUser(ctx context.Context, id uint, req UserUpdateRequest) error {
@@ -146,20 +168,28 @@ func (s *Service) ResetUserPassword(ctx context.Context, id uint, req ResetPassw
 	return s.gw.ResetUserPassword(ctx, id, req.Password)
 }
 
+// SetUserRoles 全量替换本地角色绑定：先经平台定位用户（防 id 漂移/越权），
+// 角色归属校验（同租户）在 RoleUsecase
 func (s *Service) SetUserRoles(ctx context.Context, id uint, req SetRolesRequest) error {
+	u, err := s.gw.GetUser(ctx, id)
+	if err != nil {
+		return err
+	}
 	if req.RoleIDs == nil {
 		req.RoleIDs = []uint{}
 	}
-	return s.gw.SetUserRoles(ctx, id, req.RoleIDs)
+	return s.roles.SetUserRoles(ctx, u.TenantID, id, req.RoleIDs)
 }
 
+// DeleteUser 删除用户：平台软删账号；本地角色绑定随账号失能自然失义（账号不可登录即无权限，
+// 零投影原则不做对账清理）
 func (s *Service) DeleteUser(ctx context.Context, id uint) error {
 	return s.gw.DeleteUser(ctx, id)
 }
 
-// ---- 租户角色 ----
+// ---- 租户角色（本地 RBAC） ----
 
-// RoleCreateRequest 创建租户角色入参（perm_codes 须在平台目录内）
+// RoleCreateRequest 创建租户角色入参（perm_codes 须在本地注册表目录内）
 type RoleCreateRequest struct {
 	TenantID  uint     `json:"tenant_id" binding:"required"`
 	Name      string   `json:"name" binding:"required,max=64"`
@@ -205,9 +235,9 @@ func (s *Service) toRoleVO(r *biztenantuser.TenantRoleView, nameMap map[uint]str
 	return vo
 }
 
-// ListRoles 租户角色列表（实时来自平台开放面）
+// ListRoles 租户角色列表（本地库直查）
 func (s *Service) ListRoles(ctx context.Context, q biztenantuser.RoleListParams, page, pageSize int) ([]*RoleVO, pagination.Page, error) {
-	list, pg, err := s.gw.ListRoles(ctx, q, page, pageSize)
+	list, pg, err := s.roles.ListRoles(ctx, q, page, pageSize)
 	if err != nil {
 		return nil, pagination.Page{}, err
 	}
@@ -224,7 +254,7 @@ func (s *Service) ListRoles(ctx context.Context, q biztenantuser.RoleListParams,
 }
 
 func (s *Service) CreateRole(ctx context.Context, req RoleCreateRequest) (*RoleVO, error) {
-	r, err := s.gw.CreateRole(ctx, biztenantuser.RoleCreateParams{
+	r, err := s.roles.CreateRole(ctx, biztenantuser.RoleCreateParams{
 		TenantID: req.TenantID, Name: req.Name, Code: req.Code,
 		Remark: req.Remark, PermCodes: req.PermCodes,
 	})
@@ -235,7 +265,7 @@ func (s *Service) CreateRole(ctx context.Context, req RoleCreateRequest) (*RoleV
 }
 
 func (s *Service) UpdateRole(ctx context.Context, id uint, req RoleUpdateRequest) error {
-	return s.gw.UpdateRole(ctx, id, biztenantuser.RoleUpdateParams{
+	return s.roles.UpdateRole(ctx, id, biztenantuser.RoleUpdateParams{
 		Name: req.Name, Remark: req.Remark, PermCodes: req.PermCodes,
 	})
 }
@@ -244,14 +274,14 @@ func (s *Service) SetRolePerms(ctx context.Context, id uint, req SetPermsRequest
 	if req.PermCodes == nil {
 		req.PermCodes = []string{}
 	}
-	return s.gw.SetRolePerms(ctx, id, req.PermCodes)
+	return s.roles.SetRolePerms(ctx, id, req.PermCodes)
 }
 
 func (s *Service) DeleteRole(ctx context.Context, id uint) error {
-	return s.gw.DeleteRole(ctx, id)
+	return s.roles.DeleteRole(ctx, id)
 }
 
-// ListPermCatalog 租户门户权限点目录（角色配权 UI 数据源）
-func (s *Service) ListPermCatalog(ctx context.Context) ([]*biztenantuser.PermDefView, error) {
-	return s.gw.ListPermCatalog(ctx)
+// ListPermCatalog 租户门户权限点目录（角色配权 UI 数据源；本地注册表唯一下发）
+func (s *Service) ListPermCatalog() []*biztenantuser.PermDefView {
+	return s.roles.PermCatalog()
 }

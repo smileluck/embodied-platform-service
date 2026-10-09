@@ -479,6 +479,113 @@ func (c *Client) ListTMPublishedVersions(ctx context.Context, nodeID uint) ([]*T
 	return raw.List, nil
 }
 
+// ---- 物模型写面 + 读面扩展（2026-10-09，scope thing-model:write / thing-model:read；
+// 创建 merchant_id 服务端注入调用方，写仅本商户独立节点，通用/他商户统一 404） ----
+
+// GetTMNode 物模型节点详情（节点须对调用商户可见）
+func (c *Client) GetTMNode(ctx context.Context, nodeID uint) (*TMNode, error) {
+	var out TMNode
+	path := "/thing-models/" + strconv.FormatUint(uint64(nodeID), 10)
+	if err := c.do(ctx, http.MethodGet, path, nil, nil, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// CreateTMNode 创建物模型节点（merchant_id 服务端注入调用方商户；父链层级/归属校验由平台兜底）
+func (c *Client) CreateTMNode(ctx context.Context, req *TMNodeCreateRequest) (*TMNode, error) {
+	var out TMNode
+	if err := c.do(ctx, http.MethodPost, "/thing-models", nil, req, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// UpdateTMNode 更新物模型节点（仅 name/status；code 与 merchant_id 不可改）
+func (c *Client) UpdateTMNode(ctx context.Context, nodeID uint, req *TMNodeUpdateRequest) error {
+	path := "/thing-models/" + strconv.FormatUint(uint64(nodeID), 10)
+	return c.do(ctx, http.MethodPut, path, nil, req, nil, nil)
+}
+
+// DeleteTMNode 删除物模型节点（有子节点/被型号绑定或设备引用时 409）
+func (c *Client) DeleteTMNode(ctx context.Context, nodeID uint) error {
+	path := "/thing-models/" + strconv.FormatUint(uint64(nodeID), 10)
+	return c.do(ctx, http.MethodDelete, path, nil, nil, nil, nil)
+}
+
+// CreateTMDraft 节点下新建草稿版本（单草稿制：已有草稿 409）
+func (c *Client) CreateTMDraft(ctx context.Context, nodeID uint) (*TMVersion, error) {
+	var out TMVersion
+	path := "/thing-models/" + strconv.FormatUint(uint64(nodeID), 10) + "/versions"
+	if err := c.do(ctx, http.MethodPost, path, nil, nil, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// UpdateTMDraft 修改草稿版本 Schema（已发布版本 409）
+func (c *Client) UpdateTMDraft(ctx context.Context, versionID uint, schema *TMSchema) error {
+	body := struct {
+		Schema *TMSchema `json:"schema"`
+	}{Schema: schema}
+	path := "/thing-models/versions/" + strconv.FormatUint(uint64(versionID), 10)
+	return c.do(ctx, http.MethodPut, path, nil, body, nil, nil)
+}
+
+// PublishTMVersion 发布版本（发布后不可变；ADR-012 只扩展不删减校验由平台兜底）
+func (c *Client) PublishTMVersion(ctx context.Context, versionID uint) (*TMVersion, error) {
+	var out TMVersion
+	path := "/thing-models/versions/" + strconv.FormatUint(uint64(versionID), 10) + "/publish"
+	if err := c.do(ctx, http.MethodPost, path, nil, nil, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// RollbackTMVersion 回退到指定已发布版本（复制其 Schema 与父链快照创建新草稿；
+// publish=true 时建草稿后直接发布，一步完成回退）
+func (c *Client) RollbackTMVersion(ctx context.Context, versionID uint, publish bool) (*TMVersion, error) {
+	var out TMVersion
+	body := struct {
+		Publish bool `json:"publish"`
+	}{Publish: publish}
+	path := "/thing-models/versions/" + strconv.FormatUint(uint64(versionID), 10) + "/rollback"
+	if err := c.do(ctx, http.MethodPost, path, nil, body, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// DeleteTMVersion 删除版本（草稿可直接删；已发布版本被型号引用时 409）
+func (c *Client) DeleteTMVersion(ctx context.Context, versionID uint) error {
+	path := "/thing-models/versions/" + strconv.FormatUint(uint64(versionID), 10)
+	return c.do(ctx, http.MethodDelete, path, nil, nil, nil, nil)
+}
+
+// ResolveTM 合并解析节点完整 Schema（pinnedVersion≠0 时须属于该节点）
+func (c *Client) ResolveTM(ctx context.Context, nodeID, pinnedVersion uint) (*TMResolveResult, error) {
+	q := url.Values{}
+	if pinnedVersion != 0 {
+		q.Set("version_id", strconv.FormatUint(uint64(pinnedVersion), 10))
+	}
+	var out TMResolveResult
+	path := "/thing-models/" + strconv.FormatUint(uint64(nodeID), 10) + "/resolve"
+	if err := c.do(ctx, http.MethodGet, path, q, nil, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// GetTMInheritanceStatus 节点继承状态（父类是否已发布快照之后的新版本）
+func (c *Client) GetTMInheritanceStatus(ctx context.Context, nodeID uint) (*TMInheritanceStatus, error) {
+	var out TMInheritanceStatus
+	path := "/thing-models/" + strconv.FormatUint(uint64(nodeID), 10) + "/inheritance-status"
+	if err := c.do(ctx, http.MethodGet, path, nil, nil, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // ---- 用户域（scope user:*；商户成员：即建即绑/解绑，账号本体全局） ----
 
 // UserFilter 商户成员列表过滤
@@ -589,7 +696,7 @@ func (c *Client) DeleteAppUser(ctx context.Context, id uint) error {
 	return c.do(ctx, http.MethodDelete, "/app-users/"+strconv.FormatUint(uint64(id), 10), nil, nil, nil, nil)
 }
 
-// ---- 租户用户域（scope tenant-user:* / tenant-role:*；租户门户运营账号，2026-10-08） ----
+// ---- 租户用户域（scope tenant-user:*；账号身份面。租户 RBAC 自 2026-10-09 本地化到本仓） ----
 
 // TenantUserFilter 租户用户列表过滤（tenant_id 为平台租户 ID，越界=空集而非报错）
 type TenantUserFilter struct {
@@ -655,82 +762,19 @@ func (c *Client) ResetTenantUserPassword(ctx context.Context, id uint, password 
 		}{Password: password}, nil, nil)
 }
 
-// SetTenantUserRoles 全量替换角色（role_ids 须全部属于该用户归属租户且该租户在商户租户集内）
-func (c *Client) SetTenantUserRoles(ctx context.Context, id uint, roleIDs []uint) error {
-	return c.do(ctx, http.MethodPut, "/tenant-users/"+strconv.FormatUint(uint64(id), 10)+"/roles",
-		nil, &struct {
-			RoleIDs []uint `json:"role_ids"`
-		}{RoleIDs: roleIDs}, nil, nil)
-}
-
-// DeleteTenantUser 删除租户用户（平台软删+墓碑释放 username 槽位）
-func (c *Client) DeleteTenantUser(ctx context.Context, id uint) error {
-	return c.do(ctx, http.MethodDelete, "/tenant-users/"+strconv.FormatUint(uint64(id), 10), nil, nil, nil, nil)
-}
-
-// TenantRoleFilter 租户角色列表过滤
-type TenantRoleFilter struct {
-	Keyword  string // 名称/编码模糊
-	TenantID uint   // 平台租户 ID（0=不过滤）
-}
-
-// ListTenantRoles 本商户可见租户角色列表（页从 1 起）
-func (c *Client) ListTenantRoles(ctx context.Context, page, pageSize int, filter TenantRoleFilter) ([]*TenantRole, *Page, error) {
-	q := url.Values{}
-	q.Set("page", strconv.Itoa(page))
-	q.Set("page_size", strconv.Itoa(pageSize))
-	if filter.Keyword != "" {
-		q.Set("kw", filter.Keyword)
-	}
-	if filter.TenantID != 0 {
-		q.Set("tenant_id", strconv.FormatUint(uint64(filter.TenantID), 10))
-	}
-	var list []*TenantRole
-	pg, err := c.doList(ctx, "/tenant-roles", q, &list)
-	return list, pg, err
-}
-
-// CreateTenantRole 创建租户角色（tenant_id 须∈商户租户集否则 403；perm_codes 目录校验在平台）
-func (c *Client) CreateTenantRole(ctx context.Context, req TenantRoleCreateRequest) (*TenantRole, error) {
-	var out TenantRole
-	if err := c.do(ctx, http.MethodPost, "/tenant-roles", nil, req, &out, nil); err != nil {
+// GetTenantUser 按 id 取单个账号（身份字段；不可见统一 404。scope tenant-user:list。
+// 本地校验角色同租户/门户定位成员用）
+func (c *Client) GetTenantUser(ctx context.Context, id uint) (*TenantUser, error) {
+	var out TenantUser
+	if err := c.do(ctx, http.MethodGet, "/tenant-users/"+strconv.FormatUint(uint64(id), 10), nil, nil, &out, nil); err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
 
-// UpdateTenantRole 更新租户角色（名称/备注/权限点；code 不可改；不可见统一 404）
-func (c *Client) UpdateTenantRole(ctx context.Context, id uint, req TenantRoleUpdateRequest) error {
-	return c.do(ctx, http.MethodPut, "/tenant-roles/"+strconv.FormatUint(uint64(id), 10), nil, req, nil, nil)
-}
-
-// SetTenantRolePerms 权限点全量替换（与更新共用语义，独立端点便于 scope 粒度控制）
-func (c *Client) SetTenantRolePerms(ctx context.Context, id uint, permCodes []string) error {
-	return c.do(ctx, http.MethodPut, "/tenant-roles/"+strconv.FormatUint(uint64(id), 10)+"/perms",
-		nil, &struct {
-			PermCodes []string `json:"perm_codes"`
-		}{PermCodes: permCodes}, nil, nil)
-}
-
-// DeleteTenantRole 删除租户角色（已分配用户时 409）
-func (c *Client) DeleteTenantRole(ctx context.Context, id uint) error {
-	return c.do(ctx, http.MethodDelete, "/tenant-roles/"+strconv.FormatUint(uint64(id), 10), nil, nil, nil, nil)
-}
-
-// ListTenantUserPerms 租户门户权限点目录（角色配权 UI 数据源；scope tenant-role:list。
-// 目录动态化：返回 = 平台 base 目录 ∪ 本商户注册码）
-func (c *Client) ListTenantUserPerms(ctx context.Context) ([]*TenantUserPermDef, error) {
-	var out []*TenantUserPermDef
-	if err := c.do(ctx, http.MethodGet, "/tenant-user-perms", nil, nil, &out, nil); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// SyncTenantUserPerms 商户权限码注册表全量同步（幂等、只增不删；scope tenant-role:syncPerms。
-// 商户端注册表是事实源，启动对账用；同步后注册码即可在本商户角色配权中勾选）
-func (c *Client) SyncTenantUserPerms(ctx context.Context, perms []TenantUserPermDef) error {
-	return c.do(ctx, http.MethodPut, "/tenant-user-perms", nil, TenantUserPermSyncRequest{Perms: perms}, nil, nil)
+// DeleteTenantUser 删除租户用户（平台软删+墓碑释放 username 槽位）
+func (c *Client) DeleteTenantUser(ctx context.Context, id uint) error {
+	return c.do(ctx, http.MethodDelete, "/tenant-users/"+strconv.FormatUint(uint64(id), 10), nil, nil, nil, nil)
 }
 
 // ---- 数据映射域（scope mapping:*；2026-10-09）----

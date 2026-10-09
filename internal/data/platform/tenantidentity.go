@@ -31,8 +31,9 @@ func NewTenantIdentityClient(cfg *conf.Bootstrap) *TenantIdentityClient {
 	}
 }
 
-// TenantProfile 平台侧门户 profile 视图（只取自省所需字段；平台 TenantAuth 按请求
-// 查库校验用户/租户双启用，禁用即时 401——本侧仅缓存窗口内感知延迟）
+// TenantProfile 平台侧门户 profile 视图（只取身份自省所需字段；平台 TenantAuth 按请求
+// 查库校验用户/租户双启用，禁用即时 401——本侧仅缓存窗口内感知延迟。租户 RBAC 自
+// 2026-10-09 本地化：平台不再下发 perm_codes，权限由 TenantAuth 装载时本地三表解析）
 type TenantProfile struct {
 	User *struct {
 		ID       uint   `json:"id"`
@@ -41,8 +42,7 @@ type TenantProfile struct {
 		Nickname string `json:"nickname"`
 		Status   int    `json:"status"`
 	} `json:"user"`
-	PermCodes []string `json:"perm_codes"`
-	Tenant    *struct {
+	Tenant *struct {
 		ID      uint   `json:"id"`
 		Name    string `json:"name"`
 		Code    string `json:"code"`
@@ -78,9 +78,6 @@ func (c *TenantIdentityClient) TenantProfileByToken(ctx context.Context, token s
 	if err == nil {
 		if out.User == nil || out.User.ID == 0 || out.User.TenantID == 0 {
 			return nil, ErrInvalidToken
-		}
-		if out.PermCodes == nil {
-			out.PermCodes = []string{}
 		}
 		return &out, nil
 	}

@@ -58,6 +58,7 @@ import (
 	dataskill "github.com/smilex/smilex-admin-gin/internal/data/skill"
 	datasys "github.com/smilex/smilex-admin-gin/internal/data/sysconfig"
 	datatenant "github.com/smilex/smilex-admin-gin/internal/data/tenant"
+	datatenantrole "github.com/smilex/smilex-admin-gin/internal/data/tenantrole"
 	"github.com/smilex/smilex-admin-gin/internal/server"
 	admissionsvc "github.com/smilex/smilex-admin-gin/internal/service/admission"
 	agentsvc "github.com/smilex/smilex-admin-gin/internal/service/agent"
@@ -97,6 +98,7 @@ var bizSet = wire.NewSet(
 	bizfile.NewUsecase,
 	bizblacklist.NewUsecase,
 	biztenant.NewUsecase,
+	biztenantuser.NewRoleUsecase,
 	bizdevice.NewUsecase,
 	bizdevmodel.NewUsecase,
 	bizdevmodel.NewMappingUsecase,
@@ -122,6 +124,7 @@ var bizSet = wire.NewSet(
 	wire.Bind(new(bizdevice.TenantRelinker), new(*biztenant.Usecase)),
 	wire.Bind(new(appusersvc.TenantNameResolver), new(*biztenant.Usecase)),
 	wire.Bind(new(tenantusersvc.TenantNameResolver), new(*biztenant.Usecase)),
+	wire.Bind(new(biztenantuser.TenantChecker), new(*biztenant.Usecase)),
 	wire.Bind(new(bizjob.TenantReconciler), new(*biztenant.Usecase)),
 	// 智能体内置只读工具：服务器状态查询复用 monitor 用例
 	wire.Bind(new(bizagent.ServerStatusReader), new(*bizmonitor.Usecase)),
@@ -143,6 +146,7 @@ var dataRepoSet = wire.NewSet(
 	datafile.NewStorageManager,
 	datablacklist.NewRepo,
 	datatenant.NewRepo,
+	datatenantrole.NewRepo,
 
 	dataagent.NewRepo,
 
@@ -186,6 +190,8 @@ var dataRepoSet = wire.NewSet(
 	wire.Bind(new(auth.TenantIdentitySource), new(*dataauth.TenantIdentityAdapter)),
 	wire.Bind(new(bizappuser.Gateway), new(*platform.AppUserGateway)),
 	wire.Bind(new(biztenantuser.Gateway), new(*platform.TenantUserGateway)),
+	wire.Bind(new(biztenantuser.RoleRepo), new(*datatenantrole.Repo)),
+	wire.Bind(new(biztenantuser.PermResolver), new(*datatenantrole.Repo)),
 	wire.Bind(new(bizjob.LogCleaner), new(*datalog.Repo)),
 	wire.Bind(new(bizjob.ExportCleaner), new(*dataexport.Worker)),
 	wire.Bind(new(bizagent.Repo), new(*dataagent.Repo)),

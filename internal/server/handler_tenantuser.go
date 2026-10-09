@@ -215,14 +215,9 @@ func (s *HTTPServer) deleteTenantRole(c *gin.Context) {
 	response.OK(c, nil)
 }
 
-// listTenantUserPermCatalog 权限点目录（角色配权 UI 数据源；经开放面透出平台目录）
+// listTenantUserPermCatalog 权限点目录（角色配权 UI 数据源；本地注册表唯一下发）
 func (s *HTTPServer) listTenantUserPermCatalog(c *gin.Context) {
-	catalog, err := s.tenantuser.ListPermCatalog(c.Request.Context())
-	if err != nil {
-		s.tenantRoleErr(c, err)
-		return
-	}
-	response.OK(c, catalog)
+	response.OK(c, s.tenantuser.ListPermCatalog())
 }
 
 // tenantUserErr 租户用户操作错误映射（经平台开放面）：不存在 404、租户越界/重名 403/409，

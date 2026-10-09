@@ -1,14 +1,15 @@
 // 租户门户（第四套身份 tenant_users）平台身份源：TenantAuth 中间件的领域主体与接口。
 // 门户登录/刷新经本服务后端代理平台 /tenant-api/v1/auth（token 双用于平台与本系统），
-// 本系统对门户侧不碰账密、不签发、不换签、无本地投影（授权=平台租户作用域 RBAC
-// 的 perm_codes 随自省下发，RequireTenantPerm 精确匹配）。
+// 本系统对门户侧不碰账密、不签发、不换签。账号身份事实源在平台；租户 RBAC 自
+// 2026-10-09 本地化——PermCodes 由 TenantAuth 在缓存装载时本地三表解析填充
+// （RequireTenantPerm 精确匹配）。
 package auth
 
 import "context"
 
-// TenantSubject 租户门户认证主体（来自平台 GET /tenant-api/v1/profile 自省）。
+// TenantSubject 租户门户认证主体（身份来自平台 GET /tenant-api/v1/profile 自省）。
 // UserID 为平台 tenant_user ID；TenantID 为平台租户 ID（单租户绑定，全链路唯一口径）；
-// PermCodes 为平台租户 RBAC 汇总后的权限码集合。
+// PermCodes 为本地租户 RBAC 解析出的权限码集合（TenantAuth 装载时填充）。
 // 经 tnt: 缓存 JSON 往返，新增字段必须有 json tag 才能穿透缓存。
 type TenantSubject struct {
 	UserID    uint     `json:"user_id"`
