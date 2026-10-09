@@ -1,4 +1,4 @@
-// tenantRole module copy (tenant-scoped RBAC roles, perm codes from platform catalog)
+// tenantRole module copy (tenant-scoped RBAC roles, perm codes from local registry internal/biz/tenantuser/permcatalog.go)
 export default {
   keywordPlaceholder: 'Name / code',
   tenantPlaceholder: 'Tenant',
@@ -26,7 +26,6 @@ export default {
   permGroup: {
     device: 'Device',
     alarm: 'Alarm',
-    dataset: 'Dataset',
     appuser: 'App User',
     member: 'Members & Roles',
   },
@@ -38,10 +37,6 @@ export default {
     'alarm:list': 'View alarms',
     'alarm:update': 'Handle alarm',
     'alarm:delete': 'Delete alarm',
-    'dataset:list': 'View datasets',
-    'dataset:create': 'Create dataset',
-    'dataset:upload': 'Upload data',
-    'dataset:delete': 'Delete dataset',
     'appuser:list': 'View app users',
     'appuser:create': 'Create app user',
     'appuser:update': 'Update app user',

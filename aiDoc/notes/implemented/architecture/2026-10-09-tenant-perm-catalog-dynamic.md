@@ -11,7 +11,7 @@
 
 **权限码事实源迁到商户端注册表，平台目录动态化（base ∪ 商户注册码，按商户隔离，只增不删）**（用户选定路线二）：
 
-1. **本仓注册表**：`internal/biz/tenantuser/permcatalog.go`——27 码常量 + `Catalog`（初始集对齐平台 2026-10-08 静态目录，含平台 2026-10-09 已撤下的 dataset 域 4 码，由本表带回）。router 挂载从字符串字面量改为引用常量（编译期防拼写错误）。
+1. **本仓注册表**：`internal/biz/tenantuser/permcatalog.go`——23 码常量 + `Catalog`（对齐平台 2026-10-09 目录；dataset 域 4 码初版曾由本表带回，同日经用户确认撤下——数据集上传已收敛为设备端专用+管理面，租户门户无任何数据集功能，码不挂路由，见 `../bug-fix/2026-10-09-tenant-perm-catalog-drop-dataset.md`）。router 挂载从字符串字面量改为引用常量（编译期防拼写错误）。
 2. **同步机制**：服务启动异步推送（`cmd/server/main.go:syncTenantPermCatalog`，对齐 `checkPlatform` 先例）——`PUT /open-api/v1/tenant-user-perms`（scope `tenant-role:syncPerms`，幂等、只增不删）；网络/5xx 每 30s 重试至成功，4xx（scope 未配/格式拒绝）为永久错误记 error 放弃。
 3. **平台侧**：新表 `tenant_perm_defs`（`(merchant_id, code)` 唯一，AutoMigrate）；开放面 GET 目录按签名商户收敛返回 base ∪ 本商户注册码；角色创建/更新的 `NormalizePerms` 按「租户归属商户目录」校验；管理面目录接口支持 `tenant_id` 参数过滤（不传=全景并集，平台运营兜底）；`sdk/` 补 `SyncTenantUserPerms`（先平台后本仓同步纪律）。
 4. **新增权限码三件套同发版**：注册表一行 + 路由挂常量 + 前端 i18n 文案（`tenantRole.perm/permGroup`），无需平台改码。
@@ -42,7 +42,7 @@
 - **只增不删**：商户端回滚版本不会收缩平台目录（防目录塌缩误伤存量角色）；废弃码治理留平台管理面后续。
 - **多商户同码**：各商户注册各自隔离；平台管理面全景目录对同码去重（先见者为准）。
 - **平台 base 目录仍是下限**：平台静态码与商户注册码并存（撞码幂等忽略），平台保留跨商户通用码兜底。
-- **同日并行变更**：平台仓同日有「dataset 开放面移除」（已撤 dataset 域）与「数据映射开放面」在途工作，本变更叠加其上实施；本仓注册表带回 dataset 域即是对前者的衔接。
+- **同日并行变更**：平台仓同日有「dataset 开放面移除」（已撤 dataset 域）与「数据映射开放面」在途工作，本变更叠加其上实施。注：本仓注册表初版曾把 dataset 域带回作衔接，同日经用户确认与平台移除口径对齐撤下（见 `../bug-fix/2026-10-09-tenant-perm-catalog-drop-dataset.md`）。
 
 ## 交叉链接
 

@@ -30,14 +30,6 @@ const (
 	PermAlarmDelete = "alarm:delete"
 )
 
-// 数据集域（平台 base 已撤下，由本注册表带回——dataset 为商户端业务域）
-const (
-	PermDatasetList   = "dataset:list"
-	PermDatasetCreate = "dataset:create"
-	PermDatasetUpload = "dataset:upload"
-	PermDatasetDelete = "dataset:delete"
-)
-
 // 应用用户域（租户内 C 端终端用户运营）
 const (
 	PermAppUserList          = "appuser:list"
@@ -63,7 +55,8 @@ const (
 )
 
 // Catalog 权限码注册表（展示顺序即配权界面分组顺序；与前端 tenantRole.permGroup 分组对齐）。
-// 初始 27 码对齐平台 2026-10-08 静态目录（含平台 2026-10-09 撤下的 dataset 域）。
+// 初始 23 码对齐平台 2026-10-09 目录（dataset 域随平台 a5c0f644 撤下：数据集上传已收敛为
+// 设备端专用+管理面，租户门户无任何数据集功能，权限码不挂任何路由）。
 var Catalog = []PermDefView{
 	{Code: PermDeviceList, Group: "device"},
 	{Code: PermDeviceCreate, Group: "device"},
@@ -72,10 +65,6 @@ var Catalog = []PermDefView{
 	{Code: PermAlarmList, Group: "alarm"},
 	{Code: PermAlarmUpdate, Group: "alarm"},
 	{Code: PermAlarmDelete, Group: "alarm"},
-	{Code: PermDatasetList, Group: "dataset"},
-	{Code: PermDatasetCreate, Group: "dataset"},
-	{Code: PermDatasetUpload, Group: "dataset"},
-	{Code: PermDatasetDelete, Group: "dataset"},
 	{Code: PermAppUserList, Group: "appuser"},
 	{Code: PermAppUserCreate, Group: "appuser"},
 	{Code: PermAppUserUpdate, Group: "appuser"},

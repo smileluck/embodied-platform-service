@@ -217,7 +217,7 @@ export interface TenantRole {
   updated_at: string
 }
 
-// 租户门户权限点目录项（group 为资源域：device/alarm/dataset/appuser/member）
+// 租户门户权限点目录项（group 为资源域：device/alarm/appuser/member）
 export interface TenantUserPermDef {
   code: string
   group: string

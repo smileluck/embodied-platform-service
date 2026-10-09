@@ -98,7 +98,7 @@ grep -rn "RequireTenantPerm(\"" internal/server/router.go  # 应零命中
 **与计划的偏差**：
 
 - 执行顺序反转（平台仓并行工作在途，本仓先行），契约两侧最终对齐无偏差
-- 平台 base 目录为 23 码（dataset 4 码已被同日 dataset 移除工作撤下，注册表 27 码由本仓带回，合并后与原 27 码目录等价）
+- 平台 base 目录为 23 码（dataset 4 码已被同日 dataset 移除工作撤下；本仓注册表初版曾带回 dataset 凑齐原 27 码，同日经用户确认与平台口径对齐撤下，现两侧均为 23 码，见 `../../notes/implemented/bug-fix/2026-10-09-tenant-perm-catalog-drop-dataset.md`）
 - 平台仓并行会话（data-mapping）的 wire 重生成顺带吸收了本变更加的 PermRepo 依赖；其 dataset 移除提交（dc929b07）混入了本变更的 perms.go/scopes.go 部分——平台仓现有三批未提交/已提交混合工作，建议用户按域分批提交
 
 **遗留事项**：

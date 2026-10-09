@@ -1,4 +1,4 @@
-// tenantRole 模块文案（租户角色管理：租户作用域 RBAC，权限码来自平台目录）
+// tenantRole 模块文案（租户角色管理：租户作用域 RBAC，权限码来自本地注册表 internal/biz/tenantuser/permcatalog.go）
 export default {
   keywordPlaceholder: '名称 / 编码',
   tenantPlaceholder: '所属租户',
@@ -26,7 +26,6 @@ export default {
   permGroup: {
     device: '设备',
     alarm: '告警',
-    dataset: '数据集',
     appuser: '应用用户',
     member: '成员与角色',
   },
@@ -38,10 +37,6 @@ export default {
     'alarm:list': '查看告警',
     'alarm:update': '处理告警',
     'alarm:delete': '删除告警',
-    'dataset:list': '查看数据集',
-    'dataset:create': '新增数据集',
-    'dataset:upload': '上传数据',
-    'dataset:delete': '删除数据集',
     'appuser:list': '查看应用用户',
     'appuser:create': '新增应用用户',
     'appuser:update': '编辑应用用户',
