@@ -11,7 +11,8 @@
       </div>
     </template>
 
-    <!-- 型号真源在 embodied-platform 管理面（服务账号代理）；创建须绑物模型节点+已发布版本 -->
+    <!-- 型号真源在 embodied-platform 开放面（商户 HMAC 代理）；创建须绑物模型节点+已发布版本。
+         2026-10-08 起按商户归属收敛：通用型号（merchant_id=0）本端只读，编辑/删除走平台管理面 -->
     <n-data-table :columns="columns" :data="rows" :loading="loading" :pagination="pagination" paginate-single-page remote />
   </n-card>
 
@@ -94,6 +95,10 @@ const columns: DataTableColumns<DeviceModel> = [
   { title: t('model.manufacturer'), key: 'manufacturer', width: 140, render: (row) => row.manufacturer || '—' },
   { title: t('device.transportCol'), key: 'transport', width: 90, render: (row) => row.transport || '—' },
   {
+    title: t('model.scope'), key: 'merchant_id', width: 90,
+    render: (row) => h(NTag, { type: row.merchant_id === 0 ? 'default' : 'info', size: 'small' }, { default: () => (row.merchant_id === 0 ? t('model.scopeCommon') : t('model.scopeMerchant')) }),
+  },
+  {
     title: t('common.status'), key: 'status', width: 80,
     render: (row) => h(NTag, { type: row.status === 1 ? 'success' : 'error', size: 'small' }, { default: () => (row.status === 1 ? t('common.enabled') : t('common.disabled')) }),
   },
@@ -101,6 +106,8 @@ const columns: DataTableColumns<DeviceModel> = [
   {
     title: t('common.operation'), key: 'actions', width: 130,
     render: (row) => {
+      // 通用型号（merchant_id=0）本端只读：平台开放面仅允许写本商户独立型号（通用/他商户 404）
+      if (row.merchant_id === 0) return '—'
       const actions: TableAction[] = [
         { label: t('common.edit'), accent: true, permission: 'model:update', onClick: () => openEdit(row) },
         { label: t('common.delete'), danger: true, permission: 'model:delete', onClick: () => confirmDelete(row) },

@@ -401,6 +401,7 @@ export interface DeviceModel {
   tm_node_name?: string
   tm_version_no?: number
   status: number // 1 启用 2 禁用
+  merchant_id: number // 0=通用 >0=商户独立归属（开放面读=通用+本商户，写仅本商户）
   manufacturer: string
   description: string
   transport: string
@@ -416,6 +417,7 @@ export interface TMNode {
   code: string
   name: string
   status: number
+  merchant_id: number // 0=通用 >0=商户独立归属
 }
 
 // 物模型版本（型号绑定仅允许 published）

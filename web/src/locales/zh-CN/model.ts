@@ -1,8 +1,11 @@
-// model 模块文案（型号管理：平台管理面代理；物模型为只读选择器）
+// model 模块文案（型号管理：平台开放面代理；物模型为只读选择器）
 export default {
   kwPlaceholder: '编码 / 名称',
   newModel: '新增型号',
   editModel: '编辑型号',
+  scope: '归属',
+  scopeCommon: '通用',
+  scopeMerchant: '本商户',
   code: '型号编码',
   codePlaceholder: '唯一编码，创建后不可修改',
   codeRequired: '请输入型号编码',

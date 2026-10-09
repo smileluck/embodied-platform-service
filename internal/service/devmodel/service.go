@@ -1,4 +1,4 @@
-// Package devmodel 型号管理应用服务（平台管理面代理）
+// Package devmodel 型号管理应用服务（平台开放面代理，商户 HMAC）
 package devmodel
 
 import (

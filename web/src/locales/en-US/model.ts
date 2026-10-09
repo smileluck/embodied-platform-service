@@ -1,8 +1,11 @@
-// model module messages (device models proxied via the platform admin API)
+// model module messages (device models proxied via the platform open API)
 export default {
   kwPlaceholder: 'Code / name',
   newModel: 'New Model',
   editModel: 'Edit Model',
+  scope: 'Ownership',
+  scopeCommon: 'Common',
+  scopeMerchant: 'This merchant',
   code: 'Model Code',
   codePlaceholder: 'Unique code, immutable after creation',
   codeRequired: 'Please enter the model code',

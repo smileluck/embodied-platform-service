@@ -69,6 +69,7 @@
 - 调用经 `internal/platformsdk/client.go:Client`（HMAC 签名 `signer.go`；直连 `/open-api/v1`，经网关 `/gw/open-api/v1`，签名按实际完整 path）；业务封装在 `internal/data/platform/`（设备/租户/型号同步、storage-gateway）
 - 平台信封同为 `{code,msg,data}`，`code!=0` 报错；`cmd/server/main.go:checkPlatform` 启动时异步自检连通性
 - `ListDevices` 支持可选 `tenant_id` 单租户过滤（平台租户 ID，⊆ 商户绑定租户集，越界 403）——租户端设备列表依赖此参数（2026-10-08 起，双侧已同步）
+- 型号/物模型商户归属收敛（2026-10-08 起，跟随平台 `bdd1c9b9`）：`DeviceModel`/`TMNode` 带 `merchant_id`（0=通用 / >0=商户独立）；型号读=通用+本商户，创建 merchant_id 平台注入，**更新/删除仅本商户独立型号（通用/他商户统一 404，本服务 DeleteModel 不再幂等放行 404）**；物模型节点选择器同口径收敛；设备查询叠加型号可见性（他商户独立型号下设备列表过滤、子资源 404），设备注册 `model_id` 须对商户可见（否则 404）
 - 配置：`configs/config.yaml` 的 `platform` 节（`appKey/appSecret`、storage `baseURL/apiKeyID`）
 - **契约以平台仓库为准**（`embodied-platform/internal/server/openapi.go`）；接口/签名/字段变更须两侧仓库分别留痕（项目集根 `../../AGENTS.md`）
 

@@ -1,12 +1,12 @@
 // Package devmodel 型号网关适配器（平台开放面商户 HMAC，经 SDK）。
 // 2026-09-16 起平台开放面提供型号域（scope model:*）与物模型只读选择器
 // （scope thing-model:read，版本仅 published），不再依赖管理面服务账号。
+// 2026-10-08 起平台侧型号/物模型节点按商户归属收敛（merchant_id：0=通用，
+// >0=商户独立）——读=通用+本商户，更新/删除仅本商户独立型号（404 不泄露）。
 package devmodel
 
 import (
 	"context"
-	"errors"
-	"net/http"
 
 	bizdevmodel "github.com/smilex/smilex-admin-gin/internal/biz/devmodel"
 	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
@@ -31,7 +31,7 @@ func modelFromSDK(m *platformsdk.DeviceModel) *bizdevmodel.Model {
 		ID: m.ID, Code: m.Code, Name: m.Name,
 		TMNodeID: m.TMNodeID, TMVersionID: m.TMVersionID,
 		TMNodeName: m.TMNodeName, TMVersionNo: m.TMVersionNo,
-		Status: m.Status, Manufacturer: m.Manufacturer,
+		Status: m.Status, MerchantID: m.MerchantID, Manufacturer: m.Manufacturer,
 		Description: m.Description, Transport: m.Transport,
 		CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
@@ -85,13 +85,9 @@ func (a *GatewayAdapter) UpdateModel(ctx context.Context, id uint, req bizdevmod
 }
 
 func (a *GatewayAdapter) DeleteModel(ctx context.Context, id uint) error {
-	err := a.client.DeleteDeviceModel(ctx, id)
-	// 平台侧已删（404）幂等放行——型号为纯代理无本地状态，重复删除视为目标已达成
-	var se *platformsdk.Error
-	if errors.As(err, &se) && se.HTTPStatus == http.StatusNotFound {
-		return nil
-	}
-	return err
+	// 2026-10-08 商户归属收敛后，404 同时承载「不存在」与「通用/他商户型号不可写」，
+	// 不再幂等放行（避免未生效的删除假装成功），原样透传由 platformErr 映射
+	return a.client.DeleteDeviceModel(ctx, id)
 }
 
 func (a *GatewayAdapter) ListTMNodes(ctx context.Context, layer, kw string) ([]*bizdevmodel.TMNode, error) {
@@ -105,6 +101,7 @@ func (a *GatewayAdapter) ListTMNodes(ctx context.Context, layer, kw string) ([]*
 		out = append(out, &bizdevmodel.TMNode{
 			ID: n.ID, Layer: n.Layer, ParentID: n.ParentID,
 			Code: n.Code, Name: n.Name, Status: n.Status,
+			MerchantID: n.MerchantID,
 		})
 	}
 	return out, nil

@@ -1,8 +1,11 @@
 // Package devmodel 设备型号限界上下文 —— 领域层。
 //
-// 纯代理：型号真源在 embodied-platform 管理面（/api/v1/device-models，服务账号 JWT）。
+// 纯代理：型号真源在 embodied-platform 开放面（商户 HMAC，SDK 类型经 data 层
+// 镜像转换）。2026-10-08 起平台侧型号按商户归属收敛（merchant_id：0=通用，
+// >0=商户独立）——读=通用+本商户，创建 merchant_id 由平台注入调用方，
+// 更新/删除仅本商户独立型号（通用与他商户型号统一 404）。
 // 型号创建必须绑定物模型 model 层节点 + 已发布版本——本系统只提供只读选择器
-// （物模型管理本身列入后续规划）。类型镜像平台 API 契约（snake_case）。
+// （物模型管理本身列入后续规划；节点选择器同样按 通用+本商户 收敛）。
 package devmodel
 
 import (
@@ -11,7 +14,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
 )
 
-// Model 设备型号（镜像平台 biz/devmodel.Model）
+// Model 设备型号（镜像平台 biz/devmodel.Model；MerchantID 0=通用 / >0=商户独立归属）
 type Model struct {
 	ID           uint   `json:"id"`
 	Code         string `json:"code"`
@@ -21,6 +24,7 @@ type Model struct {
 	TMNodeName   string `json:"tm_node_name,omitempty"`
 	TMVersionNo  int    `json:"tm_version_no,omitempty"`
 	Status       int    `json:"status"` // 1 启用 2 禁用
+	MerchantID   uint   `json:"merchant_id"`
 	Manufacturer string `json:"manufacturer"`
 	Description  string `json:"description"`
 	Transport    string `json:"transport"` // "" 跟随平台默认 | socket | mqtt
@@ -55,14 +59,15 @@ type ModelQuery struct {
 	Status  *int
 }
 
-// TMNode 物模型节点（只读选择器数据源）
+// TMNode 物模型节点（只读选择器数据源；开放面按 通用+本商户 收敛）
 type TMNode struct {
-	ID       uint   `json:"id"`
-	Layer    string `json:"layer"` // base/category/model/instance
-	ParentID uint   `json:"parent_id"`
-	Code     string `json:"code"`
-	Name     string `json:"name"`
-	Status   int    `json:"status"`
+	ID         uint   `json:"id"`
+	Layer      string `json:"layer"` // base/category/model/instance
+	ParentID   uint   `json:"parent_id"`
+	Code       string `json:"code"`
+	Name       string `json:"name"`
+	Status     int    `json:"status"`
+	MerchantID uint   `json:"merchant_id"` // 0=通用，>0=商户独立
 }
 
 // TMVersion 物模型版本（型号绑定须选 status=published）

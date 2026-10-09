@@ -154,7 +154,7 @@ type TenantUpdateRequest struct {
 
 // ---- 型号域（2026-09-16，scope model:*）----
 
-// DeviceModel 设备型号（全局资源）
+// DeviceModel 设备型号（merchant_id=0 通用 / >0 商户独立；开放面读=通用+本商户，写仅本商户独立——通用与他商户型号更新/删除统一 404）
 type DeviceModel struct {
 	ID           uint   `json:"id"`
 	Code         string `json:"code"`
@@ -164,6 +164,7 @@ type DeviceModel struct {
 	TMNodeName   string `json:"tm_node_name,omitempty"`
 	TMVersionNo  int    `json:"tm_version_no,omitempty"`
 	Status       int    `json:"status"` // 1 启用 2 禁用
+	MerchantID   uint   `json:"merchant_id"`
 	Manufacturer string `json:"manufacturer"`
 	Description  string `json:"description"`
 	Transport    string `json:"transport"` // ""跟随平台默认 | socket | mqtt
@@ -194,14 +195,15 @@ type ModelUpdateRequest struct {
 
 // ---- 物模型只读选择器（2026-09-16，scope thing-model:read）----
 
-// TMNode 物模型节点
+// TMNode 物模型节点（开放面节点列表按 通用+本商户 收敛）
 type TMNode struct {
-	ID       uint   `json:"id"`
-	Layer    string `json:"layer"` // base/category/model/instance
-	ParentID uint   `json:"parent_id"`
-	Code     string `json:"code"`
-	Name     string `json:"name"`
-	Status   int    `json:"status"`
+	ID         uint   `json:"id"`
+	Layer      string `json:"layer"` // base/category/model/instance
+	ParentID   uint   `json:"parent_id"`
+	Code       string `json:"code"`
+	Name       string `json:"name"`
+	Status     int    `json:"status"`
+	MerchantID uint   `json:"merchant_id"` // 0=通用，>0=商户独立
 }
 
 // TMVersion 物模型版本（开放面仅 published）
