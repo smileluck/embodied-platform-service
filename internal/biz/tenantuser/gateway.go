@@ -56,8 +56,8 @@ type TenantRoleView struct {
 
 // PermDefView 租户门户权限点目录项（Group 为资源域）
 type PermDefView struct {
-	Code  string
-	Group string
+	Code  string `json:"code"`
+	Group string `json:"group"`
 }
 
 // UserListParams 租户用户列表查询（TenantID 为平台租户 ID，可选）
