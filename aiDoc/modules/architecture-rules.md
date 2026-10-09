@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-03 -->
+<!-- last-updated: 2026-10-09 -->
 # 架构与模块组织规则（architecture rules）
 
 > 变体标注：本项目为 **mixed**（Go 后端 = 分层服务变体；Vue 3 前端 = 组件结构变体），按组件分节约束。所有规则引用实际代码中的类名和文件路径。
@@ -46,7 +46,7 @@
 
 ### 注册机制
 
-- 路由集中在 `internal/server/router.go:registerRoutes`：中间件链全局（`I18n/SecurityHeaders/CORS/XSSFilter/SQLInjectionGuard` + `IPBlacklist`）；分组三档——公开（`/app-auth` 本地用户）、basic（`PlatformAuth + OpLog`，本人数据不做 RBAC）、protected（`PlatformAuth + OpLog + RBAC`，默认拒绝）
+- 路由集中在 `internal/server/router.go:registerRoutes`：全局中间件链 `I18n/SecurityHeaders/CORS/XSSFilter/SQLInjectionGuard`（`IPBlacklist` 挂 `/api/v1` 组）；分组——公开（`/api/v1/auth/*`、`/tenant-api/v1/auth/*` 登录代理）、basic（`PlatformAuth + OpLog`，本人数据不做 RBAC）、protected（`PlatformAuth + OpLog + RBAC`，默认拒绝）、App 面 `/app-api/v1`（`AppAuth`+租户闸门）、租户门户 `/tenant-api/v1`（`TenantAuth`+本地租户闸门）
 - RBAC 按 `UserID|Method|Path` 判定（`internal/server/middleware/middleware.go:RBAC`，二级缓存）；新路由进 protected 组即受权限点控制
 - 新上下文必须三处同步：`wire.go` 对应 set 增 provider（跨上下文接口同 set 内 `wire.Bind`）→ `make wire` → `router.go` 注册
 
@@ -70,7 +70,7 @@ views/*（页面）→ components/*（共享组件）→ stores/*（Pinia）→ 
 
 - 页面组件放 `web/src/views/<域>/<Page>.vue`；跨页面复用组件提升到 `web/src/components/`
 - 服务端数据类型只在 `web/src/api/types.ts` 声明（与后端 DTO snake_case 一一对应）
-- 所有本服务请求走 `web/src/api/request.ts` 的 axios 实例（`baseURL: '/api/v1'`），含管理端登录/刷新/登出（`/auth/*`，经本服务代理平台）；仅租户端 app-auth 走 `web/src/api/platform.ts` 直调平台——**不得**用 axios 实例直调平台
+- 管理端请求走 `web/src/api/request.ts` 的 axios 实例（`baseURL: '/api/v1'`），含登录/刷新/登出（`/auth/*`，经本服务代理平台）；租户门户走 `web/src/api/tenant.ts` 独立实例（`baseURL: '/tenant-api/v1'`）——前端**不得**直调平台
 
 ### 状态与路由
 

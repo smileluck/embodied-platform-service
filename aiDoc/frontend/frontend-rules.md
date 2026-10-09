@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-08 -->
+<!-- last-updated: 2026-10-09 -->
 # 前端开发规范（frontend rules）
 
 > 前端开发必须遵守的规范（`web/`，Vue 3 + TS + Vite + Naive UI + Pinia）。所有约定来自真实代码。
@@ -6,7 +6,7 @@
 ## 基础规则
 
 - HTTP 请求：本服务 API 一律走 `web/src/api/request.ts` 的 axios 实例（`baseURL: '/api/v1'`，自动带 token/Accept-Language/deepTrim，401 单飞刷新重放）；**禁止**页面里裸用 axios/fetch 调本服务
-- 管理端登录/刷新/登出/验证码走本服务代理接口（`web/src/api/index.ts`，同一 axios 实例；`/auth/*` 端点被 request.ts 排除在 401 自刷新外）；平台是唯一身份源，token 双用。租户端 app-auth 才直调平台：`web/src/api/platform.ts`；**不得**用本服务 axios 实例直调平台
+- 管理端登录/刷新/登出/验证码走本服务代理接口（`web/src/api/index.ts`，同一 axios 实例；`/auth/*` 端点被 request.ts 排除在 401 自刷新外）；平台是唯一身份源，token 双用。租户门户走独立 axios 实例 `web/src/api/tenant.ts`（baseURL `/tenant-api/v1`，登录/刷新同样经本服务代理平台）；前端**不得**直调平台
 - 状态管理：全局仅 `web/src/stores/{user,settings,theme}.ts`；页面局部状态留在组件内，禁止为单页面建 store
 - 路由：登录后按菜单动态生成（`web/src/router/dynamic.ts`）；新页面必须登记 `viewModules` 的 `menu:<code>` 映射；路由守卫依赖 `useUserStore().routesLoaded`
 
@@ -57,8 +57,8 @@
 
 ## 环境变量
 
-- 前缀 `VITE_`；现役：`VITE_PLATFORM_API`（平台地址，见 `web/.env.development`、`web/.env.production`）
-- 读取只在 `web/src/api/platform.ts` 等入口层，禁止散落组件；敏感值不入库
+- 前缀 `VITE_`；现役无——前端不直调平台，`VITE_PLATFORM_API` 已随 `web/src/api/platform.ts` 移除而无代码引用
+- 环境变量读取只在入口层，禁止散落组件；敏感值不入库
 
 ## 常用脚本命令
 

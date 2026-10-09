@@ -91,7 +91,7 @@ embodied-platform（平台 = 唯一身份源 + 设备/存储基础设施）
 
 ```bash
 # 前置：本机可达的 embodied-platform 主服务(27080)与 storage-gateway(27091)，并完成上面的清单
-# 前端平台地址：web/.env.development 的 VITE_PLATFORM_API（默认 http://localhost:27080）
+# 前端无需平台地址：认证全部经本服务后端代理（无浏览器直调平台）
 make web-install web-build run   # 打开 http://localhost:28180
 # 登录账号=平台侧标记的「商户管理员」（平台商户管理 → 成员 → 开管理员标记，首登自动准入）
 ```

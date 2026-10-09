@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-03 -->
+<!-- last-updated: 2026-10-09 -->
 # 项目档案（repo profile）
 
 > 项目定位与技术栈速查。所有内容必须来自真实配置文件与代码探测，禁止编造。
@@ -39,7 +39,7 @@
 | 特性 | 说明 | 证据 |
 |---|---|---|
 | 统一响应信封 | `{code, msg, data}`，code 0=成功；错误消息按 Accept-Language 本地化 | `pkg/response/response.go:Body` |
-| 双认证体系 | 平台身份（管理端，token 自省+本地准入）/ 本地应用用户（AppJWT，`/app-auth`） | `internal/server/middleware/middleware.go:PlatformAuth`、同文件 `AppJWT` |
+| 多面平台身份认证 | 平台唯一身份源，token 双用 + 自省：管理端 PlatformAuth（+本地准入）、C 端 AppAuth（/app-api/v1）、租户门户 TenantAuth（/tenant-api/v1） | `internal/server/middleware/middleware.go:PlatformAuth/AppAuth/TenantAuth` |
 | RBAC 二级缓存 | 权限判定 L1 进程内存 + L2 Redis，变更时整体失效 | `internal/server/middleware/middleware.go:RBAC`、`pkg/cache` |
 | 平台开放面接入 | 商户 HMAC 签名调用平台 open-api；storage-gateway 托管文件 | `internal/platformsdk/client.go:Client`、`internal/data/platform/` |
 | 软删 + 唯一槽位释放 | 软删行归档唯一列，允许同编码重建 | `internal/data/archive_unique.go:ArchiveUniqueColumns` |

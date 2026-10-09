@@ -57,13 +57,13 @@ cmd/server/main.go（wire 装配）
 web/src/views/*（页面组件）
   ← web/src/stores/*（Pinia：user/settings/theme）
   ← web/src/api/index.ts（本服务 API，axios 实例 web/src/api/request.ts：/api/v1、token、401 刷新重放）
-  ← web/src/api/platform.ts（租户端 app-auth 直调平台，token 双用；管理端登录走 index.ts 经本服务代理）
+  ← web/src/api/tenant.ts（租户门户独立 axios 实例：/tenant-api/v1、tenant-access token、401 单飞刷新；登录/刷新经本服务代理平台，前端不直调平台）
 web/src/router/dynamic.ts（菜单 code → viewModules 组件映射，登录后动态挂路由）
 web/src/locales/{zh-CN,en-US}（i18n 语言包，后端按 Accept-Language 同步本地化）
 ```
 
-- 开发态 Vite 把 `/api` 代理到 `localhost:28180`（`web/vite.config.ts`）
-- 平台地址来自 `VITE_PLATFORM_API`（默认 `http://localhost:27080`），生产需在平台 CORS 白名单登记本前端 Origin
+- 开发态 Vite 把 `/api` 与 `/tenant-api` 都代理到 `localhost:28180`（`web/vite.config.ts`；租户门户 baseURL `/tenant-api/v1`）
+- 前端不直调平台（认证全走本服务代理），无 `VITE_PLATFORM_API` 类平台地址配置
 
 ## 模块对应关系
 
@@ -76,7 +76,7 @@ web/src/locales/{zh-CN,en-US}（i18n 语言包，后端按 Accept-Language 同�
 | `biz/file`（平台存储代理） | `views/file/Files.vue` |
 | `biz/blacklist` / `biz/monitor` / `biz/log` | `views/system/Blacklist.vue`、`views/system/ServerMonitor.vue`、`views/log/OperationLogs.vue` |
 | `biz/tenant` / `biz/appuser` | `views/tenant/{Tenants,AppUsers}.vue` |
-| `biz/tenantmember`（租户端授权层：/app-api/v1 成员自助管理 + 设备只读，见 [../notes/implemented/architecture/2026-10-08-tenant-user-system.md](../notes/implemented/architecture/2026-10-08-tenant-user-system.md)） | `views/tenant-portal/*`（租户端，/tenant-portal/* 路由树 + `layout/TenantLayout.vue`） |
+| `biz/tenantmember`（租户门户授权层：/tenant-api/v1 成员自治 + 设备只读，见 [../notes/implemented/architecture/2026-10-08-tenant-user-system.md](../notes/implemented/architecture/2026-10-08-tenant-user-system.md)） | `views/tenant-portal/*`（租户门户，/tenant-portal/* 路由树 + `layout/TenantLayout.vue`，API 走 `web/src/api/tenant.ts` → /tenant-api/v1） |
 | `biz/device` / `biz/devmodel`（平台开放面；devmodel 含数据映射子域 `MappingGateway`/`MappingUsecase`） | `views/device/{Devices,DeviceModels}.vue`（物模型/数据映射页随 `plans/active/2026-10-09-thingmodel-datamapping-pages.md` 阶段 3 落地） |
 | `biz/agent` / `biz/mcp` / `biz/skill` | `views/agent/*`、`views/mcp/Servers.vue`、`views/skill/Skills.vue` |
 | `biz/notify` | `views/notify/{Channels,Rules,Records}.vue` |

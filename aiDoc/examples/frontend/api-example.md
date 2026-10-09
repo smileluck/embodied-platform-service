@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-03 -->
+<!-- last-updated: 2026-10-09 -->
 # 示例：前端 API 封装（types + 函数）
 
 > 目的：展示 `web/src/api/` 的组织标准——类型唯一真源 + 请求函数封装。
@@ -35,10 +35,10 @@ export const deleteDictType = (id: number) => request.delete<R<null>>(`/dict-typ
 ## 要点
 
 - 可选查询参数传 `undefined` 时 axios 自动省略（`name: query.name || undefined`）
-- 管理端登录/刷新/登出也在本文件（`/auth/*`，经本服务代理平台）；仅租户端 app-auth 直调平台（`web/src/api/platform.ts`，fetch，token 双用）
+- 管理端登录/刷新/登出也在本文件（`/auth/*`，经本服务代理平台）；租户门户接口在 `web/src/api/tenant.ts`（独立 axios 实例，`/tenant-api/v1`，登录/刷新同样经本服务代理平台）
 - 401 刷新重放、错误 toast 兜底已由 `request.ts` 拦截器统一处理，函数内不重复处理
 
 ## 真实参考文件
 
 - `web/src/api/types.ts`、`web/src/api/index.ts`
-- `web/src/api/request.ts`（拦截器）、`web/src/api/platform.ts`（平台直调）
+- `web/src/api/request.ts`（管理端拦截器）、`web/src/api/tenant.ts`（租户门户独立实例）

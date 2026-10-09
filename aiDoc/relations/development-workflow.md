@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-03 -->
+<!-- last-updated: 2026-10-09 -->
 # 开发流程（development workflow）
 
 > 开发顺序、协作方式、分支与提交规范、环境命令。命令必须来自真实配置文件，禁止编造。
@@ -21,7 +21,7 @@
 
 - **前端 ↔ 本服务**：接口字段先定契约（snake_case、统一信封），前端 `api/types.ts` 与后端 DTO 同步改
 - **本服务 ↔ 平台开放面**（embodied-platform）：接口/签名/信封以平台为准，改动两侧仓库分别留痕（跨项目变更见项目集根 `../../AGENTS.md`）
-- **本服务 → 平台认证公开 API**（管理端登录/刷新/登出/验证码，后端代理转发）：平台是唯一身份源，token 双用；平台接口变化需同步 `internal/data/platform/identity.go` 与 `web/src/api/index.ts` 的 auth 函数（租户端 app-auth 仍浏览器直调平台，见 `web/src/api/platform.ts`）
+- **本服务 → 平台认证公开 API**（管理端 + 租户门户登录/刷新，后端代理转发）：平台是唯一身份源，token 双用；平台接口变化需同步 `internal/data/platform/identity.go` 与 `web/src/api/index.ts`、`web/src/api/tenant.ts` 的 auth 函数（前端无浏览器直调平台）
 
 联调验证：`make dev` 同起后端(28180)与前端(28170)；平台相关功能需平台侧服务可用（默认 `http://localhost:27080`）。
 
