@@ -31,6 +31,7 @@ const staticRoutes: RouteRecordRaw[] = [
       { path: 'devices', name: 'tenant-devices', component: () => import('../views/tenant-portal/Devices.vue'), meta: { titleKey: 'tenantPortal.menu.devices' } },
       { path: 'devices/:id', name: 'tenant-device-detail', component: () => import('../views/tenant-portal/DeviceDetail.vue'), meta: { titleKey: 'tenantPortal.menu.deviceDetail', hideInMenu: true } },
       { path: 'members', name: 'tenant-members', component: () => import('../views/tenant-portal/Members.vue'), meta: { titleKey: 'tenantPortal.menu.members', adminOnly: true } },
+      { path: 'logs', name: 'tenant-logs', component: () => import('../views/tenant-portal/Logs.vue'), meta: { titleKey: 'tenantPortal.menu.logs', perm: 'log:list' } },
       { path: 'profile', name: 'tenant-profile', component: () => import('../views/tenant-portal/Profile.vue'), meta: { titleKey: 'tenantPortal.menu.profile' } },
     ],
   },
@@ -71,6 +72,11 @@ router.beforeEach(async (to) => {
     }
     // 无成员自治权限者访问 admin-only 页面（成员管理）跳回设备列表
     if (to.meta?.adminOnly && !store.isAdmin) {
+      return { path: '/tenant-portal/devices', replace: true }
+    }
+    // 权限码级页面（如日志 log:list）：无对应权限码跳回设备列表
+    const needPerm = to.meta?.perm as string | undefined
+    if (needPerm && !store.hasPerm(needPerm)) {
       return { path: '/tenant-portal/devices', replace: true }
     }
     return true

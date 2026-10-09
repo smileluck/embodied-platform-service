@@ -134,6 +134,7 @@ func (d *Data) migrateAndSeed() error {
 		&model.PlatformUserPO{}, &model.PlatformUserRolePO{},
 		&model.RolePO{}, &model.PermissionPO{}, &model.RolePermissionPO{},
 		&model.OperationLogPO{}, &model.LoginLogPO{},
+		&model.TenantLoginLogPO{}, &model.TenantOperationLogPO{},
 		&model.FilePO{}, &model.ExportRecordPO{}, &model.IPBlacklistPO{},
 		&model.TenantPO{},
 		// 租户 RBAC 本地三表（2026-10-09 自平台下沉；tenant_id/user_id 为平台 ID，无外键引用）
@@ -218,6 +219,7 @@ var systemMenus = []systemMenuDef{
 	{Name: "日志管理", Code: "menu:log", Type: "dir", Icon: "DocumentTextOutline", Sort: 3},
 	{Name: "登录日志", Code: "menu:loginLog", Path: "/log/login-logs", Icon: "LogInOutline", Sort: 1, ParentCode: "menu:log"},
 	{Name: "操作日志", Code: "menu:opLog", Path: "/log/operation-logs", Icon: "ClipboardOutline", Sort: 2, ParentCode: "menu:log"},
+	{Name: "租户日志", Code: "menu:tenantLog", Path: "/log/tenant-logs", Icon: "DocumentTextOutline", Sort: 3, ParentCode: "menu:log"},
 	{Name: "文件管理", Code: "menu:file", Path: "/file", Icon: "FolderOpenOutline", Sort: 4},
 	{Name: "IP黑名单", Code: "menu:blacklist", Path: "/system/blacklist", Icon: "BanOutline", Sort: 6, ParentCode: "menu:system"},
 	{Name: "服务器监控", Code: "menu:monitor", Path: "/system/monitor", Icon: "SpeedometerOutline", Sort: 6},
@@ -241,6 +243,7 @@ var systemMenus = []systemMenuDef{
 	// 日志管理（顶级目录分组）
 	{Name: "日志管理", Code: "menu:log", Type: "dir", Icon: "DocumentTextOutline", Sort: 5},
 	{Name: "操作日志", Code: "menu:opLog", Path: "/log/operation-logs", Icon: "ClipboardOutline", Sort: 2, ParentCode: "menu:log"},
+	{Name: "租户日志", Code: "menu:tenantLog", Path: "/log/tenant-logs", Icon: "DocumentTextOutline", Sort: 3, ParentCode: "menu:log"},
 	// 文件管理（顶级菜单）
 	{Name: "文件管理", Code: "menu:file", Path: "/file", Icon: "FolderOpenOutline", Sort: 6},
 	// 服务器状态监控（顶级菜单）
@@ -449,6 +452,11 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "查询操作日志", Code: "log:op:list", Menu: "menu:opLog", Method: "GET", Path: "/api/v1/operation-logs", Sort: 1},
 	{Name: "清理操作日志", Code: "log:op:clear", Menu: "menu:opLog", Method: "DELETE", Path: "/api/v1/operation-logs", Sort: 2},
 	{Name: "导出操作日志", Code: "log:op:export", Menu: "menu:opLog", Method: "POST", Path: "/api/v1/operation-logs/export", Sort: 3},
+	// 租户门户日志（独立两表）
+	{Name: "查询租户登录日志", Code: "log:tenantLogin:list", Menu: "menu:tenantLog", Method: "GET", Path: "/api/v1/tenant-login-logs", Sort: 1},
+	{Name: "清理租户登录日志", Code: "log:tenantLogin:clear", Menu: "menu:tenantLog", Method: "DELETE", Path: "/api/v1/tenant-login-logs", Sort: 2},
+	{Name: "查询租户操作日志", Code: "log:tenantOp:list", Menu: "menu:tenantLog", Method: "GET", Path: "/api/v1/tenant-operation-logs", Sort: 3},
+	{Name: "清理租户操作日志", Code: "log:tenantOp:clear", Menu: "menu:tenantLog", Method: "DELETE", Path: "/api/v1/tenant-operation-logs", Sort: 4},
 	// 文件管理
 	{Name: "查询文件", Code: "file:list", Menu: "menu:file", Method: "GET", Path: "/api/v1/files", Sort: 1},
 	{Name: "上传文件", Code: "file:upload", Menu: "menu:file", Method: "POST", Path: "/api/v1/files", Sort: 2},

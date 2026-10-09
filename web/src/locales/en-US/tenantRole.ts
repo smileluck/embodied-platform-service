@@ -28,6 +28,7 @@ export default {
     alarm: 'Alarm',
     appuser: 'App User',
     member: 'Members & Roles',
+    log: 'Logs',
   },
   perm: {
     'device:list': 'View devices',
@@ -53,5 +54,6 @@ export default {
     'member:role:update': 'Update role',
     'member:role:delete': 'Delete role',
     'member:role:setPerms': 'Assign role permissions',
+    'log:list': 'View logs',
   },
 }

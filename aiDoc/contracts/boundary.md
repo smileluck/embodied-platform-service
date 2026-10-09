@@ -67,9 +67,10 @@
 面向企业租户的门户端（`web/src/views/tenant-portal/`）与商户管理端完全隔离，身份为平台第四套身份 tenant_users（单租户绑定），2026-10-08 起：
 
 - **认证**：Bearer **tenant-access token**；登录/刷新经本服务后端代理平台 `/tenant-api/v1/auth`（token 双用于平台与本系统，本侧挂 LoginIPGuard + 登录限流 10 次/分/IP）。TenantAuth 以 token 自省平台 `/tenant-api/v1/profile` 得身份（tid 取自 token，单租户绑定，**不信任请求头，不携带 X-Tenant-ID**）+ 本地租户闸门（`tenants.platform_id` 已同步且启用，否则 403）；per-uid 限流 120/min
-- **鉴权**：权限码由本地三表 JOIN（binds→roles→role_perms）在缓存装载时解析（变更 ≤60s 生效），`RequireTenantPerm` 精确匹配（成员自治 `member:*`、设备只读 `device:list`）；`GET /profile`、`PUT /profile/password` 为本人数据不校验权限码
+- **鉴权**：权限码由本地三表 JOIN（binds→roles→role_perms）在缓存装载时解析（变更 ≤60s 生效），`RequireTenantPerm` 精确匹配（成员自治 `member:*`、设备只读 `device:list`、日志只读 `log:list`）；`GET /profile`、`PUT /profile/password` 为本人数据不校验权限码
 - **响应信封/分页/snake_case** 与管理端一致（同一 `pkg/response`/`pkg/pagination`）
 - **成员语义**：`/members/*` 经平台开放面 tid 锁定操作本租户 tenant_users；`DELETE /members/:id` = 移出租户（不删账号）；守卫：本人不可自操作、最后一名成员管理员不可失格（biz 层哨兵）
+- **审计日志**（2026-10-09 起）：登录成功/失败落 `tenant_login_logs`（成功自省补 tid，失败 tid=0）；写请求经 `TenantOpLog` 落 `tenant_operation_logs`（tid/操作人取自 TenantAuth，password 类路由 body 整体脱敏）。`GET /logs/login`、`GET /logs/operation` 只读查询（`log:list`，tid 强制 = token tid，登录失败行 tid=0 门户不可见）；保留期随 `log.retentionDays`，门户无清空/导出。管理端镜像：`GET/DELETE /api/v1/tenant-login-logs`、`GET/DELETE /api/v1/tenant-operation-logs`（protected+RBAC，种子 `menu:tenantLog` + `log:tenant{Login,Op}:{list,clear}`；GET 支持 `tenant_id` 精确筛选，清空为全租户口径）
 - 前端独立 axios 实例（`web/src/api/tenant.ts`，baseURL `/tenant-api/v1`，token 独立存储键 `tenant_access_token`/`tenant_refresh_token`，401 单飞刷新走本服务 `/tenant-api/v1/auth/refresh`）
 - 决策记录：`aiDoc/notes/implemented/architecture/2026-10-08-tenant-user-system.md`
 

@@ -76,3 +76,47 @@ func (uc *Usecase) clearCutoff() time.Time {
 func (uc *Usecase) RetentionDays() int {
 	return uc.retentionDays
 }
+
+// RecordTenantLogin 记录一次租户门户登录尝试（异步落库）
+func (uc *Usecase) RecordTenantLogin(l *TenantLoginLog) {
+	if l.CreatedAt.IsZero() {
+		l.CreatedAt = time.Now()
+	}
+	uc.repo.CreateTenantLogin(l)
+}
+
+// RecordTenantOperation 记录一条租户门户写请求审计（异步落库）
+func (uc *Usecase) RecordTenantOperation(o *TenantOperationLog) {
+	if o.CreatedAt.IsZero() {
+		o.CreatedAt = time.Now()
+	}
+	uc.repo.CreateTenantOperation(o)
+}
+
+// ListTenantLoginLogs 分页查询租户门户登录日志
+func (uc *Usecase) ListTenantLoginLogs(ctx context.Context, q TenantLoginLogQuery, page, pageSize int) ([]*TenantLoginLog, pagination.Page, error) {
+	logs, total, err := uc.repo.ListTenantLoginLogs(ctx, q, page, pageSize)
+	if err != nil {
+		return nil, pagination.Page{}, err
+	}
+	return logs, pagination.Page{Page: page, PageSize: pageSize, Total: total}, nil
+}
+
+// ListTenantOperationLogs 分页查询租户门户操作日志
+func (uc *Usecase) ListTenantOperationLogs(ctx context.Context, q TenantOperationLogQuery, page, pageSize int) ([]*TenantOperationLog, pagination.Page, error) {
+	logs, total, err := uc.repo.ListTenantOperationLogs(ctx, q, page, pageSize)
+	if err != nil {
+		return nil, pagination.Page{}, err
+	}
+	return logs, pagination.Page{Page: page, PageSize: pageSize, Total: total}, nil
+}
+
+// ClearTenantLoginLogs 手动清理租户门户登录日志（截止时间与管理端清空一致）
+func (uc *Usecase) ClearTenantLoginLogs(ctx context.Context) (int64, error) {
+	return uc.repo.DeleteTenantLoginBefore(ctx, uc.clearCutoff())
+}
+
+// ClearTenantOperationLogs 手动清理租户门户操作日志（截止时间与管理端清空一致）
+func (uc *Usecase) ClearTenantOperationLogs(ctx context.Context) (int64, error) {
+	return uc.repo.DeleteTenantOperationBefore(ctx, uc.clearCutoff())
+}

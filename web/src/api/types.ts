@@ -135,6 +135,36 @@ export interface LogPageResult<T> {
   retention_days: number
 }
 
+// 租户门户登录日志（tenant_id 为平台租户 ID；created_at 为 "2006-01-02 15:04:05" 格式字符串）
+export interface TenantLoginLog {
+  id: number
+  tenant_id: number
+  username: string
+  ip: string
+  user_agent: string
+  status: number // 1 成功 0 失败
+  msg: string
+  created_at: string
+}
+
+// 租户门户操作日志（params 为参数摘要，敏感字段已脱敏）
+export interface TenantOperationLog {
+  id: number
+  tenant_id: number
+  user_id: number
+  username: string
+  method: string // POST / PUT / DELETE / PATCH
+  path: string
+  route: string
+  action: string
+  params: string
+  ip: string
+  user_agent: string
+  status_code: number
+  latency_ms: number
+  created_at: string
+}
+
 // 异步导出记录（一行 = 一次导出任务；仅本人可见）
 export interface ExportRecord {
   id: number

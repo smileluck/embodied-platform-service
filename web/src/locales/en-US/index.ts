@@ -18,6 +18,7 @@ import tenantPortal from './tenantPortal'
 import appUser from './appUser'
 import tenantUser from './tenantUser'
 import tenantRole from './tenantRole'
+import tenantLog from './tenantLog'
 import file from './file'
 import exportRecords from './exportRecords'
 import profile from './profile'
@@ -54,6 +55,7 @@ export default {
   appUser,
   tenantUser,
   tenantRole,
+  tenantLog,
   file,
   exportRecords,
   profile,

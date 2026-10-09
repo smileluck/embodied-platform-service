@@ -86,7 +86,7 @@ type HTTPServer struct {
 	device              *devicesvc.Service
 	devmodel            *devmodelsvc.Service
 	mapping             *devmodelsvc.MappingService // 数据映射（平台开放面代理）
-	rdb                 *redis.Client // 通用限流（固定窗口计数）
+	rdb                 *redis.Client               // 通用限流（固定窗口计数）
 	rbacCache           *cache.TwoLevel
 	identityCache       *cache.TwoLevel
 	engine              *gin.Engine
@@ -226,11 +226,20 @@ func (s *HTTPServer) registerRoutes() {
 				KeyPrefix: "rl:tenant-api:", Max: 120, Window: time.Minute,
 				SubjectFunc: func(c *gin.Context) string { return middleware.TenantAuthSubjectUID(c) },
 				MessageKey:  "security.rate_limited",
-			}))
+			}),
+			// 门户写操作审计（落 tenant_operation_logs；RequireTenantPerm 拒绝的尝试也记录）
+			middleware.TenantOpLog(s.log))
 		{
 			// 自身数据（本人信息/改密，无越权面，不做权限码校验）
 			authed.GET("/profile", s.tenantPortalProfile)
 			authed.PUT("/profile/password", s.tenantPortalChangePassword)
+
+			// 本租户日志查询（log:list；tid 强制取认证主体，只见本租户记录）
+			logs := authed.Group("/logs", middleware.RequireTenantPerm(biztenantuser.PermLogList))
+			{
+				logs.GET("/login", s.tenantApiListLoginLogs)
+				logs.GET("/operation", s.tenantApiListOperationLogs)
+			}
 
 			// 成员自治（门户对本租户 tenant_users 的自助管理，经开放面 tid 锁定；
 			// 守卫：本人不可自操作、最后一名成员管理员不可失格）
@@ -392,6 +401,19 @@ func (s *HTTPServer) registerRoutes() {
 		loginLogs.GET("", s.listLoginLogs)
 		loginLogs.DELETE("", s.clearLoginLogs)
 		loginLogs.POST("/export", func(c *gin.Context) { s.submitExport(c, "login_log") })
+	}
+
+	// 租户门户日志（独立两表；GET 支持 tenant_id 精确筛选，缺省全租户）
+	tenantLoginLogs := protected.Group("/tenant-login-logs")
+	{
+		tenantLoginLogs.GET("", s.listTenantLoginLogs)
+		tenantLoginLogs.DELETE("", s.clearTenantLoginLogs)
+	}
+
+	tenantOpLogs := protected.Group("/tenant-operation-logs")
+	{
+		tenantOpLogs.GET("", s.listTenantOperationLogs)
+		tenantOpLogs.DELETE("", s.clearTenantOperationLogs)
 	}
 
 	files := protected.Group("/files")

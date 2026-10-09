@@ -57,7 +57,7 @@ import {
   NButton, NDropdown, NIcon, NLayout, NLayoutContent, NLayoutHeader, NLayoutSider,
   NMenu, NSpin, NTag, NTooltip, type DropdownOption, type MenuOption,
 } from 'naive-ui'
-import { MoonOutline, SunnyOutline, PeopleOutline, HardwareChipOutline, PersonOutline } from '@vicons/ionicons5'
+import { MoonOutline, SunnyOutline, PeopleOutline, HardwareChipOutline, PersonOutline, DocumentTextOutline } from '@vicons/ionicons5'
 import { useTenantUserStore } from '../stores/tenantUser'
 import { isDarkRef, toggleTheme } from '../stores/theme'
 
@@ -67,13 +67,16 @@ const router = useRouter()
 const store = useTenantUserStore()
 const collapsed = ref(false)
 
-// 菜单：静态定义按权限过滤（无成员自治权限不见成员管理；无后端菜单面）
+// 菜单：静态定义按权限过滤（无成员自治权限不见成员管理、无 log:list 不见日志；无后端菜单面）
 const menuOptions = computed<MenuOption[]>(() => {
   const opts: MenuOption[] = [
     { label: t('tenantPortal.menu.devices'), key: '/tenant-portal/devices', icon: () => h(NIcon, null, { default: () => h(HardwareChipOutline) }) },
   ]
   if (store.isAdmin) {
     opts.push({ label: t('tenantPortal.menu.members'), key: '/tenant-portal/members', icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) })
+  }
+  if (store.hasPerm('log:list')) {
+    opts.push({ label: t('tenantPortal.menu.logs'), key: '/tenant-portal/logs', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) })
   }
   opts.push({ label: t('tenantPortal.menu.profile'), key: '/tenant-portal/profile', icon: () => h(NIcon, null, { default: () => h(PersonOutline) }) })
   return opts
@@ -83,6 +86,7 @@ const activeKey = computed(() => {
   // 详情页高亮所属菜单
   if (route.path.startsWith('/tenant-portal/devices')) return '/tenant-portal/devices'
   if (route.path.startsWith('/tenant-portal/members')) return '/tenant-portal/members'
+  if (route.path.startsWith('/tenant-portal/logs')) return '/tenant-portal/logs'
   if (route.path.startsWith('/tenant-portal/profile')) return '/tenant-portal/profile'
   return ''
 })

@@ -57,3 +57,53 @@ type OperationLogQuery struct {
 	Start    time.Time
 	End      time.Time
 }
+
+// TenantLoginLog 租户门户登录日志（独立两表：带平台租户 ID，门户查询按 tid 锁定）
+type TenantLoginLog struct {
+	ID        uint
+	TenantID  uint // 平台租户 ID（自省失败落库时为 0）
+	Username  string
+	IP        string
+	UserAgent string
+	Status    int // 1 成功 0 失败
+	Msg       string
+	CreatedAt time.Time
+}
+
+// TenantLoginLogQuery 租户门户登录日志查询条件（零值为不限；TenantID nil 为全部租户）
+type TenantLoginLogQuery struct {
+	TenantID *uint // 平台租户 ID 精确匹配（nil 为全部）
+	Username string
+	IP       string
+	Status   *int
+	Start    time.Time
+	End      time.Time
+}
+
+// TenantOperationLog 租户门户操作日志（写请求审计）
+type TenantOperationLog struct {
+	ID         uint
+	TenantID   uint // 平台租户 ID（TenantAuth 自省 tenant；缺失时为 0）
+	UserID     uint // 操作人（平台 tenant_user ID）
+	Username   string
+	Method     string
+	Path       string // 实际请求路径（含资源 ID 与 query）
+	Route      string // 路由模板（如 /tenant-api/v1/members/:id）
+	Action     string // 中文动作名
+	Params     string // 请求参数摘要（敏感字段脱敏、超长截断）
+	IP         string
+	UserAgent  string
+	StatusCode int
+	LatencyMs  int
+	CreatedAt  time.Time
+}
+
+// TenantOperationLogQuery 租户门户操作日志查询条件（零值为不限；TenantID nil 为全部租户）
+type TenantOperationLogQuery struct {
+	TenantID *uint
+	Username string
+	Method   string
+	Keyword  string
+	Start    time.Time
+	End      time.Time
+}

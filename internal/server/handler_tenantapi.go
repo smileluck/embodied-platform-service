@@ -5,12 +5,15 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
+	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
 	biztenantuser "github.com/smilex/smilex-admin-gin/internal/biz/tenantuser"
 	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 	"github.com/smilex/smilex-admin-gin/internal/server/middleware"
@@ -48,6 +51,23 @@ func (s *HTTPServer) tenantPortalLogin(c *gin.Context) {
 		return
 	}
 	pair, err := s.tenantIds.TenantLogin(c.Request.Context(), req.Username, req.Password)
+
+	// 成功/失败均落租户登录日志（异步，不阻塞登录响应）；成功时用新 access token
+	// 自省平台 profile 补 tid/username（自省失败零值落库，不影响响应）
+	l := &bizlog.TenantLoginLog{
+		Username:  req.Username,
+		IP:        c.ClientIP(),
+		UserAgent: truncate(c.GetHeader("User-Agent"), 255),
+		Status:    bizlog.LoginStatusSuccess,
+	}
+	if err != nil {
+		l.Status = bizlog.LoginStatusFail
+		l.Msg = truncate(loginFailMsg(err), 255)
+	} else if sub, perr := s.tenantIds.TenantProfile(c.Request.Context(), pair.AccessToken); perr == nil && sub != nil {
+		l.TenantID, l.Username = sub.TenantID, sub.Username
+	}
+	s.log.RecordTenantLogin(context.Background(), l)
+
 	if err != nil {
 		s.platformErr(c, err) // 401 密码错等平台业务错误按状态码透传
 		return
@@ -390,4 +410,53 @@ func (s *HTTPServer) tenantDeviceErr(c *gin.Context, err error) {
 		return
 	}
 	s.deviceErr(c, err)
+}
+
+// ---- 门户日志查询（log:list；tid 强制锁定本租户，不信任客户端参数） ----
+
+func (s *HTTPServer) tenantApiListLoginLogs(c *gin.Context) {
+	tid, _, ok := tenantCtx(c)
+	if !ok {
+		return
+	}
+	page, size := s.pageParams(c)
+	q := bizlog.TenantLoginLogQuery{TenantID: &tid, Username: strings.TrimSpace(c.Query("username")), IP: strings.TrimSpace(c.Query("ip"))}
+	if v := strings.TrimSpace(c.Query("status")); v != "" {
+		if st, err := strconv.Atoi(v); err == nil {
+			q.Status = &st
+		}
+	}
+	if t, ok := parseUnixParam(c.Query("start")); ok {
+		q.Start = t
+	}
+	if t, ok := parseUnixParam(c.Query("end")); ok {
+		q.End = t
+	}
+	logs, pg, err := s.log.ListTenantLoginLogs(c.Request.Context(), q, page, size)
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, logListResult{List: logs, Page: pg, RetentionDays: s.log.RetentionDays()})
+}
+
+func (s *HTTPServer) tenantApiListOperationLogs(c *gin.Context) {
+	tid, _, ok := tenantCtx(c)
+	if !ok {
+		return
+	}
+	page, size := s.pageParams(c)
+	q := bizlog.TenantOperationLogQuery{TenantID: &tid, Username: strings.TrimSpace(c.Query("username")), Method: strings.TrimSpace(c.Query("method")), Keyword: strings.TrimSpace(c.Query("kw"))}
+	if t, ok := parseUnixParam(c.Query("start")); ok {
+		q.Start = t
+	}
+	if t, ok := parseUnixParam(c.Query("end")); ok {
+		q.End = t
+	}
+	logs, pg, err := s.log.ListTenantOperationLogs(c.Request.Context(), q, page, size)
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, logListResult{List: logs, Page: pg, RetentionDays: s.log.RetentionDays()})
 }

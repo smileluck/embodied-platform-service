@@ -77,3 +77,74 @@ func (s *HTTPServer) clearOperationLogs(c *gin.Context) {
 	}
 	response.OK(c, gin.H{"deleted": n})
 }
+
+// ---- 租户门户日志（管理端查询/清空；GET 支持 tenant_id 精确筛选，缺省全租户） ----
+
+func (s *HTTPServer) listTenantLoginLogs(c *gin.Context) {
+	page, size := s.pageParams(c)
+	q := bizlog.TenantLoginLogQuery{Username: strings.TrimSpace(c.Query("username")), IP: strings.TrimSpace(c.Query("ip"))}
+	if v := strings.TrimSpace(c.Query("tenant_id")); v != "" {
+		if tid, err := strconv.ParseUint(v, 10, 64); err == nil {
+			id := uint(tid)
+			q.TenantID = &id
+		}
+	}
+	if v := strings.TrimSpace(c.Query("status")); v != "" {
+		if st, err := strconv.Atoi(v); err == nil {
+			q.Status = &st
+		}
+	}
+	if t, ok := parseUnixParam(c.Query("start")); ok {
+		q.Start = t
+	}
+	if t, ok := parseUnixParam(c.Query("end")); ok {
+		q.End = t
+	}
+	logs, pg, err := s.log.ListTenantLoginLogs(c.Request.Context(), q, page, size)
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, logListResult{List: logs, Page: pg, RetentionDays: s.log.RetentionDays()})
+}
+
+func (s *HTTPServer) clearTenantLoginLogs(c *gin.Context) {
+	n, err := s.log.ClearTenantLoginLogs(c.Request.Context())
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, gin.H{"deleted": n})
+}
+
+func (s *HTTPServer) listTenantOperationLogs(c *gin.Context) {
+	page, size := s.pageParams(c)
+	q := bizlog.TenantOperationLogQuery{Username: strings.TrimSpace(c.Query("username")), Method: strings.TrimSpace(c.Query("method")), Keyword: strings.TrimSpace(c.Query("kw"))}
+	if v := strings.TrimSpace(c.Query("tenant_id")); v != "" {
+		if tid, err := strconv.ParseUint(v, 10, 64); err == nil {
+			id := uint(tid)
+			q.TenantID = &id
+		}
+	}
+	if t, ok := parseUnixParam(c.Query("start")); ok {
+		q.Start = t
+	}
+	if t, ok := parseUnixParam(c.Query("end")); ok {
+		q.End = t
+	}
+	logs, pg, err := s.log.ListTenantOperationLogs(c.Request.Context(), q, page, size)
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, logListResult{List: logs, Page: pg, RetentionDays: s.log.RetentionDays()})
+}
+
+func (s *HTTPServer) clearTenantOperationLogs(c *gin.Context) {
+	n, err := s.log.ClearTenantOperationLogs(c.Request.Context())
+	if err != nil {
+		response.FailI18n(c, http.StatusInternalServerError, response.CodeErr, err)
+		return
+	}
+	response.OK(c, gin.H{"deleted": n})
+}

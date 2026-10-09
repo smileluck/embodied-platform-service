@@ -230,3 +230,51 @@ export function getTenantDeviceShadow(id: number) {
 export function getTenantDeviceTelemetry(id: number, params: { metric?: string; marker?: string; limit?: number }) {
   return tenantRequest.get<R<TelemetryHistory>>(`/devices/${id}/telemetry`, { params })
 }
+
+// ---- 门户审计日志（log:list 权限码；只读，租户范围由服务端按 token 内 tid 收敛） ----
+
+// 门户登录日志行（created_at 为 "2006-01-02 15:04:05" 格式字符串）
+export interface TenantLoginLog {
+  id: number
+  tenant_id: number
+  username: string
+  ip: string
+  user_agent: string
+  status: number // 1 成功 0 失败
+  msg: string // 失败原因（成功为空）
+  created_at: string
+}
+
+// 门户操作日志行（params 为参数摘要，敏感字段已脱敏）
+export interface TenantOperationLog {
+  id: number
+  tenant_id: number
+  user_id: number
+  username: string
+  method: string // POST / PUT / DELETE / PATCH
+  path: string // 实际请求路径
+  route: string // 路由模板
+  action: string // 动作名
+  params: string
+  ip: string
+  user_agent: string
+  status_code: number
+  latency_ms: number
+  created_at: string
+}
+
+// 日志列表响应：列表 + 分页 + 保留天数（retention_days=0 表示未启用保留期）
+export interface TenantLogListResult<T> {
+  list: T[]
+  page: { page: number; page_size: number; total: number }
+  retention_days: number
+}
+
+// start/end 为 unix 秒级时间戳
+export function listTenantLoginLogs(params: { page: number; page_size: number; username?: string; ip?: string; status?: number; start?: number; end?: number }) {
+  return tenantRequest.get<R<TenantLogListResult<TenantLoginLog>>>('/logs/login', { params })
+}
+
+export function listTenantOperationLogs(params: { page: number; page_size: number; username?: string; method?: string; kw?: string; start?: number; end?: number }) {
+  return tenantRequest.get<R<TenantLogListResult<TenantOperationLog>>>('/logs/operation', { params })
+}

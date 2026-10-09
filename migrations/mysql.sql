@@ -273,3 +273,42 @@ CREATE TABLE IF NOT EXISTS `login_logs` (
   KEY `idx_login_logs_status` (`status`),
   KEY `idx_login_logs_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- 租户门户登录日志表（独立流水：带平台租户 ID，门户查询按 tid 锁定）
+CREATE TABLE IF NOT EXISTS `tenant_login_logs` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `tenant_id` BIGINT UNSIGNED DEFAULT 0 COMMENT '平台租户 ID（自省失败落库时为 0）',
+  `username` VARCHAR(64) DEFAULT '' COMMENT '尝试登录的用户名（可能不存在）',
+  `ip` VARCHAR(64) DEFAULT '',
+  `user_agent` VARCHAR(255) DEFAULT '',
+  `status` TINYINT DEFAULT 0 COMMENT '1 成功 0 失败',
+  `msg` VARCHAR(255) DEFAULT '' COMMENT '失败原因（成功为空）',
+  `created_at` DATETIME(3) COMMENT '登录时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_tenant_login_logs_tenant_id` (`tenant_id`),
+  KEY `idx_tenant_login_logs_username` (`username`),
+  KEY `idx_tenant_login_logs_status` (`status`),
+  KEY `idx_tenant_login_logs_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- 租户门户操作日志表（写请求审计流水：带平台租户 ID）
+CREATE TABLE IF NOT EXISTS `tenant_operation_logs` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `tenant_id` BIGINT UNSIGNED DEFAULT 0 COMMENT '平台租户 ID',
+  `user_id` BIGINT UNSIGNED DEFAULT 0 COMMENT '操作人（平台 tenant_user ID）',
+  `username` VARCHAR(64) DEFAULT '' COMMENT '操作人用户名快照',
+  `method` VARCHAR(8) DEFAULT '',
+  `path` VARCHAR(255) DEFAULT '' COMMENT '实际请求路径（含资源 ID 与 query）',
+  `route` VARCHAR(128) DEFAULT '' COMMENT '路由模板',
+  `action` VARCHAR(64) DEFAULT '' COMMENT '中文动作名',
+  `params` TEXT COMMENT '请求参数摘要（敏感字段脱敏、超长截断）',
+  `ip` VARCHAR(64) DEFAULT '',
+  `user_agent` VARCHAR(255) DEFAULT '',
+  `status_code` INT DEFAULT 0 COMMENT '响应状态码',
+  `latency_ms` INT DEFAULT 0 COMMENT '耗时（毫秒）',
+  `created_at` DATETIME(3) COMMENT '操作时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_tenant_operation_logs_tenant_id` (`tenant_id`),
+  KEY `idx_tenant_operation_logs_username` (`username`),
+  KEY `idx_tenant_operation_logs_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

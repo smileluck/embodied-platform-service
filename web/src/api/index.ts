@@ -64,6 +64,8 @@ import type {
   TMVersion,
   TelemetryHistory,
   Tenant,
+  TenantLoginLog,
+  TenantOperationLog,
   TenantRole,
   TenantUserAccount,
   TenantUserPermDef,
@@ -144,6 +146,14 @@ export const clearLoginLogs = () => request.delete<R<{ deleted: number }>>('/log
 export const listOperationLogs = (params: { page: number; page_size: number; username?: string; method?: string; kw?: string; start?: number; end?: number }) =>
   request.get<R<LogPageResult<OperationLogInfo>>>('/operation-logs', { params })
 export const clearOperationLogs = () => request.delete<R<{ deleted: number }>>('/operation-logs')
+
+// ---- 租户门户日志（平台租户门户审计；tenant_id 为平台租户 ID 精确筛选，start/end 为 unix 秒） ----
+export const listTenantLoginLogs = (params: { page: number; page_size: number; tenant_id?: number; username?: string; ip?: string; status?: number; start?: number; end?: number }) =>
+  request.get<R<LogPageResult<TenantLoginLog>>>('/tenant-login-logs', { params })
+export const clearTenantLoginLogs = () => request.delete<R<{ deleted: number }>>('/tenant-login-logs')
+export const listTenantOperationLogs = (params: { page: number; page_size: number; tenant_id?: number; username?: string; method?: string; kw?: string; start?: number; end?: number }) =>
+  request.get<R<LogPageResult<TenantOperationLog>>>('/tenant-operation-logs', { params })
+export const clearTenantOperationLogs = () => request.delete<R<{ deleted: number }>>('/tenant-operation-logs')
 
 // ---- 租户（创建/更新/删除与平台强一致同步） ----
 export const listTenants = (params: { page: number; page_size: number; name?: string; code?: string; status?: number }) =>

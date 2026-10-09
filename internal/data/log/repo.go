@@ -24,7 +24,7 @@ const queueSize = 256
 // Repo 日志仓储（登录/操作日志共用；写异步、读删同步）
 type Repo struct {
 	data          *data.Data
-	queue         chan interface{} // *model.LoginLogPO | *model.OperationLogPO
+	queue         chan interface{} // *model.LoginLogPO | *model.OperationLogPO | *model.TenantLoginLogPO | *model.TenantOperationLogPO
 	done          chan struct{}    // 通知后台协程退出
 	wg            sync.WaitGroup
 	retentionDays int
@@ -60,6 +60,10 @@ func (r *Repo) writeWorker() {
 			err = r.data.DB.WithContext(ctx).Create(x).Error
 		case *model.OperationLogPO:
 			err = r.data.DB.WithContext(ctx).Create(x).Error
+		case *model.TenantLoginLogPO:
+			err = r.data.DB.WithContext(ctx).Create(x).Error
+		case *model.TenantOperationLogPO:
+			err = r.data.DB.WithContext(ctx).Create(x).Error
 		}
 		if err != nil {
 			logger.Warn("log write failed", zap.Error(err))
@@ -75,7 +79,7 @@ func (r *Repo) CleanupExpired(ctx context.Context) error {
 	return r.cleanupExpired(ctx, r.retentionDays)
 }
 
-// cleanupExpired 物理删除保留期外的登录/操作日志（与手动清空共用删除路径）
+// cleanupExpired 物理删除保留期外的登录/操作日志（管理端两表 + 租户门户两表；与手动清空共用删除路径）
 func (r *Repo) cleanupExpired(ctx context.Context, days int) error {
 	cutoff := time.Now().AddDate(0, 0, -days)
 	n1, err := r.DeleteLoginBefore(ctx, cutoff)
@@ -86,9 +90,18 @@ func (r *Repo) cleanupExpired(ctx context.Context, days int) error {
 	if err != nil {
 		return fmt.Errorf("操作日志清理失败: %w", err)
 	}
-	if n1+n2 > 0 {
+	n3, err := r.DeleteTenantLoginBefore(ctx, cutoff)
+	if err != nil {
+		return fmt.Errorf("租户登录日志清理失败: %w", err)
+	}
+	n4, err := r.DeleteTenantOperationBefore(ctx, cutoff)
+	if err != nil {
+		return fmt.Errorf("租户操作日志清理失败: %w", err)
+	}
+	if n1+n2+n3+n4 > 0 {
 		logger.Info("log retention cleanup",
-			zap.Int64("login_logs_deleted", n1), zap.Int64("operation_logs_deleted", n2))
+			zap.Int64("login_logs_deleted", n1), zap.Int64("operation_logs_deleted", n2),
+			zap.Int64("tenant_login_logs_deleted", n3), zap.Int64("tenant_operation_logs_deleted", n4))
 	}
 	return nil
 }
@@ -108,6 +121,22 @@ func (r *Repo) CreateOperation(o *bizlog.OperationLog) {
 	case r.queue <- model.OperationLogToPO(o):
 	default:
 		logger.Warn("operation log queue full, dropped", zap.String("route", o.Route))
+	}
+}
+
+func (r *Repo) CreateTenantLogin(l *bizlog.TenantLoginLog) {
+	select {
+	case r.queue <- model.TenantLoginLogToPO(l):
+	default:
+		logger.Warn("tenant login log queue full, dropped", zap.String("ip", l.IP))
+	}
+}
+
+func (r *Repo) CreateTenantOperation(o *bizlog.TenantOperationLog) {
+	select {
+	case r.queue <- model.TenantOperationLogToPO(o):
+	default:
+		logger.Warn("tenant operation log queue full, dropped", zap.String("route", o.Route))
 	}
 }
 
@@ -188,6 +217,77 @@ func listPage(tx *gorm.DB, page, pageSize int) *gorm.DB {
 	return tx
 }
 
+func (r *Repo) ListTenantLoginLogs(ctx context.Context, q bizlog.TenantLoginLogQuery, page, pageSize int) ([]*bizlog.TenantLoginLog, int64, error) {
+	tx := r.data.DB.WithContext(ctx).Model(&model.TenantLoginLogPO{})
+	if q.TenantID != nil {
+		tx = tx.Where("tenant_id = ?", *q.TenantID)
+	}
+	if q.Username != "" {
+		tx = tx.Where("username LIKE ? ESCAPE '/'", security.EscapeLike(q.Username)+"%")
+	}
+	if q.IP != "" {
+		tx = tx.Where("ip = ?", q.IP)
+	}
+	if q.Status != nil {
+		tx = tx.Where("status = ?", *q.Status)
+	}
+	if !q.Start.IsZero() {
+		tx = tx.Where("created_at >= ?", q.Start)
+	}
+	if !q.End.IsZero() {
+		tx = tx.Where("created_at <= ?", q.End)
+	}
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var pos []model.TenantLoginLogPO
+	if err := listPage(tx, page, pageSize).Find(&pos).Error; err != nil {
+		return nil, 0, err
+	}
+	out := make([]*bizlog.TenantLoginLog, 0, len(pos))
+	for i := range pos {
+		out = append(out, model.TenantLoginLogFromPO(&pos[i]))
+	}
+	return out, total, nil
+}
+
+func (r *Repo) ListTenantOperationLogs(ctx context.Context, q bizlog.TenantOperationLogQuery, page, pageSize int) ([]*bizlog.TenantOperationLog, int64, error) {
+	tx := r.data.DB.WithContext(ctx).Model(&model.TenantOperationLogPO{})
+	if q.TenantID != nil {
+		tx = tx.Where("tenant_id = ?", *q.TenantID)
+	}
+	if q.Username != "" {
+		tx = tx.Where("username LIKE ? ESCAPE '/'", "%"+security.EscapeLike(q.Username)+"%")
+	}
+	if q.Method != "" {
+		tx = tx.Where("method = ?", q.Method)
+	}
+	if q.Keyword != "" {
+		kw := "%" + security.EscapeLike(q.Keyword) + "%"
+		tx = tx.Where("action LIKE ? ESCAPE '/' OR route LIKE ? ESCAPE '/' OR path LIKE ? ESCAPE '/'", kw, kw, kw)
+	}
+	if !q.Start.IsZero() {
+		tx = tx.Where("created_at >= ?", q.Start)
+	}
+	if !q.End.IsZero() {
+		tx = tx.Where("created_at <= ?", q.End)
+	}
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var pos []model.TenantOperationLogPO
+	if err := listPage(tx, page, pageSize).Find(&pos).Error; err != nil {
+		return nil, 0, err
+	}
+	out := make([]*bizlog.TenantOperationLog, 0, len(pos))
+	for i := range pos {
+		out = append(out, model.TenantOperationLogFromPO(&pos[i]))
+	}
+	return out, total, nil
+}
+
 // ---- 删除（手动清空与保留期清理共用） ----
 
 func (r *Repo) DeleteLoginBefore(ctx context.Context, cutoff time.Time) (int64, error) {
@@ -197,5 +297,15 @@ func (r *Repo) DeleteLoginBefore(ctx context.Context, cutoff time.Time) (int64, 
 
 func (r *Repo) DeleteOperationBefore(ctx context.Context, cutoff time.Time) (int64, error) {
 	res := r.data.DB.WithContext(ctx).Where("created_at < ?", cutoff).Delete(&model.OperationLogPO{})
+	return res.RowsAffected, res.Error
+}
+
+func (r *Repo) DeleteTenantLoginBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	res := r.data.DB.WithContext(ctx).Where("created_at < ?", cutoff).Delete(&model.TenantLoginLogPO{})
+	return res.RowsAffected, res.Error
+}
+
+func (r *Repo) DeleteTenantOperationBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	res := r.data.DB.WithContext(ctx).Where("created_at < ?", cutoff).Delete(&model.TenantOperationLogPO{})
 	return res.RowsAffected, res.Error
 }

@@ -254,3 +254,40 @@ CREATE INDEX IF NOT EXISTS idx_login_logs_username ON login_logs (username);
 CREATE INDEX IF NOT EXISTS idx_login_logs_ip ON login_logs (ip);
 CREATE INDEX IF NOT EXISTS idx_login_logs_status ON login_logs (status);
 CREATE INDEX IF NOT EXISTS idx_login_logs_created_at ON login_logs (created_at);
+
+-- 租户门户登录日志表（独立流水：带平台租户 ID，门户查询按 tid 锁定）
+CREATE TABLE IF NOT EXISTS tenant_login_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER DEFAULT 0,     -- 平台租户 ID（自省失败落库时为 0）
+  username TEXT DEFAULT '',        -- 尝试登录的用户名（可能不存在）
+  ip TEXT DEFAULT '',
+  user_agent TEXT DEFAULT '',
+  status INTEGER DEFAULT 0,        -- 1 成功 0 失败
+  msg TEXT DEFAULT '',             -- 失败原因（成功为空）
+  created_at DATETIME              -- 登录时间
+);
+CREATE INDEX IF NOT EXISTS idx_tenant_login_logs_tenant_id ON tenant_login_logs (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_login_logs_username ON tenant_login_logs (username);
+CREATE INDEX IF NOT EXISTS idx_tenant_login_logs_status ON tenant_login_logs (status);
+CREATE INDEX IF NOT EXISTS idx_tenant_login_logs_created_at ON tenant_login_logs (created_at);
+
+-- 租户门户操作日志表（写请求审计流水：带平台租户 ID）
+CREATE TABLE IF NOT EXISTS tenant_operation_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER DEFAULT 0,     -- 平台租户 ID
+  user_id INTEGER DEFAULT 0,       -- 操作人（平台 tenant_user ID）
+  username TEXT DEFAULT '',        -- 操作人用户名快照
+  method TEXT DEFAULT '',
+  path TEXT DEFAULT '',            -- 实际请求路径（含资源 ID 与 query）
+  route TEXT DEFAULT '',           -- 路由模板
+  action TEXT DEFAULT '',          -- 中文动作名
+  params TEXT DEFAULT '',          -- 请求参数摘要（敏感字段脱敏、超长截断）
+  ip TEXT DEFAULT '',
+  user_agent TEXT DEFAULT '',
+  status_code INTEGER DEFAULT 0,   -- 响应状态码
+  latency_ms INTEGER DEFAULT 0,    -- 耗时（毫秒）
+  created_at DATETIME              -- 操作时间
+);
+CREATE INDEX IF NOT EXISTS idx_tenant_operation_logs_tenant_id ON tenant_operation_logs (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_operation_logs_username ON tenant_operation_logs (username);
+CREATE INDEX IF NOT EXISTS idx_tenant_operation_logs_created_at ON tenant_operation_logs (created_at);

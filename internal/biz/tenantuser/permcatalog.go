@@ -54,6 +54,11 @@ const (
 	PermMemberRoleSetPerms      = "member:role:setPerms"
 )
 
+// 日志域（门户本租户登录/操作日志查询）
+const (
+	PermLogList = "log:list"
+)
+
 // Catalog 权限码注册表（展示顺序即配权界面分组顺序；与前端 tenantRole.permGroup 分组对齐）。
 // 初始 23 码对齐平台 2026-10-09 目录（dataset 域随平台 a5c0f644 撤下：数据集上传已收敛为
 // 设备端专用+管理面，租户门户无任何数据集功能，权限码不挂任何路由）。
@@ -81,6 +86,7 @@ var Catalog = []PermDefView{
 	{Code: PermMemberRoleUpdate, Group: "member"},
 	{Code: PermMemberRoleDelete, Group: "member"},
 	{Code: PermMemberRoleSetPerms, Group: "member"},
+	{Code: PermLogList, Group: "log"},
 }
 
 // knownPermCodes 目录码索引（NormalizePerms 校验用，包初始化构建）

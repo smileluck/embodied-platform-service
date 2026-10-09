@@ -21,6 +21,11 @@ type OpLogRecorder interface {
 	RecordOperation(ctx context.Context, o *bizlog.OperationLog)
 }
 
+// TenantOpLogRecorder 租户门户操作日志记录入口（由 log 应用服务实现，异步落库）
+type TenantOpLogRecorder interface {
+	RecordTenantOperation(ctx context.Context, o *bizlog.TenantOperationLog)
+}
+
 const (
 	// opLogBodyLimit 参数摘要最多读取的 body 字节数
 	opLogBodyLimit = 4 * 1024
@@ -82,6 +87,24 @@ var actionNames = map[string]string{
 	"POST /api/v1/agent/conversations":       "新建会话",
 	"PUT /api/v1/agent/conversations/:id":    "重命名会话",
 	"DELETE /api/v1/agent/conversations/:id": "删除会话",
+	// 租户门户写操作（TenantOpLog 落 tenant_operation_logs）
+	"POST /tenant-api/v1/members":             "新增成员",
+	"PUT /tenant-api/v1/members/:id":          "编辑成员",
+	"PUT /tenant-api/v1/members/:id/status":   "启停成员",
+	"PUT /tenant-api/v1/members/:id/password": "重置成员密码",
+	"PUT /tenant-api/v1/members/:id/roles":    "分配成员角色",
+	"DELETE /tenant-api/v1/members/:id":       "移除成员",
+	"PUT /tenant-api/v1/profile/password":     "修改密码",
+	// 租户日志管理（管理端）
+	"DELETE /api/v1/tenant-login-logs":     "清理租户登录日志",
+	"DELETE /api/v1/tenant-operation-logs": "清理租户操作日志",
+}
+
+// maskFullPaths body 全是凭据、参数摘要整体脱敏的路由模板
+var maskFullPaths = map[string]bool{
+	"/api/v1/auth/password":               true,
+	"/tenant-api/v1/profile/password":     true,
+	"/tenant-api/v1/members/:id/password": true,
 }
 
 // OpLog 写请求自动审计
@@ -113,6 +136,42 @@ func OpLog(rec OpLogRecorder) gin.HandlerFunc {
 			o.UserID, o.Username = sub.UserID, sub.Username
 		}
 		rec.RecordOperation(context.Background(), o)
+	}
+}
+
+// TenantOpLog 租户门户写请求自动审计（落 tenant_operation_logs；操作人取 TenantAuth
+// 自省主体，tid 取本地租户投影的 PlatformID，二者缺失时零值落库）
+func TenantOpLog(rec TenantOpLogRecorder) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		switch c.Request.Method {
+		case http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch:
+		default:
+			c.Next()
+			return
+		}
+		start := time.Now()
+		body := peekBody(c)
+		c.Next()
+
+		o := &bizlog.TenantOperationLog{
+			Method:     c.Request.Method,
+			Path:       requestPath(c),
+			Route:      c.FullPath(),
+			Action:     actionName(c.Request.Method, c.FullPath()),
+			Params:     maskParams(c, body),
+			IP:         c.ClientIP(),
+			UserAgent:  truncateStr(c.GetHeader("User-Agent"), 255),
+			StatusCode: c.Writer.Status(),
+			LatencyMs:  int(time.Since(start).Milliseconds()),
+			CreatedAt:  start,
+		}
+		if sub := TenantAuthSubject(c); sub != nil {
+			o.UserID, o.Username = sub.UserID, sub.Username
+		}
+		if tn := TenantAuthTenant(c); tn != nil {
+			o.TenantID = tn.PlatformID
+		}
+		rec.RecordTenantOperation(context.Background(), o)
 	}
 }
 
@@ -152,8 +211,8 @@ func peekBody(c *gin.Context) []byte {
 // maskParams 生成脱敏后的参数摘要：password/secret/token 类字段打码，
 // 无 body 时记录 query；改密接口整体打码；超长截断。
 func maskParams(c *gin.Context, body []byte) string {
-	// 修改密码接口 body 全是凭据，整体脱敏
-	if c.FullPath() == "/api/v1/auth/password" {
+	// body 全是凭据的路由整体脱敏（改密/重置密码）
+	if maskFullPaths[c.FullPath()] {
 		return "（已脱敏）"
 	}
 	// multipart 上传 body 是二进制内容，不入参数摘要

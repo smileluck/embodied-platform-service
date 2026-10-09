@@ -28,6 +28,7 @@ export default {
     alarm: '告警',
     appuser: '应用用户',
     member: '成员与角色',
+    log: '日志',
   },
   perm: {
     'device:list': '查看设备',
@@ -53,5 +54,6 @@ export default {
     'member:role:update': '编辑角色',
     'member:role:delete': '删除角色',
     'member:role:setPerms': '分配角色权限',
+    'log:list': '查看日志',
   },
 }

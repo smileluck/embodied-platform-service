@@ -21,4 +21,16 @@ type Repo interface {
 	DeleteLoginBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	// DeleteOperationBefore 物理删除 cutoff 之前（不含）的操作日志，返回删除行数
 	DeleteOperationBefore(ctx context.Context, cutoff time.Time) (int64, error)
+	// CreateTenantLogin 租户门户登录日志入队异步落库
+	CreateTenantLogin(l *TenantLoginLog)
+	// CreateTenantOperation 租户门户操作日志入队异步落库
+	CreateTenantOperation(o *TenantOperationLog)
+	// ListTenantLoginLogs 分页查询租户门户登录日志
+	ListTenantLoginLogs(ctx context.Context, q TenantLoginLogQuery, page, pageSize int) ([]*TenantLoginLog, int64, error)
+	// ListTenantOperationLogs 分页查询租户门户操作日志
+	ListTenantOperationLogs(ctx context.Context, q TenantOperationLogQuery, page, pageSize int) ([]*TenantOperationLog, int64, error)
+	// DeleteTenantLoginBefore 物理删除 cutoff 之前（不含）的租户门户登录日志
+	DeleteTenantLoginBefore(ctx context.Context, cutoff time.Time) (int64, error)
+	// DeleteTenantOperationBefore 物理删除 cutoff 之前（不含）的租户门户操作日志
+	DeleteTenantOperationBefore(ctx context.Context, cutoff time.Time) (int64, error)
 }

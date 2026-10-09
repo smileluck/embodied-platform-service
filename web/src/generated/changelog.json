@@ -1,6 +1,34 @@
 {
-  "generatedAt": "2026-10-09T05:21:24.753Z",
+  "generatedAt": "2026-10-09T09:20:59.220Z",
   "commits": [
+    {
+      "hash": "31399d46f",
+      "date": "2026-10-09",
+      "type": "docs",
+      "scope": "aiDoc",
+      "message": "修正租户端契约漂移——/app-api/v1+app-auth 直调口径全面更新为 /tenant-api/v1+后端代理"
+    },
+    {
+      "hash": "07432dc82",
+      "date": "2026-10-09",
+      "type": "fix",
+      "scope": "tenantuser",
+      "message": "租户角色配权目录撤下 dataset 域——对齐平台移除口径"
+    },
+    {
+      "hash": "633e0f6a4",
+      "date": "2026-10-09",
+      "type": "docs",
+      "scope": "memory",
+      "message": "记 lesson——调试二进制占用 dev 端口致 air 热重载静默失效"
+    },
+    {
+      "hash": "e3f29d562",
+      "date": "2026-10-09",
+      "type": "feat",
+      "scope": "thingmodel",
+      "message": "物模型页升级商户可管理——开放面写面代理 + 节点/版本管理 + 权限种子"
+    },
     {
       "hash": "99c31981a",
       "date": "2026-10-09",

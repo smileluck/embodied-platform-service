@@ -120,6 +120,40 @@ type OperationLogPO struct {
 
 func (OperationLogPO) TableName() string { return "operation_logs" }
 
+// TenantLoginLogPO 租户门户登录日志表（独立流水：带平台租户 ID，门户查询按 tid 锁定）
+type TenantLoginLogPO struct {
+	ID        uint      `gorm:"primaryKey"`
+	TenantID  uint      `gorm:"index"`         // 平台租户 ID（自省失败落库时为 0）
+	Username  string    `gorm:"size:64;index"` // 尝试登录的用户名（可能不存在）
+	IP        string    `gorm:"size:64;index"`
+	UserAgent string    `gorm:"size:255"`
+	Status    int       `gorm:"index"`    // 1 成功 0 失败
+	Msg       string    `gorm:"size:255"` // 失败原因（成功为空）
+	CreatedAt time.Time `gorm:"index"`
+}
+
+func (TenantLoginLogPO) TableName() string { return "tenant_login_logs" }
+
+// TenantOperationLogPO 租户门户操作日志表（写请求审计流水：带平台租户 ID）
+type TenantOperationLogPO struct {
+	ID         uint      `gorm:"primaryKey"`
+	TenantID   uint      `gorm:"index"`         // 平台租户 ID
+	UserID     uint      `gorm:"index"`         // 操作人（平台 tenant_user ID）
+	Username   string    `gorm:"size:64;index"` // 操作人用户名快照
+	Method     string    `gorm:"size:8;index"`
+	Path       string    `gorm:"size:255"`  // 实际请求路径（含资源 ID 与 query）
+	Route      string    `gorm:"size:128"`  // 路由模板
+	Action     string    `gorm:"size:64"`   // 中文动作名
+	Params     string    `gorm:"type:text"` // 请求参数摘要（敏感字段脱敏、超长截断）
+	IP         string    `gorm:"size:64"`
+	UserAgent  string    `gorm:"size:255"`
+	StatusCode int       // 响应状态码
+	LatencyMs  int       // 耗时（毫秒）
+	CreatedAt  time.Time `gorm:"index"`
+}
+
+func (TenantOperationLogPO) TableName() string { return "tenant_operation_logs" }
+
 // FilePO 文件元数据表（对象本体在平台 storage-gateway；本地仅登记 bucket/key，
 // 下载经网关预签名 URL 302）
 type FilePO struct {
@@ -372,6 +406,38 @@ func OperationLogFromPO(p *OperationLogPO) *log.OperationLog {
 		ID: p.ID, UserID: p.UserID, Username: p.Username, Method: p.Method,
 		Path: p.Path, Route: p.Route, Action: p.Action, Params: p.Params,
 		IP: p.IP, UserAgent: p.UserAgent, StatusCode: p.StatusCode,
+		LatencyMs: p.LatencyMs, CreatedAt: p.CreatedAt,
+	}
+}
+
+func TenantLoginLogToPO(l *log.TenantLoginLog) *TenantLoginLogPO {
+	return &TenantLoginLogPO{
+		ID: l.ID, TenantID: l.TenantID, Username: l.Username, IP: l.IP,
+		UserAgent: l.UserAgent, Status: l.Status, Msg: l.Msg, CreatedAt: l.CreatedAt,
+	}
+}
+
+func TenantLoginLogFromPO(p *TenantLoginLogPO) *log.TenantLoginLog {
+	return &log.TenantLoginLog{
+		ID: p.ID, TenantID: p.TenantID, Username: p.Username, IP: p.IP,
+		UserAgent: p.UserAgent, Status: p.Status, Msg: p.Msg, CreatedAt: p.CreatedAt,
+	}
+}
+
+func TenantOperationLogToPO(o *log.TenantOperationLog) *TenantOperationLogPO {
+	return &TenantOperationLogPO{
+		ID: o.ID, TenantID: o.TenantID, UserID: o.UserID, Username: o.Username,
+		Method: o.Method, Path: o.Path, Route: o.Route, Action: o.Action,
+		Params: o.Params, IP: o.IP, UserAgent: o.UserAgent, StatusCode: o.StatusCode,
+		LatencyMs: o.LatencyMs, CreatedAt: o.CreatedAt,
+	}
+}
+
+func TenantOperationLogFromPO(p *TenantOperationLogPO) *log.TenantOperationLog {
+	return &log.TenantOperationLog{
+		ID: p.ID, TenantID: p.TenantID, UserID: p.UserID, Username: p.Username,
+		Method: p.Method, Path: p.Path, Route: p.Route, Action: p.Action,
+		Params: p.Params, IP: p.IP, UserAgent: p.UserAgent, StatusCode: p.StatusCode,
 		LatencyMs: p.LatencyMs, CreatedAt: p.CreatedAt,
 	}
 }
