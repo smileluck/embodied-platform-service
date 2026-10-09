@@ -414,6 +414,18 @@ var systemButtonPerms = []systemButtonPermDef{
 	// 物模型只读浏览（与 model:tmPicker/model:tmVersion 同 path，RBAC 任一码匹配即放行）
 	{Name: "查询物模型", Code: "thingModel:list", Menu: "menu:thingModel", Method: "GET", Path: "/api/v1/thing-models", Sort: 1},
 	{Name: "物模型版本", Code: "thingModel:version", Menu: "menu:thingModel", Method: "GET", Path: "/api/v1/thing-models/*/versions", Sort: 2},
+	// 物模型写面（2026-10-09，scope thing-model:write 代理）：view 用 ** 跨段覆盖
+	// 节点详情/resolve/inheritance-status（/versions 子树读由 thingModel:version 单列）；
+	// 草稿建/改为不同 method+path 形态（一码一 path），拆 draft/draftUpdate 两码
+	{Name: "物模型详情", Code: "thingModel:view", Menu: "menu:thingModel", Method: "GET", Path: "/api/v1/thing-models/**", Sort: 3},
+	{Name: "新增节点", Code: "thingModel:nodeCreate", Menu: "menu:thingModel", Method: "POST", Path: "/api/v1/thing-models", Sort: 4},
+	{Name: "编辑节点", Code: "thingModel:nodeUpdate", Menu: "menu:thingModel", Method: "PUT", Path: "/api/v1/thing-models/*", Sort: 5},
+	{Name: "删除节点", Code: "thingModel:nodeDelete", Menu: "menu:thingModel", Method: "DELETE", Path: "/api/v1/thing-models/*", Sort: 6},
+	{Name: "新建草稿", Code: "thingModel:draft", Menu: "menu:thingModel", Method: "POST", Path: "/api/v1/thing-models/*/versions", Sort: 7},
+	{Name: "编辑草稿", Code: "thingModel:draftUpdate", Menu: "menu:thingModel", Method: "PUT", Path: "/api/v1/thing-models/versions/*", Sort: 8},
+	{Name: "发布版本", Code: "thingModel:publish", Menu: "menu:thingModel", Method: "POST", Path: "/api/v1/thing-models/versions/*/publish", Sort: 9},
+	{Name: "回滚版本", Code: "thingModel:rollback", Menu: "menu:thingModel", Method: "POST", Path: "/api/v1/thing-models/versions/*/rollback", Sort: 10},
+	{Name: "删除版本", Code: "thingModel:versionDelete", Menu: "menu:thingModel", Method: "DELETE", Path: "/api/v1/thing-models/versions/*", Sort: 11},
 	// 数据映射（平台开放面代理；子资源（版本/绑定/发布/回滚）按单段 * 通配单列权限点，
 	// 防止粗粒度点越级覆盖；mapping:view 的单段 * 同时覆盖 /:id 详情与 /effective 生效查询）
 	{Name: "查询映射", Code: "mapping:list", Menu: "menu:dataMapping", Method: "GET", Path: "/api/v1/data-mappings", Sort: 1},

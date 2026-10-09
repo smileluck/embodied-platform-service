@@ -1,6 +1,27 @@
 {
-  "generatedAt": "2026-10-09T03:37:52.974Z",
+  "generatedAt": "2026-10-09T05:21:24.753Z",
   "commits": [
+    {
+      "hash": "99c31981a",
+      "date": "2026-10-09",
+      "type": "other",
+      "scope": "",
+      "message": "feat(tenant)!: 租户 RBAC 本地化——角色三表/权限码目录下沉本地，账号身份留平台"
+    },
+    {
+      "hash": "c4d1bac81",
+      "date": "2026-10-09",
+      "type": "fix",
+      "scope": "tenant",
+      "message": "PermDefView 补 json tag，修复租户角色配权目录显示 undefined"
+    },
+    {
+      "hash": "4eb8492a3",
+      "date": "2026-10-09",
+      "type": "feat",
+      "scope": "tenant",
+      "message": "租户门户身份切换平台 tenant_users + 权限码目录动态化 + 设备中心物模型/数据映射页"
+    },
     {
       "hash": "8cb6d7754",
       "date": "2026-10-09",

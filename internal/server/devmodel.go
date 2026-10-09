@@ -104,6 +104,163 @@ func (s *HTTPServer) listThingModelVersions(c *gin.Context) {
 	response.OK(c, vs)
 }
 
+// ---- 物模型读面扩展 + 写面（2026-10-09；错误一律 platformErr 透传）----
+
+func (s *HTTPServer) getThingModelNode(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	n, err := s.devmodel.TMNode(c.Request.Context(), id)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, n)
+}
+
+func (s *HTTPServer) createThingModelNode(c *gin.Context) {
+	var req devmodelsvc.TMNodeCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	n, err := s.devmodel.CreateTMNode(c.Request.Context(), req)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, n)
+}
+
+func (s *HTTPServer) updateThingModelNode(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	var req devmodelsvc.TMNodeUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	if err := s.devmodel.UpdateTMNode(c.Request.Context(), id, req); err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) deleteThingModelNode(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	if err := s.devmodel.DeleteTMNode(c.Request.Context(), id); err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) createThingModelDraft(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	v, err := s.devmodel.CreateTMDraft(c.Request.Context(), id)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, v)
+}
+
+func (s *HTTPServer) updateThingModelDraft(c *gin.Context) {
+	vid, ok := mappingIDParam(c, "vid")
+	if !ok {
+		return
+	}
+	var req devmodelsvc.TMSchemaUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	if err := s.devmodel.UpdateTMDraft(c.Request.Context(), vid, req); err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+func (s *HTTPServer) publishThingModelVersion(c *gin.Context) {
+	vid, ok := mappingIDParam(c, "vid")
+	if !ok {
+		return
+	}
+	v, err := s.devmodel.PublishTMVersion(c.Request.Context(), vid)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, v)
+}
+
+// rollbackThingModelVersion 回滚到指定已发布版本（body 可省略，默认仅创建回滚草稿不直接发布）
+func (s *HTTPServer) rollbackThingModelVersion(c *gin.Context) {
+	vid, ok := mappingIDParam(c, "vid")
+	if !ok {
+		return
+	}
+	var req devmodelsvc.TMRollbackRequest
+	_ = c.ShouldBindJSON(&req)
+	v, err := s.devmodel.RollbackTMVersion(c.Request.Context(), vid, req)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, v)
+}
+
+func (s *HTTPServer) deleteThingModelVersion(c *gin.Context) {
+	vid, ok := mappingIDParam(c, "vid")
+	if !ok {
+		return
+	}
+	if err := s.devmodel.DeleteTMVersion(c.Request.Context(), vid); err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+// resolveThingModel 合并解析节点完整 Schema（?version_id= 可选 pin 版本）
+func (s *HTTPServer) resolveThingModel(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	pinned, _ := strconv.ParseUint(c.Query("version_id"), 10, 64)
+	res, err := s.devmodel.ResolveTM(c.Request.Context(), id, uint(pinned))
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, res)
+}
+
+func (s *HTTPServer) getThingModelInheritanceStatus(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	st, err := s.devmodel.TMInheritanceStatus(c.Request.Context(), id)
+	if err != nil {
+		s.platformErr(c, err)
+		return
+	}
+	response.OK(c, st)
+}
+
 // ---- 数据映射（纯代理平台开放面 /data-mappings；错误一律 platformErr 透传）----
 
 // mappingIDParam 解析指定名称的 uint 路径参数（vid/mid；id 走公共 idParam）

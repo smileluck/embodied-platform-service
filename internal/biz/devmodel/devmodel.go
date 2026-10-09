@@ -1,11 +1,11 @@
 // Package devmodel 设备型号限界上下文 —— 领域层。
 //
-// 纯代理：型号真源在 embodied-platform 开放面（商户 HMAC，SDK 类型经 data 层
+// 纯代理：型号与物模型真源在 embodied-platform 开放面（商户 HMAC，SDK 类型经 data 层
 // 镜像转换）。2026-10-08 起平台侧型号按商户归属收敛（merchant_id：0=通用，
 // >0=商户独立）——读=通用+本商户，创建 merchant_id 由平台注入调用方，
 // 更新/删除仅本商户独立型号（通用与他商户型号统一 404）。
-// 型号创建必须绑定物模型 model 层节点 + 已发布版本——本系统只提供只读选择器
-// （物模型管理本身列入后续规划；节点选择器同样按 通用+本商户 收敛）。
+// 物模型 2026-10-09 起同口径开放写面（节点 CRUD + 版本草稿/发布/回滚/删除，
+// 版本操作经所属节点归属继承校验）；数据映射为同上下文子域（见 mapping.go）。
 package devmodel
 
 import (
@@ -70,13 +70,19 @@ type TMNode struct {
 	MerchantID uint   `json:"merchant_id"` // 0=通用，>0=商户独立
 }
 
-// TMVersion 物模型版本（型号绑定须选 status=published）
+// TMVersion 物模型版本（完整版本视图：列表选择器仅 published 且不含 schema；
+// 写面动作（建草稿/发布/回滚）返回含 draft 状态与 schema 的完整版本）
 type TMVersion struct {
-	ID          uint   `json:"id"`
-	NodeID      uint   `json:"node_id"`
-	Version     int    `json:"version"`
-	Status      string `json:"status"` // draft / published
-	PublishedAt string `json:"published_at"`
+	ID             uint      `json:"id"`
+	NodeID         uint      `json:"node_id"`
+	Version        int       `json:"version"`
+	Schema         *TMSchema `json:"schema,omitempty"`
+	Status         string    `json:"status"` // draft | published
+	ParentVersions string    `json:"parent_versions,omitempty"`
+	RevertOf       *uint     `json:"revert_of,omitempty"`
+	PublishedAt    string    `json:"published_at"`
+	CreatedAt      string    `json:"created_at,omitempty"`
+	UpdatedAt      string    `json:"updated_at,omitempty"`
 }
 
 // Gateway 平台型号网关接口（data 层经管理面服务账号实现，依赖倒置）
@@ -88,6 +94,18 @@ type Gateway interface {
 	DeleteModel(ctx context.Context, id uint) error
 	ListTMNodes(ctx context.Context, layer, kw string) ([]*TMNode, error)
 	ListTMVersions(ctx context.Context, nodeID uint) ([]*TMVersion, error)
+	// ---- 物模型读面扩展 + 写面（2026-10-09；收敛同型号域，平台保证）----
+	GetTMNode(ctx context.Context, nodeID uint) (*TMNode, error)
+	CreateTMNode(ctx context.Context, req TMNodeCreate) (*TMNode, error)
+	UpdateTMNode(ctx context.Context, nodeID uint, req TMNodeUpdate) error
+	DeleteTMNode(ctx context.Context, nodeID uint) error
+	CreateTMDraft(ctx context.Context, nodeID uint) (*TMVersion, error)
+	UpdateTMDraft(ctx context.Context, versionID uint, schema *TMSchema) error
+	PublishTMVersion(ctx context.Context, versionID uint) (*TMVersion, error)
+	RollbackTMVersion(ctx context.Context, versionID uint, publish bool) (*TMVersion, error)
+	DeleteTMVersion(ctx context.Context, versionID uint) error
+	ResolveTM(ctx context.Context, nodeID, pinnedVersion uint) (*TMResolveResult, error)
+	GetTMInheritanceStatus(ctx context.Context, nodeID uint) (*TMInheritanceStatus, error)
 }
 
 // Usecase 型号领域用例

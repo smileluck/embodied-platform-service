@@ -3,6 +3,7 @@
 // （scope thing-model:read，版本仅 published），不再依赖管理面服务账号。
 // 2026-10-08 起平台侧型号/物模型节点按商户归属收敛（merchant_id：0=通用，
 // >0=商户独立）——读=通用+本商户，更新/删除仅本商户独立型号（404 不泄露）。
+// 2026-10-09 起物模型开放写面（scope thing-model:write，见 thingmodel.go）。
 package devmodel
 
 import (
@@ -98,11 +99,7 @@ func (a *GatewayAdapter) ListTMNodes(ctx context.Context, layer, kw string) ([]*
 	}
 	out := make([]*bizdevmodel.TMNode, 0, len(nodes))
 	for _, n := range nodes {
-		out = append(out, &bizdevmodel.TMNode{
-			ID: n.ID, Layer: n.Layer, ParentID: n.ParentID,
-			Code: n.Code, Name: n.Name, Status: n.Status,
-			MerchantID: n.MerchantID,
-		})
+		out = append(out, tmNodeFromSDK(n))
 	}
 	return out, nil
 }
@@ -115,10 +112,7 @@ func (a *GatewayAdapter) ListTMVersions(ctx context.Context, nodeID uint) ([]*bi
 	}
 	out := make([]*bizdevmodel.TMVersion, 0, len(vs))
 	for _, v := range vs {
-		out = append(out, &bizdevmodel.TMVersion{
-			ID: v.ID, NodeID: v.NodeID, Version: v.Version,
-			Status: v.Status, PublishedAt: v.PublishedAt,
-		})
+		out = append(out, tmVersionFromSDK(v))
 	}
 	return out, nil
 }

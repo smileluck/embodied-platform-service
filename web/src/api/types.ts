@@ -442,25 +442,100 @@ export interface DeviceModel {
   updated_at: string
 }
 
-// 物模型节点（只读选择器；layer: base/category/model/instance）
+// 物模型节点（layer: base/category/model/instance；读=通用+本商户，写仅本商户独立节点）
 export interface TMNode {
   id: number
   layer: string
   parent_id: number
   code: string
   name: string
-  status: number
+  status: number // 1 启用 2 禁用
   merchant_id: number // 0=通用 >0=商户独立归属
 }
 
-// 物模型版本（型号绑定仅允许 published）
+// 物模型属性要素
+export interface TMProperty {
+  data_type: string // int / float / bool / string / enum / json
+  unit?: string
+  writable?: boolean
+  enum?: string[]
+  min?: number
+  max?: number
+  description?: string
+}
+
+// 服务入参/事件出参定义
+export interface TMParam {
+  data_type: string
+  required?: boolean
+  enum?: string[]
+  description?: string
+}
+
+// 服务要素
+export interface TMService {
+  call_type: string // sync / async
+  params?: Record<string, TMParam>
+  description?: string
+}
+
+// 事件要素
+export interface TMEvent {
+  params?: Record<string, TMParam>
+  description?: string
+}
+
+// 物模型 Schema（三类要素以名称为主键）
+export interface TMSchema {
+  properties?: Record<string, TMProperty>
+  services?: Record<string, TMService>
+  events?: Record<string, TMEvent>
+}
+
+// 物模型版本（GET /thing-models/:id/versions 仅返回 published 选择器视图（不含 schema）；
+// 写面动作（建草稿/发布/回滚）返回含 draft 状态与 schema 的完整版本）
 export interface TMVersion {
   id: number
   node_id: number
   version: number
+  schema?: TMSchema | null
   status: 'draft' | 'published'
+  parent_versions?: string // 父链快照 JSON 文本（[{node_id,version_id}]）
+  revert_of?: number | null
   published_at: string
   created_at: string
+  updated_at?: string
+}
+
+// 合并解析结果（schema + 参与合并的链路版本）
+export interface TMResolveResult {
+  schema: TMSchema | null
+  chain: { node: TMNode; version: TMVersion }[]
+}
+
+// 继承状态（基线的父链快照是否落后于各父层最新已发布版本）
+export interface TMInheritanceStatus {
+  up_to_date: boolean
+  baseline: 'draft' | 'published' | 'none' | string
+  updates?: {
+    node: TMNode
+    snapshot_version: TMVersion | null
+    latest_version: TMVersion
+  }[]
+}
+
+// 创建物模型节点入参（merchant_id 服务端注入，入参不收；父链校验平台兜底）
+export interface TMNodeCreateInput {
+  layer: 'base' | 'category' | 'model' | 'instance'
+  parent_id?: number
+  code: string
+  name: string
+}
+
+// 更新物模型节点入参（code 与 merchant_id 创建后不可改）
+export interface TMNodeUpdateInput {
+  name: string
+  status: number // 1 启用 2 禁用
 }
 
 // ---- 数据映射（平台开放面契约镜像；读=通用+本商户，写仅本商户独立资源） ----

@@ -1,7 +1,7 @@
 <!-- last-updated: 2026-10-09 -->
 # 租户 RBAC 本地化：角色/权限下沉本地，账号身份留平台
 
-> 需求权威源：会话批准计划（emb 项目集，2026-10-09）。配套平台仓计划见彼仓 `aiDoc/plans/active/2026-10-09-tenant-rbac-localization.md`。
+> 需求权威源：会话批准计划（emb 项目集，2026-10-09）。配套平台仓计划见 `embodied-platform/aiDoc/plans/completed/2026-10-09-tenant-rbac-localization.md`。
 
 ## 目标
 
@@ -64,7 +64,7 @@ cd web && npx vue-tsc -b
 
 ## 回滚 / 迁移
 
-- 数据迁移：`scripts/migrate-tenant-rbac.sql`（平台库三表 → 本库三表，幂等先清后插，附行数校对）；回退=删本地数据用新管理台重建。
+- 数据迁移：`scripts/migrate-tenant-rbac.md`（平台库三表 → 本库三表，幂等先清后插，附行数校对）；回退=删本地数据用新管理台重建。
 - 代码回滚 = git revert；本地三表留存无害；切换顺序=迁移 SQL → 平台部署 → 本仓部署（两部署间角色页短暂 404，仅 dev 受影响）。
 
 ## 当前状态

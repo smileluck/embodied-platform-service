@@ -650,11 +650,23 @@ func (s *HTTPServer) registerRoutes() {
 		models.DELETE("/:id", s.deleteDeviceModel)
 	}
 
-	// 物模型只读选择器（型号创建表单数据源；物模型管理列入后续规划）
+	// 物模型（纯代理平台开放面 /thing-models；静态段 /versions/:vid 与参数段 /:id
+	// 同层共存，gin 静态段优先匹配）
 	tms := protected.Group("/thing-models")
 	{
 		tms.GET("", s.listThingModelNodes)
+		tms.POST("", s.createThingModelNode)
+		tms.PUT("/versions/:vid", s.updateThingModelDraft)
+		tms.DELETE("/versions/:vid", s.deleteThingModelVersion)
+		tms.POST("/versions/:vid/publish", s.publishThingModelVersion)
+		tms.POST("/versions/:vid/rollback", s.rollbackThingModelVersion)
+		tms.GET("/:id", s.getThingModelNode)
+		tms.PUT("/:id", s.updateThingModelNode)
+		tms.DELETE("/:id", s.deleteThingModelNode)
 		tms.GET("/:id/versions", s.listThingModelVersions)
+		tms.POST("/:id/versions", s.createThingModelDraft)
+		tms.GET("/:id/resolve", s.resolveThingModel)
+		tms.GET("/:id/inheritance-status", s.getThingModelInheritanceStatus)
 	}
 
 	// 数据映射（纯代理平台开放面 /data-mappings；/effective 与 /versions/:vid 为静态段，

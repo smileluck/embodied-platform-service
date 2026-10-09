@@ -55,7 +55,12 @@ import type {
   SkillInfo,
   SkillInput,
   SysConfig,
+  TMInheritanceStatus,
   TMNode,
+  TMNodeCreateInput,
+  TMNodeUpdateInput,
+  TMResolveResult,
+  TMSchema,
   TMVersion,
   TelemetryHistory,
   Tenant,
@@ -245,9 +250,42 @@ export const deleteDeviceModel = (id: number) => request.delete<R<null>>(`/devic
 // layer=model 为型号可绑定的层；layer 留空返回全部层
 export const listThingModelNodes = (params?: { layer?: string; kw?: string }) =>
   request.get<R<TMNode[]>>('/thing-models', { params })
-// 节点的已发布版本（后端已过滤 published）
+// 节点的已发布版本（开放面版本列表仅 published 选择器视图，不含 schema 与草稿）
 export const listThingModelVersions = (nodeId: number) =>
   request.get<R<TMVersion[]>>(`/thing-models/${nodeId}/versions`)
+
+// ---- 物模型管理（平台开放面代理；写仅本商户独立节点——通用/他商户 404；
+//      版本=单草稿制 + 发布不可变 + 追加式回滚；开放面无草稿列表/详情端点，
+//      草稿 vid 仅在创建/回滚响应中返回，页面需本地跟踪） ----
+export const getThingModelNode = (id: number) => request.get<R<TMNode>>(`/thing-models/${id}`)
+export const createThingModelNode = (data: TMNodeCreateInput) =>
+  request.post<R<TMNode>>('/thing-models', data)
+// 仅 name/status 可改（code 与 merchant_id 创建后不可改）
+export const updateThingModelNode = (id: number, data: TMNodeUpdateInput) =>
+  request.put<R<null>>(`/thing-models/${id}`, data)
+// 有子节点/被型号绑定或设备引用时平台 409
+export const deleteThingModelNode = (id: number) => request.delete<R<null>>(`/thing-models/${id}`)
+// 节点下新建草稿（单草稿制：已有草稿 409；返回完整版本含空 schema 与 vid）
+export const createThingModelDraft = (nodeId: number) =>
+  request.post<R<TMVersion>>(`/thing-models/${nodeId}/versions`)
+// 更新草稿 Schema（仅 draft 可改，已发布 409）
+export const updateThingModelDraft = (vid: number, schema: TMSchema) =>
+  request.put<R<null>>(`/thing-models/versions/${vid}`, { schema })
+// 发布（发布后不可变；子层删减父层定义等校验失败平台透传 4xx）
+export const publishThingModelVersion = (vid: number) =>
+  request.post<R<TMVersion>>(`/thing-models/versions/${vid}/publish`)
+// 回滚到指定已发布版本（复制其 schema 与父链快照建新草稿；publish=true 一步发布）
+export const rollbackThingModelVersion = (vid: number, publish = false) =>
+  request.post<R<TMVersion>>(`/thing-models/versions/${vid}/rollback`, { publish })
+// 删除版本（已发布版本被型号引用时 409）
+export const deleteThingModelVersion = (vid: number) =>
+  request.delete<R<null>>(`/thing-models/versions/${vid}`)
+// 合并解析节点完整 Schema（versionId 可选 pin 版本，0/缺省取基线）
+export const resolveThingModel = (id: number, versionId?: number) =>
+  request.get<R<TMResolveResult>>(`/thing-models/${id}/resolve`, { params: versionId ? { version_id: versionId } : {} })
+// 继承状态（基线父链快照是否落后于各父层最新已发布）
+export const getThingModelInheritanceStatus = (id: number) =>
+  request.get<R<TMInheritanceStatus>>(`/thing-models/${id}/inheritance-status`)
 
 // ---- 数据映射（平台开放面代理；读=通用+本商户，写仅本商户独立资源——通用/他商户写操作 404；
 //      版本管理=单草稿制 + 发布不可变 + 追加式回滚；错误透传平台 msg） ----

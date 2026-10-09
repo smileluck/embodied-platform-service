@@ -57,3 +57,55 @@ func (s *Service) TMNodes(ctx context.Context, req TMNodesRequest) ([]*bizdevmod
 func (s *Service) TMPublishedVersions(ctx context.Context, nodeID uint) ([]*bizdevmodel.TMVersion, error) {
 	return s.uc.TMPublishedVersions(ctx, nodeID)
 }
+
+// ---- 物模型读面扩展 + 写面（2026-10-09；DTO 复用 biz 契约类型）----
+
+type TMNodeCreateRequest = bizdevmodel.TMNodeCreate
+type TMNodeUpdateRequest = bizdevmodel.TMNodeUpdate
+type TMSchemaUpdateRequest = bizdevmodel.TMSchemaUpdate
+type TMRollbackRequest = bizdevmodel.TMRollback
+
+func (s *Service) TMNode(ctx context.Context, nodeID uint) (*bizdevmodel.TMNode, error) {
+	return s.uc.TMNode(ctx, nodeID)
+}
+
+func (s *Service) CreateTMNode(ctx context.Context, req TMNodeCreateRequest) (*bizdevmodel.TMNode, error) {
+	return s.uc.CreateTMNode(ctx, req)
+}
+
+func (s *Service) UpdateTMNode(ctx context.Context, nodeID uint, req TMNodeUpdateRequest) error {
+	return s.uc.UpdateTMNode(ctx, nodeID, req)
+}
+
+func (s *Service) DeleteTMNode(ctx context.Context, nodeID uint) error {
+	return s.uc.DeleteTMNode(ctx, nodeID)
+}
+
+func (s *Service) CreateTMDraft(ctx context.Context, nodeID uint) (*bizdevmodel.TMVersion, error) {
+	return s.uc.CreateTMDraft(ctx, nodeID)
+}
+
+func (s *Service) UpdateTMDraft(ctx context.Context, versionID uint, req TMSchemaUpdateRequest) error {
+	return s.uc.UpdateTMDraft(ctx, versionID, req.Schema)
+}
+
+func (s *Service) PublishTMVersion(ctx context.Context, versionID uint) (*bizdevmodel.TMVersion, error) {
+	return s.uc.PublishTMVersion(ctx, versionID)
+}
+
+func (s *Service) RollbackTMVersion(ctx context.Context, versionID uint, req TMRollbackRequest) (*bizdevmodel.TMVersion, error) {
+	return s.uc.RollbackTMVersion(ctx, versionID, req.Publish)
+}
+
+func (s *Service) DeleteTMVersion(ctx context.Context, versionID uint) error {
+	return s.uc.DeleteTMVersion(ctx, versionID)
+}
+
+// ResolveTM 合并解析节点完整 Schema（pinnedVersion=0 取基线版本）
+func (s *Service) ResolveTM(ctx context.Context, nodeID, pinnedVersion uint) (*bizdevmodel.TMResolveResult, error) {
+	return s.uc.ResolveTM(ctx, nodeID, pinnedVersion)
+}
+
+func (s *Service) TMInheritanceStatus(ctx context.Context, nodeID uint) (*bizdevmodel.TMInheritanceStatus, error) {
+	return s.uc.TMInheritanceStatus(ctx, nodeID)
+}
