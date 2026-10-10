@@ -44,6 +44,13 @@ func (r *repo) Update(ctx context.Context, j *job.Job) error {
 		}).Error
 }
 
+// TouchLastRun 只回写最近执行时间：UpdateColumn 不触发 updated_at 联动，
+// 也不携带其余字段——执行收尾不得覆盖执行期间落库的启停/编辑
+func (r *repo) TouchLastRun(ctx context.Context, id uint, at time.Time) error {
+	return r.data.DB.WithContext(ctx).Model(&model.JobPO{}).Where("id = ?", id).
+		UpdateColumn("last_run_at", at).Error
+}
+
 func (r *repo) Delete(ctx context.Context, id uint) error {
 	res := r.data.DB.WithContext(ctx).Delete(&model.JobPO{}, id)
 	if res.Error != nil {

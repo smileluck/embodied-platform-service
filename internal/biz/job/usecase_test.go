@@ -24,8 +24,29 @@ func newFakeRepo(seed ...*Job) *fakeRepo {
 	return r
 }
 
-func (r *fakeRepo) Create(ctx context.Context, j *Job) error        { return nil }
-func (r *fakeRepo) Update(ctx context.Context, j *Job) error        { return nil }
+func (r *fakeRepo) Create(ctx context.Context, j *Job) error { return nil }
+
+// Update 全字段落库（对齐真实仓储语义，供「执行期间禁用不被回写复活」回归测试观察）
+func (r *fakeRepo) Update(ctx context.Context, j *Job) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if cur, ok := r.jobs[j.ID]; ok {
+		cur.Name, cur.Cron, cur.HandlerKey = j.Name, j.Cron, j.HandlerKey
+		cur.Params, cur.Remark, cur.Status, cur.LastRunAt = j.Params, j.Remark, j.Status, j.LastRunAt
+	}
+	return nil
+}
+
+func (r *fakeRepo) TouchLastRun(ctx context.Context, id uint, at time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if cur, ok := r.jobs[id]; ok {
+		t := at
+		cur.LastRunAt = &t
+	}
+	return nil
+}
+
 func (r *fakeRepo) Delete(ctx context.Context, id uint) error       { return nil }
 func (r *fakeRepo) Find(ctx context.Context, id uint) (*Job, error) { return r.jobs[id], nil }
 func (r *fakeRepo) List(ctx context.Context, q Query, page, pageSize int) ([]*Job, int64, error) {
@@ -126,5 +147,41 @@ func TestExecute_MutualExclusion(t *testing.T) {
 	}
 	if uc.isRunning(2) {
 		t.Fatal("执行完成后应释放运行标记")
+	}
+}
+
+// TestExecute_DoesNotResurrectDisableDuringRun 执行收尾只回写 last_run_at：
+// 执行期间被禁用的任务，结束时不得被触发时的启用快照复活（否则重启后恢复自动执行）
+func TestExecute_DoesNotResurrectDisableDuringRun(t *testing.T) {
+	repo := newFakeRepo(&Job{ID: 3, Name: "对账", HandlerKey: HandlerTenantReconcile, Status: StatusEnabled})
+	br := &blockingReconciler{block: make(chan struct{})}
+	uc := newTestUsecase(repo, br)
+
+	// execute 持有的是 Find 出来的副本（与真实仓储一致），禁用发生在库里的行上
+	j := *repo.jobs[3]
+	go uc.execute(&j)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) && !uc.isRunning(3) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !uc.isRunning(3) {
+		t.Fatal("执行应处于运行态")
+	}
+	repo.mu.Lock()
+	repo.jobs[3].Status = StatusDisabled // 模拟执行期间 SetStatus 落库
+	repo.mu.Unlock()
+
+	close(br.block)
+	for time.Now().Before(deadline) && uc.isRunning(3) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	if repo.jobs[3].Status != StatusDisabled {
+		t.Fatalf("执行收尾不得复活执行期间的禁用: status=%d", repo.jobs[3].Status)
+	}
+	if repo.jobs[3].LastRunAt == nil {
+		t.Fatal("最近执行时间仍应被回写")
 	}
 }

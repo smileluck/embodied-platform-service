@@ -92,6 +92,10 @@ type Repo interface {
 	List(ctx context.Context, q Query, page, pageSize int) ([]*Job, int64, error)
 	ListEnabled(ctx context.Context) ([]*Job, error)
 
+	// TouchLastRun 只回写最近执行时间（执行收尾专用：整行 Update 会把执行期间
+	// 落库的启停/编辑覆盖回触发时的快照——禁用被复活、重启后恢复自动执行）
+	TouchLastRun(ctx context.Context, id uint, at time.Time) error
+
 	AppendLog(ctx context.Context, l *JobLog) error
 	ListLogs(ctx context.Context, jobID uint, page, pageSize int) ([]*JobLog, int64, error)
 	CleanupLogsBefore(ctx context.Context, before time.Time) error

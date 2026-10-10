@@ -411,8 +411,11 @@ func (uc *Usecase) execute(j *Job) {
 		})
 	}
 	_ = uc.repo.CleanupLogsBefore(context.Background(), now.AddDate(0, 0, -logKeepDays))
-	j.LastRunAt = &now
-	_ = uc.repo.Update(context.Background(), j)
+	// 只回写最近执行时间：j 是触发时的快照，整行 Update 会覆盖执行期间落库的
+	// 启停/编辑（典型：执行中被禁用 → 回写复活为启用，重启后恢复自动执行）
+	if err := uc.repo.TouchLastRun(context.Background(), j.ID, now); err != nil {
+		logger.Warn("job last_run_at update failed", zap.Uint("job_id", j.ID), zap.Error(err))
+	}
 }
 
 // runHandler 隔离 handler panic：转为失败日志而非进程崩溃
