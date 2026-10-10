@@ -204,6 +204,30 @@ CREATE TABLE IF NOT EXISTS tenant_user_role_binds (
   PRIMARY KEY (user_id, role_id)
 );
 
+-- 租户部门（2026-10-10 租户内部数据隔离基础能力：树形自引用 parent_id 0=根；
+-- tenant_id 为平台租户 ID，(tenant_id, code) 唯一，软删墓碑改写 code 释放槽位）
+CREATE TABLE IF NOT EXISTS tenant_depts (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT UNSIGNED NOT NULL,   -- 平台租户 ID
+  parent_id BIGINT UNSIGNED NOT NULL DEFAULT 0,  -- 父部门 ID，0=根
+  name VARCHAR(64) DEFAULT '',
+  code VARCHAR(64) NOT NULL,            -- (tenant_id, code) 唯一；软删墓碑改写释放槽位
+  sort INT NOT NULL DEFAULT 0,
+  remark VARCHAR(255) DEFAULT '',
+  created_at DATETIME,
+  updated_at DATETIME,
+  deleted_at DATETIME,
+  UNIQUE KEY uk_tenant_depts_tenant_code (tenant_id, code),
+  KEY idx_tenant_depts_parent (parent_id),
+  KEY idx_tenant_depts_deleted (deleted_at)
+);
+CREATE TABLE IF NOT EXISTS tenant_user_dept_binds (
+  user_id BIGINT UNSIGNED NOT NULL,     -- 平台 tenant_user ID
+  dept_id BIGINT UNSIGNED NOT NULL,
+  created_at DATETIME,
+  PRIMARY KEY (user_id, dept_id)        -- 多部门归属，替换式物理删除
+);
+
 -- MCP 服务器配置表（智能体工具源；token 只存 AES-GCM 密文，软删留痕；name/code 唯一）
 CREATE TABLE IF NOT EXISTS `mcp_servers` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

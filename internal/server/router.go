@@ -41,6 +41,7 @@ import (
 	skillsvc "github.com/smilex/smilex-admin-gin/internal/service/skill"
 	syssvc "github.com/smilex/smilex-admin-gin/internal/service/sysconfig"
 	tenantsvc "github.com/smilex/smilex-admin-gin/internal/service/tenant"
+	tenantdeptsvc "github.com/smilex/smilex-admin-gin/internal/service/tenantdept"
 	tenantmembersvc "github.com/smilex/smilex-admin-gin/internal/service/tenantmember"
 	tenantusersvc "github.com/smilex/smilex-admin-gin/internal/service/tenantuser"
 	"github.com/smilex/smilex-admin-gin/pkg/cache"
@@ -76,6 +77,7 @@ type HTTPServer struct {
 	tenant              *tenantsvc.Service
 	appuser             *appusersvc.Service
 	tenantuser          *tenantusersvc.Service       // 租户用户管理面（账号经平台开放面；角色本地 RBAC）
+	tenantdept          *tenantdeptsvc.Service       // 租户部门管理面（本地域：部门树 + 用户多部门归属）
 	tenantmember        *tenantmembersvc.Service     // 门户成员自治（/tenant-api/v1/members，账号经开放面 tid 锁定）
 	appIds              bizauth.AppIdentitySource    // AppAuth 中间件的平台应用用户身份源
 	tenantIds           bizauth.TenantIdentitySource // TenantAuth 中间件的平台租户门户身份源
@@ -100,6 +102,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	file *filesvc.Service, export *exportsvc.Service, blacklist *blacklistsvc.Service,
 	tenant *tenantsvc.Service, appuser *appusersvc.Service,
 	tenantuser *tenantusersvc.Service,
+	tenantdept *tenantdeptsvc.Service,
 	tenantmember *tenantmembersvc.Service,
 	appIds bizauth.AppIdentitySource, tenantIds bizauth.TenantIdentitySource,
 	tenantPerms biztenantuser.PermResolver, tenantUC *biztenant.Usecase,
@@ -135,6 +138,7 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 		role: role, perm: perm, log: log,
 		file: file, export: export, blacklist: blacklist, tenant: tenant,
 		appuser: appuser, tenantuser: tenantuser,
+		tenantdept:   tenantdept,
 		tenantmember: tenantmember,
 		appIds:       appIds, tenantIds: tenantIds, tenantPerms: tenantPerms, tenantUC: tenantUC,
 		appIdentityCache: appIdentityCache, tenantIdentityCache: tenantIdentityCache,
@@ -467,7 +471,16 @@ func (s *HTTPServer) registerRoutes() {
 		tenantUsers.PUT("/:id/status", s.setTenantUserStatus)
 		tenantUsers.PUT("/:id/password", s.resetTenantUserPassword)
 		tenantUsers.PUT("/:id/roles", s.setTenantUserRoles)
+		tenantUsers.PUT("/:id/depts", s.setTenantUserDepts)
 		tenantUsers.DELETE("/:id", s.deleteTenantUser)
+	}
+	// 租户部门（本地域，租户内部数据隔离基础能力；部门平表全量，树形组装在前端）
+	tenantDepts := protected.Group("/tenant-depts")
+	{
+		tenantDepts.GET("", s.listTenantDepts)
+		tenantDepts.POST("", s.createTenantDept)
+		tenantDepts.PUT("/:id", s.updateTenantDept)
+		tenantDepts.DELETE("/:id", s.deleteTenantDept)
 	}
 	tenantRoles := protected.Group("/tenant-roles")
 	{

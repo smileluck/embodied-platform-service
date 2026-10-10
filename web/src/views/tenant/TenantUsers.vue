@@ -5,6 +5,12 @@
     <n-input v-model:value="query.phone" :placeholder="t('tenantUser.phonePlaceholder')" clearable style="width: 160px" @keyup.enter="search" />
     <n-select v-model:value="query.status" :options="statusOptions" clearable :placeholder="t('tenantUser.statusPlaceholder')" style="width: 120px" />
     <n-select v-model:value="query.tenant_id" :options="tenantOptions" clearable filterable :placeholder="t('tenantUser.tenantPlaceholder')" style="width: 180px" />
+    <!-- 部门筛选跟随所选租户（未选租户时禁用；筛选含子部门成员） -->
+    <n-tree-select
+      v-model:value="query.dept_id" :options="deptFilterOptions" clearable
+      :disabled="!query.tenant_id" :placeholder="t('tenantUser.deptPlaceholder')" style="width: 200px"
+      key-field="key" label-field="label" children-field="children"
+    />
   </SearchCard>
 
   <n-card>
@@ -64,6 +70,26 @@
     </template>
   </n-modal>
 
+  <!-- 设置部门：多选该用户归属租户下的部门（全量替换；多部门归属） -->
+  <n-modal v-model:show="showDept" preset="dialog" :title="t('tenantUser.setDeptsTitle')" style="width: 480px">
+    <n-form label-placement="left" label-width="90">
+      <n-form-item :label="t('tenantUser.username')">
+        <span>{{ deptTarget?.username }}</span>
+      </n-form-item>
+      <n-form-item :label="t('tenantUser.depts')">
+        <n-tree-select
+          v-model:value="deptForm.dept_ids" :options="deptTargetOptions" multiple checkable
+          cascade :placeholder="t('common.pleaseSelect')" style="width: 100%"
+          key-field="key" label-field="label" children-field="children"
+        />
+      </n-form-item>
+    </n-form>
+    <template #action>
+      <n-button @click="showDept = false">{{ t('common.cancel') }}</n-button>
+      <n-button type="primary" :loading="saving" @click="doSetDepts">{{ t('common.confirm') }}</n-button>
+    </template>
+  </n-modal>
+
   <!-- 重置密码：管理员指定新密码，旧密码立即失效 -->
   <n-modal v-model:show="showReset" preset="dialog" :title="t('tenantUser.resetPasswordTitle')" style="width: 420px">
     <n-alert type="warning" :show-icon="true" style="margin-bottom: 12px">{{ t('tenantUser.resetConfirmContent', { name: resetTarget?.username }) }}</n-alert>
@@ -80,15 +106,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NAlert, NCard, NInput, NButton, NDataTable, NModal, NForm, NFormItem, NSelect, NTag, useMessage, useDialog, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
+import { computed, h, onMounted, reactive, ref, watch } from 'vue'
+import { NAlert, NCard, NInput, NButton, NDataTable, NModal, NForm, NFormItem, NSelect, NTag, NTreeSelect, useMessage, useDialog, type DataTableColumns, type FormInst, type FormRules } from 'naive-ui'
 import { renderActions, type TableAction } from '../../utils/tableActions'
 import SearchCard from '../../components/SearchCard.vue'
 import { useI18n } from 'vue-i18n'
-import { createTenantUser, deleteTenantUser, listTenantRoles, listTenantUsers, listTenants, resetTenantUserPassword, setTenantUserRoles, setTenantUserStatus, updateTenantUser } from '../../api'
+import { createTenantUser, deleteTenantUser, listTenantDepts, listTenantRoles, listTenantUsers, listTenants, resetTenantUserPassword, setTenantUserDepts, setTenantUserRoles, setTenantUserStatus, updateTenantUser } from '../../api'
 import { usePagination } from '../../utils/pagination'
 import { useUserStore } from '../../stores/user'
-import type { TenantRole, TenantUserAccount } from '../../api/types'
+import type { TenantDept, TenantRole, TenantUserAccount } from '../../api/types'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -98,7 +124,7 @@ const userStore = useUserStore()
 const loading = ref(false)
 const saving = ref(false)
 const rows = ref<TenantUserAccount[]>([])
-const query = reactive({ kw: '', phone: '', status: null as number | null, tenant_id: null as number | null, page: 1, page_size: 10 })
+const query = reactive({ kw: '', phone: '', status: null as number | null, tenant_id: null as number | null, dept_id: null as number | null, page: 1, page_size: 10 })
 
 // 租户下拉选项（启用状态已同步租户，平台租户 ID 口径；筛选/表单共用）
 const tenantOptions = ref<{ label: string; value: number }[]>([])
@@ -122,6 +148,37 @@ const roleOptions = computed(() =>
 const showRole = ref(false)
 const roleTarget = ref<TenantUserAccount | null>(null)
 const roleForm = reactive({ role_ids: [] as number[] })
+
+// 设置部门（多部门归属，全量替换）：部门树选项取自目标用户归属租户
+const showDept = ref(false)
+const deptTarget = ref<TenantUserAccount | null>(null)
+const deptForm = reactive({ dept_ids: [] as number[] })
+const deptsOfTenant = ref<TenantDept[]>([])
+const deptTreeOptions = computed(() => buildDeptOptions(deptsOfTenant.value))
+const deptTargetOptions = computed(() => {
+  const tid = deptTarget.value?.tenant_id ?? null
+  return buildDeptOptions(tid ? deptsOfTenant.value.filter((d) => d.tenant_id === tid) : deptsOfTenant.value)
+})
+// 部门筛选选项：跟随所选租户（未选租户禁用筛选控件）
+const deptFilterOptions = computed(() => {
+  const tid = query.tenant_id
+  return tid ? buildDeptOptions(deptsOfTenant.value.filter((d) => d.tenant_id === tid)) : []
+})
+
+// 平表部门 -> 树选项（sort 后 id 稳定排序）
+function buildDeptOptions(list: TenantDept[]): any[] {
+  const build = (parentID: number): any[] =>
+    list
+      .filter((d) => d.parent_id === parentID)
+      .sort((a, b) => a.sort - b.sort || a.id - b.id)
+      .map((d) => {
+        const children = build(d.id)
+        const n: any = { label: d.name, key: d.id }
+        if (children.length) n.children = children
+        return n
+      })
+  return build(0)
+}
 
 const showReset = ref(false)
 const resetTarget = ref<TenantUserAccount | null>(null)
@@ -172,6 +229,7 @@ async function load() {
       phone: query.phone || undefined,
       status: query.status ?? undefined,
       tenant_id: query.tenant_id ?? undefined,
+      dept_id: query.dept_id ?? undefined,
     })
     rows.value = data.data.list
     pagination.page = query.page
@@ -204,11 +262,25 @@ async function loadRoles() {
   }
 }
 
+// 部门选项按租户逐租户拉取（接口为单租户平表全量）
+const loadedDeptTenants = new Set<number>()
+async function ensureDeptsOfTenant(tid: number) {
+  if (loadedDeptTenants.has(tid)) return
+  loadedDeptTenants.add(tid)
+  try {
+    const { data } = await listTenantDepts(tid)
+    deptsOfTenant.value = [...deptsOfTenant.value, ...data.data]
+  } catch {
+    loadedDeptTenants.delete(tid) // 失败允许重试
+  }
+}
+
 function resetQuery() {
   query.kw = ''
   query.phone = ''
   query.status = null
   query.tenant_id = null
+  query.dept_id = null
   query.page = 1
   load()
 }
@@ -285,6 +357,29 @@ async function doSetRoles() {
   }
 }
 
+// 设置部门（多选全量替换）：进入弹窗前确保该租户部门树已加载
+function openSetDepts(row: TenantUserAccount) {
+  deptTarget.value = row
+  deptForm.dept_ids = row.depts?.map((d) => d.id) ?? []
+  showDept.value = true
+  ensureDeptsOfTenant(row.tenant_id)
+}
+
+async function doSetDepts() {
+  if (!deptTarget.value) return
+  saving.value = true
+  try {
+    await setTenantUserDepts(deptTarget.value.id, deptForm.dept_ids)
+    message.success(t('common.saveSuccess'))
+    showDept.value = false
+    load()
+  } catch (e: any) {
+    message.error(e?.response?.data?.msg || t('tenantUser.saveFailed'))
+  } finally {
+    saving.value = false
+  }
+}
+
 function openReset(row: TenantUserAccount) {
   resetTarget.value = row
   resetForm.password = ''
@@ -351,6 +446,12 @@ const columns = computed<DataTableColumns<TenantUserAccount>>(() => [
       ? h('span', { style: 'display:inline-flex;gap:4px;flex-wrap:wrap' }, row.role_ids.map((id) => h(NTag, { size: 'small', bordered: false }, { default: () => roleName(id) })))
       : '—',
   },
+  {
+    title: t('tenantUser.depts'), key: 'depts', width: 180,
+    render: (row) => row.depts?.length
+      ? h('span', { style: 'display:inline-flex;gap:4px;flex-wrap:wrap' }, row.depts.map((d) => h(NTag, { size: 'small', bordered: false, type: 'info' }, { default: () => d.name })))
+      : '—',
+  },
   { title: t('tenantUser.nickname'), key: 'nickname', width: 110, render: (row) => row.nickname || '—' },
   { title: t('tenantUser.phone'), key: 'phone', width: 120, render: (row) => row.phone || '—' },
   {
@@ -367,6 +468,9 @@ const columns = computed<DataTableColumns<TenantUserAccount>>(() => [
       }
       if (userStore.has('tenantUser:setRoles')) {
         actions.push({ label: t('tenantUser.setRoles'), onClick: () => openSetRoles(row) })
+      }
+      if (userStore.has('tenantUser:setDepts')) {
+        actions.push({ label: t('tenantUser.setDepts'), onClick: () => openSetDepts(row) })
       }
       if (userStore.has('tenantUser:resetPwd')) {
         actions.push({ label: t('tenantUser.resetPassword'), onClick: () => openReset(row) })
@@ -386,6 +490,12 @@ onMounted(() => {
   load()
   loadTenantOptions()
   loadRoles()
+})
+
+// 切换租户筛选时预载该租户部门树（部门筛选/设置部门弹窗数据源）并清空部门筛选
+watch(() => query.tenant_id, (tid, old) => {
+  if (tid !== old) query.dept_id = null
+  if (tid) ensureDeptsOfTenant(tid)
 })
 </script>
 

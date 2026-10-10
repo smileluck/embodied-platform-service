@@ -40,12 +40,15 @@ type PermDefView struct {
 	Group string `json:"group"`
 }
 
-// UserListParams 租户用户列表查询（TenantID 为平台租户 ID，可选）
+// UserListParams 租户用户列表查询（TenantID 为平台租户 ID，可选）。
+// DeptID 为本地部门筛选（2026-10-10）：开放面不认识该维度，网关不透传——
+// 由 tenantuser service 的本地交集路径消费
 type UserListParams struct {
 	Keyword  string
 	Phone    string
 	Status   *int
 	TenantID *uint
+	DeptID   *uint // 本地部门 ID（含后代展开；service 层本地过滤，不进开放面）
 }
 
 // UserCreateParams 创建租户用户入参（TenantID 须∈商户租户集；角色绑定本地另行落库）

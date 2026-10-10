@@ -139,6 +139,8 @@ func (d *Data) migrateAndSeed() error {
 		&model.TenantPO{},
 		// 租户 RBAC 本地三表（2026-10-09 自平台下沉；tenant_id/user_id 为平台 ID，无外键引用）
 		&model.TenantRolePO{}, &model.TenantRolePermPO{}, &model.TenantUserRoleBindPO{},
+		// 租户部门本地两表（2026-10-10 租户内部数据隔离；tenant_id/user_id 为平台 ID，无外键引用）
+		&model.TenantDeptPO{}, &model.TenantUserDeptBindPO{},
 		&model.AgentProviderPO{}, &model.AgentModelPO{}, &model.AgentPO{},
 		&model.AgentConversationPO{}, &model.AgentConversationMsgPO{}, &model.AgentUsageLogPO{}, &model.DictTypePO{}, &model.DictItemPO{}, &model.SysConfigPO{}, &model.NoticePO{}, &model.NoticeReadPO{}, &model.NoticeTargetPO{}, &model.JobPO{}, &model.JobLogPO{}, &model.MonitorSnapshotPO{},
 		&model.NotifyChannelPO{}, &model.NotifyRulePO{}, &model.NotifyRecordPO{},
@@ -228,6 +230,7 @@ var systemMenus = []systemMenuDef{
 	{Name: "应用用户", Code: "menu:appUser", Path: "/tenant/app-users", Icon: "PeopleOutline", Sort: 2, ParentCode: "menu:tenantCenter"},
 	{Name: "租户用户", Code: "menu:tenantUser", Path: "/tenant/tenant-users", Icon: "PersonCircleOutline", Sort: 3, ParentCode: "menu:tenantCenter"},
 	{Name: "租户角色", Code: "menu:tenantRole", Path: "/tenant/tenant-roles", Icon: "KeyOutline", Sort: 4, ParentCode: "menu:tenantCenter"},
+	{Name: "租户部门", Code: "menu:tenantDept", Path: "/tenant/tenant-depts", Icon: "GitNetworkOutline", Sort: 5, ParentCode: "menu:tenantCenter"},
 	// 智能体（LLM 配置底座，顶级目录分组，父级先于子菜单声明以解析 ParentCode）
 	{Name: "智能体", Code: "menu:agent", Type: "dir", Icon: "SparklesOutline", Sort: 8},
 	{Name: "模型供应商", Code: "menu:agentProvider", Path: "/agent/providers", Icon: "ServerOutline", Sort: 1, ParentCode: "menu:agent"},
@@ -488,7 +491,13 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "租户用户状态", Code: "tenantUser:status", Menu: "menu:tenantUser", Method: "PUT", Path: "/api/v1/tenant-users/*/status", Sort: 4},
 	{Name: "重置租户用户密码", Code: "tenantUser:resetPwd", Menu: "menu:tenantUser", Method: "PUT", Path: "/api/v1/tenant-users/*/password", Sort: 5},
 	{Name: "分配租户角色", Code: "tenantUser:setRoles", Menu: "menu:tenantUser", Method: "PUT", Path: "/api/v1/tenant-users/*/roles", Sort: 6},
-	{Name: "删除租户用户", Code: "tenantUser:delete", Menu: "menu:tenantUser", Method: "DELETE", Path: "/api/v1/tenant-users/*", Sort: 7},
+	{Name: "分配租户部门", Code: "tenantUser:setDepts", Menu: "menu:tenantUser", Method: "PUT", Path: "/api/v1/tenant-users/*/depts", Sort: 7},
+	{Name: "删除租户用户", Code: "tenantUser:delete", Menu: "menu:tenantUser", Method: "DELETE", Path: "/api/v1/tenant-users/*", Sort: 8},
+	// 租户部门（本地域：租户内部数据隔离基础能力，用户多部门归属 + 按部门筛选）
+	{Name: "查询租户部门", Code: "tenantDept:list", Menu: "menu:tenantDept", Method: "GET", Path: "/api/v1/tenant-depts", Sort: 1},
+	{Name: "新增租户部门", Code: "tenantDept:create", Menu: "menu:tenantDept", Method: "POST", Path: "/api/v1/tenant-depts", Sort: 2},
+	{Name: "编辑租户部门", Code: "tenantDept:update", Menu: "menu:tenantDept", Method: "PUT", Path: "/api/v1/tenant-depts/*", Sort: 3},
+	{Name: "删除租户部门", Code: "tenantDept:delete", Menu: "menu:tenantDept", Method: "DELETE", Path: "/api/v1/tenant-depts/*", Sort: 4},
 	// 租户角色（租户作用域 RBAC；权限码目录由平台下发）
 	{Name: "查询租户角色", Code: "tenantRole:list", Menu: "menu:tenantRole", Method: "GET", Path: "/api/v1/tenant-roles", Sort: 1},
 	{Name: "新增租户角色", Code: "tenantRole:create", Menu: "menu:tenantRole", Method: "POST", Path: "/api/v1/tenant-roles", Sort: 2},

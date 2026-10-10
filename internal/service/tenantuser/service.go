@@ -9,6 +9,7 @@ import (
 	"context"
 
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
+	biztenantdept "github.com/smilex/smilex-admin-gin/internal/biz/tenantdept"
 	biztenantuser "github.com/smilex/smilex-admin-gin/internal/biz/tenantuser"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
 )
@@ -20,13 +21,14 @@ type TenantNameResolver interface {
 }
 
 type Service struct {
-	gw      biztenantuser.Gateway        // 平台开放面租户用户网关（账号身份事实源）
-	roles   *biztenantuser.RoleUsecase   // 本地租户角色用例（RBAC 本地化）
-	tenants TenantNameResolver           // tenant_names 本地映射（展示用）
+	gw      biztenantuser.Gateway      // 平台开放面租户用户网关（账号身份事实源）
+	roles   *biztenantuser.RoleUsecase // 本地租户角色用例（RBAC 本地化）
+	depts   *biztenantdept.Usecase     // 本地租户部门用例（多部门归属，2026-10-10）
+	tenants TenantNameResolver         // tenant_names 本地映射（展示用）
 }
 
-func NewService(gw biztenantuser.Gateway, roles *biztenantuser.RoleUsecase, tenants TenantNameResolver) *Service {
-	return &Service{gw: gw, roles: roles, tenants: tenants}
+func NewService(gw biztenantuser.Gateway, roles *biztenantuser.RoleUsecase, depts *biztenantdept.Usecase, tenants TenantNameResolver) *Service {
+	return &Service{gw: gw, roles: roles, depts: depts, tenants: tenants}
 }
 
 // ---- 租户用户（账号在平台，角色绑定在本地） ----
@@ -60,30 +62,45 @@ type SetRolesRequest struct {
 	RoleIDs []uint `json:"role_ids"`
 }
 
-// UserVO 租户用户视图（tenant_names 由本地租户映射补齐；role_ids 由本地绑定补齐，
-// 角色名称展示由前端按角色列表解析）
-type UserVO struct {
-	ID         uint   `json:"id"`
-	TenantID   uint   `json:"tenant_id"`
-	TenantName string `json:"tenant_name"`
-	Username   string `json:"username"`
-	Nickname   string `json:"nickname"`
-	Phone      string `json:"phone"`
-	Email      string `json:"email"`
-	Status     int    `json:"status"`
-	RoleIDs    []uint `json:"role_ids"`
-	CreatedAt  string `json:"created_at"`
-	UpdatedAt  string `json:"updated_at"`
+// SetDeptsRequest 部门全量替换入参（本地绑定，多部门；部门须与用户同租户）
+type SetDeptsRequest struct {
+	DeptIDs []uint `json:"dept_ids"`
 }
 
-func (s *Service) toUserVO(u *biztenantuser.TenantUserView, roleIDs []uint, nameMap map[uint]string) *UserVO {
+// UserDeptItem 用户所属部门项（列表回填 dept_ids + 名称）
+type UserDeptItem struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+}
+
+// UserVO 租户用户视图（tenant_names 由本地租户映射补齐；role_ids/depts 由本地绑定补齐，
+// 角色名称展示由前端按角色列表解析）
+type UserVO struct {
+	ID         uint           `json:"id"`
+	TenantID   uint           `json:"tenant_id"`
+	TenantName string         `json:"tenant_name"`
+	Username   string         `json:"username"`
+	Nickname   string         `json:"nickname"`
+	Phone      string         `json:"phone"`
+	Email      string         `json:"email"`
+	Status     int            `json:"status"`
+	RoleIDs    []uint         `json:"role_ids"`
+	Depts      []UserDeptItem `json:"depts"`
+	CreatedAt  string         `json:"created_at"`
+	UpdatedAt  string         `json:"updated_at"`
+}
+
+func (s *Service) toUserVO(u *biztenantuser.TenantUserView, roleIDs []uint, depts []UserDeptItem, nameMap map[uint]string) *UserVO {
 	vo := &UserVO{
 		ID: u.ID, TenantID: u.TenantID, Username: u.Username, Nickname: u.Nickname,
 		Phone: u.Phone, Email: u.Email, Status: u.Status,
-		RoleIDs: roleIDs, CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt,
+		RoleIDs: roleIDs, Depts: depts, CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt,
 	}
 	if vo.RoleIDs == nil {
 		vo.RoleIDs = []uint{}
+	}
+	if vo.Depts == nil {
+		vo.Depts = []UserDeptItem{}
 	}
 	vo.TenantName = nameMap[u.TenantID]
 	return vo
@@ -105,8 +122,12 @@ func (s *Service) tenantNameMap(ctx context.Context, ids []uint) map[uint]string
 	return m
 }
 
-// ListUsers 租户用户列表（账号实时来自平台开放面；role_ids 本地绑定批量补齐）
+// ListUsers 租户用户列表（账号实时来自平台开放面；role_ids/depts 本地绑定批量补齐）。
+// dept_id 有值时切换为本地交集路径（见 listUsersByDept），返回结构与常规路径一致
 func (s *Service) ListUsers(ctx context.Context, q biztenantuser.UserListParams, page, pageSize int) ([]*UserVO, pagination.Page, error) {
+	if q.DeptID != nil {
+		return s.listUsersByDept(ctx, q, page, pageSize)
+	}
 	list, pg, err := s.gw.ListUsers(ctx, q, page, pageSize)
 	if err != nil {
 		return nil, pagination.Page{}, err
@@ -117,11 +138,73 @@ func (s *Service) ListUsers(ctx context.Context, q biztenantuser.UserListParams,
 	}
 	nameMap := s.tenantNameMap(ctx, ids)
 	roleMap := s.userRoleMap(ctx, list)
+	deptMap := s.userDeptMap(ctx, list)
 	out := make([]*UserVO, 0, len(list))
 	for _, u := range list {
-		out = append(out, s.toUserVO(u, roleMap[u.ID], nameMap))
+		out = append(out, s.toUserVO(u, roleMap[u.ID], deptMap[u.ID], nameMap))
 	}
 	return out, pg, nil
+}
+
+// listUsersByDept 部门筛选路径：部门（含全部后代）成员绑定在本地，账号在平台且开放面
+// 不支持按 id 集合过滤——本地反查成员 user_ids 后，按部门租户翻页拉取平台全量做内存交集，
+// 再本地分页。已知限制：拉取按 100/页翻页，超大租户（万级用户）性能受限；平台侧支持
+// 部门维度过滤后应切换下推（见 aiDoc/contracts/boundary.md）
+func (s *Service) listUsersByDept(ctx context.Context, q biztenantuser.UserListParams, page, pageSize int) ([]*UserVO, pagination.Page, error) {
+	userIDs, deptTenantID, err := s.depts.UserIDsUnderDept(ctx, *q.DeptID)
+	if err != nil {
+		return nil, pagination.Page{}, err
+	}
+	// 部门租户与显式租户筛选不符时按空集返回（防御前端跨租户拼参数）
+	if q.TenantID != nil && *q.TenantID != deptTenantID {
+		return []*UserVO{}, pagination.Page{Page: page, PageSize: pageSize, Total: 0}, nil
+	}
+	// 翻页拉取部门租户全量（kw/phone/status 交由平台过滤），与本地成员集求交集
+	fetchSize := 100
+	member := make(map[uint]struct{}, len(userIDs))
+	for _, id := range userIDs {
+		member[id] = struct{}{}
+	}
+	var matched []*biztenantuser.TenantUserView
+	fetchQ := biztenantuser.UserListParams{Keyword: q.Keyword, Phone: q.Phone, Status: q.Status, TenantID: &deptTenantID}
+	for p := 1; ; p++ {
+		list, pg, err := s.gw.ListUsers(ctx, fetchQ, p, fetchSize)
+		if err != nil {
+			return nil, pagination.Page{}, err
+		}
+		for _, u := range list {
+			if _, ok := member[u.ID]; ok {
+				matched = append(matched, u)
+			}
+		}
+		if int64(p*fetchSize) >= pg.Total || len(list) == 0 {
+			break
+		}
+	}
+	// 本地分页（保持平台返回顺序）
+	total := int64(len(matched))
+	start := (page - 1) * pageSize
+	if start >= len(matched) {
+		matched = nil
+	} else {
+		end := start + pageSize
+		if end > len(matched) {
+			end = len(matched)
+		}
+		matched = matched[start:end]
+	}
+	ids := make([]uint, 0, len(matched))
+	for _, u := range matched {
+		ids = append(ids, u.TenantID)
+	}
+	nameMap := s.tenantNameMap(ctx, ids)
+	roleMap := s.userRoleMap(ctx, matched)
+	deptMap := s.userDeptMap(ctx, matched)
+	out := make([]*UserVO, 0, len(matched))
+	for _, u := range matched {
+		out = append(out, s.toUserVO(u, roleMap[u.ID], deptMap[u.ID], nameMap))
+	}
+	return out, pagination.Page{Page: page, PageSize: pageSize, Total: total}, nil
 }
 
 // userRoleMap 批量取本地角色绑定（user_id -> role_ids；失败按空集处理不阻断列表）
@@ -135,6 +218,41 @@ func (s *Service) userRoleMap(ctx context.Context, list []*biztenantuser.TenantU
 		return map[uint][]uint{}
 	}
 	return m
+}
+
+// userDeptMap 批量取本地部门绑定并解析名称（user_id -> [{id,name}]；失败按空集不阻断）
+func (s *Service) userDeptMap(ctx context.Context, list []*biztenantuser.TenantUserView) map[uint][]UserDeptItem {
+	ids := make([]uint, 0, len(list))
+	for _, u := range list {
+		ids = append(ids, u.ID)
+	}
+	binds, err := s.depts.UserDeptIDs(ctx, ids)
+	if err != nil {
+		return map[uint][]UserDeptItem{}
+	}
+	deptIDs := make(map[uint]struct{})
+	for _, ds := range binds {
+		for _, d := range ds {
+			deptIDs[d] = struct{}{}
+		}
+	}
+	flat := make([]uint, 0, len(deptIDs))
+	for d := range deptIDs {
+		flat = append(flat, d)
+	}
+	names, err := s.depts.DeptNamesByIDs(ctx, flat)
+	if err != nil {
+		names = map[uint]string{}
+	}
+	out := make(map[uint][]UserDeptItem, len(binds))
+	for uid, ds := range binds {
+		items := make([]UserDeptItem, 0, len(ds))
+		for _, d := range ds {
+			items = append(items, UserDeptItem{ID: d, Name: names[d]})
+		}
+		out[uid] = items
+	}
+	return out
 }
 
 // CreateUser 创建租户用户：平台建号 + 本地落角色绑定
@@ -151,7 +269,7 @@ func (s *Service) CreateUser(ctx context.Context, req UserCreateRequest) (*UserV
 			return nil, err
 		}
 	}
-	return s.toUserVO(u, req.RoleIDs, s.tenantNameMap(ctx, []uint{u.TenantID})), nil
+	return s.toUserVO(u, req.RoleIDs, nil, s.tenantNameMap(ctx, []uint{u.TenantID})), nil
 }
 
 func (s *Service) UpdateUser(ctx context.Context, id uint, req UserUpdateRequest) error {
@@ -179,6 +297,19 @@ func (s *Service) SetUserRoles(ctx context.Context, id uint, req SetRolesRequest
 		req.RoleIDs = []uint{}
 	}
 	return s.roles.SetUserRoles(ctx, u.TenantID, id, req.RoleIDs)
+}
+
+// SetUserDepts 全量替换本地部门绑定（多部门）：先经平台定位用户（防 id 漂移/越权），
+// 部门归属校验（同租户）在 tenantdept.Usecase
+func (s *Service) SetUserDepts(ctx context.Context, id uint, req SetDeptsRequest) error {
+	u, err := s.gw.GetUser(ctx, id)
+	if err != nil {
+		return err
+	}
+	if req.DeptIDs == nil {
+		req.DeptIDs = []uint{}
+	}
+	return s.depts.SetUserDepts(ctx, u.TenantID, id, req.DeptIDs)
 }
 
 // DeleteUser 删除用户：平台软删账号；本地角色绑定随账号失能自然失义（账号不可登录即无权限，

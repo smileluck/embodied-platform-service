@@ -219,7 +219,7 @@ export interface AppUser {
 }
 
 // 租户用户（平台第四套身份：租户门户运营账号，单租户绑定；本地无数据面，
-// 经开放面实时消费；id/tenant_id/role_ids 均为平台口径）
+// 经开放面实时消费；id/tenant_id/role_ids 均为平台口径；depts 为本地部门绑定回填）
 export interface TenantUserAccount {
   id: number
   tenant_id: number
@@ -230,6 +230,22 @@ export interface TenantUserAccount {
   email: string
   status: number
   role_ids: number[]
+  depts: { id: number; name: string }[]
+  created_at: string
+  updated_at: string
+}
+
+// 租户部门（本地域：租户内部数据隔离；树形自引用 parent_id 0=根，平表返回由前端组树；
+// tenant_id 为平台租户 ID；member_count 为直属成员数）
+export interface TenantDept {
+  id: number
+  tenant_id: number
+  parent_id: number
+  name: string
+  code: string
+  sort: number
+  remark: string
+  member_count: number
   created_at: string
   updated_at: string
 }

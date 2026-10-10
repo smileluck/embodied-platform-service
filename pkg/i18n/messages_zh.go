@@ -113,6 +113,11 @@ var messagesZh = map[string]string{
 	"tenant_role.code_exists":  "角色编码已存在，请更换",
 	"tenant_role.in_use":       "该角色已分配给租户用户，请先解除分配",
 	"tenant_role.invalid_perm": "权限点无效（不在平台目录内或超上限）",
+	// 租户部门（本地域：租户内部数据隔离）
+	"tenant_dept.not_found":      "租户部门不存在",
+	"tenant_dept.code_exists":    "部门编码已存在，请更换",
+	"tenant_dept.has_children":   "部门下存在子部门，须先处理子部门",
+	"tenant_dept.parent_invalid": "父部门无效（不存在、跨租户或形成环路）",
 	// 服务器监控
 	"monitor.collect_failed": "服务器指标采集失败，请稍后重试",
 	// 智能体（LLM 配置底座）
@@ -203,6 +208,7 @@ var messagesZh = map[string]string{
 	"menu.menu:merchantLog":   "API调用日志",
 	"menu.menu:tenantCenter":  "租户中心",
 	"menu.menu:tenant":        "租户管理",
+	"menu.menu:tenantDept":    "租户部门",
 	"menu.menu:appUser":       "应用用户",
 	"menu.menu:monitor":       "服务器监控",
 	"menu.menu:agent":         "智能体",

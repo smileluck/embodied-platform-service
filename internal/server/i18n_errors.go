@@ -21,6 +21,7 @@ import (
 	bizskill "github.com/smilex/smilex-admin-gin/internal/biz/skill"
 	bizsys "github.com/smilex/smilex-admin-gin/internal/biz/sysconfig"
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
+	biztenantdept "github.com/smilex/smilex-admin-gin/internal/biz/tenantdept"
 	biztenantuser "github.com/smilex/smilex-admin-gin/internal/biz/tenantuser"
 	tenantmembersvc "github.com/smilex/smilex-admin-gin/internal/service/tenantmember"
 	"github.com/smilex/smilex-admin-gin/pkg/response"
@@ -91,6 +92,11 @@ var errKeys = []struct {
 	{biztenantuser.ErrRoleInUse, "tenant_role.in_use"},
 	{biztenantuser.ErrTenantNotInScope, "tenant.not_in_scope"},
 	{biztenantuser.ErrInvalidPerm, "tenant_role.invalid_perm"},
+	// 租户部门（本地域：租户内部数据隔离）
+	{biztenantdept.ErrDeptNotFound, "tenant_dept.not_found"},
+	{biztenantdept.ErrDuplicateDeptCode, "tenant_dept.code_exists"},
+	{biztenantdept.ErrDeptHasChildren, "tenant_dept.has_children"},
+	{biztenantdept.ErrParentInvalid, "tenant_dept.parent_invalid"},
 	{errDeviceNotInTenant, "tenant_member.device_not_in_tenant"},
 	// 服务器监控
 	{bizmonitor.ErrCollectFailed, "monitor.collect_failed"},

@@ -113,6 +113,11 @@ var messagesEn = map[string]string{
 	"tenant_role.code_exists":  "Role code already exists, please choose another one",
 	"tenant_role.in_use":       "The role is assigned to tenant users; unassign it first",
 	"tenant_role.invalid_perm": "Invalid permission code (not in the platform catalog or over the limit)",
+	// Tenant departments (local domain: intra-tenant data isolation)
+	"tenant_dept.not_found":      "Tenant department not found",
+	"tenant_dept.code_exists":    "Department code already exists, please choose another one",
+	"tenant_dept.has_children":   "The department has sub-departments; handle them first",
+	"tenant_dept.parent_invalid": "Invalid parent department (missing, cross-tenant, or cyclic)",
 	// Server monitor
 	"monitor.collect_failed": "Failed to collect server metrics, please try again later",
 	// Agent (LLM configuration base)
@@ -203,6 +208,7 @@ var messagesEn = map[string]string{
 	"menu.menu:merchantLog":   "API Logs",
 	"menu.menu:tenantCenter":  "Tenant Center",
 	"menu.menu:tenant":        "Tenants",
+	"menu.menu:tenantDept":    "Tenant Departments",
 	"menu.menu:appUser":       "App Users",
 	"menu.menu:monitor":       "Server Monitor",
 	"menu.menu:agent":         "Agents",

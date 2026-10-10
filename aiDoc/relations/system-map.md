@@ -76,6 +76,7 @@ web/src/locales/{zh-CN,en-US}（i18n 语言包，后端按 Accept-Language 同�
 | `biz/file`（平台存储代理） | `views/file/Files.vue` |
 | `biz/blacklist` / `biz/monitor` / `biz/log`（含租户门户审计两表 tenant_login_logs/tenant_operation_logs，见 [../notes/implemented/architecture/2026-10-09-tenant-portal-logs.md](../notes/implemented/architecture/2026-10-09-tenant-portal-logs.md)） | `views/system/Blacklist.vue`、`views/system/ServerMonitor.vue`、`views/log/{OperationLogs,LoginLogs,TenantLogs}.vue`、`views/tenant-portal/Logs.vue` |
 | `biz/tenant` / `biz/appuser` | `views/tenant/{Tenants,AppUsers}.vue` |
+| `biz/tenantdept`（本地域：租户内部数据隔离基础能力，部门树+用户多部门归属，见 [../notes/implemented/architecture/2026-10-10-tenant-dept-local-domain.md](../notes/implemented/architecture/2026-10-10-tenant-dept-local-domain.md)） | `views/tenant/TenantDepts.vue`（部门树管理）、`views/tenant/TenantUsers.vue`（部门列/分配/筛选） |
 | `biz/tenantmember`（租户门户授权层：/tenant-api/v1 成员自治 + 设备只读，见 [../notes/implemented/architecture/2026-10-08-tenant-user-system.md](../notes/implemented/architecture/2026-10-08-tenant-user-system.md)） | `views/tenant-portal/*`（租户门户，/tenant-portal/* 路由树 + `layout/TenantLayout.vue`，API 走 `web/src/api/tenant.ts` → /tenant-api/v1） |
 | `biz/device` / `biz/devmodel`（平台开放面；devmodel 含数据映射子域 `MappingGateway`/`MappingUsecase`） | `views/device/{Devices,DeviceModels}.vue`（物模型/数据映射页随 `plans/active/2026-10-09-thingmodel-datamapping-pages.md` 阶段 3 落地） |
 | `biz/agent` / `biz/mcp` / `biz/skill` | `views/agent/*`、`views/mcp/Servers.vue`、`views/skill/Skills.vue` |

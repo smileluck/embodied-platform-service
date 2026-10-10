@@ -32,6 +32,13 @@ func (s *HTTPServer) listTenantUsers(c *gin.Context) {
 			q.TenantID = &t
 		}
 	}
+	// dept_id 为本地部门筛选（含后代展开；service 层本地交集，开放面不认识该维度）
+	if v := c.Query("dept_id"); v != "" {
+		if did, err := strconv.ParseUint(v, 10, 64); err == nil && did > 0 {
+			d := uint(did)
+			q.DeptID = &d
+		}
+	}
 	list, pg, err := s.tenantuser.ListUsers(c.Request.Context(), q, page, size)
 	if err != nil {
 		s.tenantUserErr(c, err)

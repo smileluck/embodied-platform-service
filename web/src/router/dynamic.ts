@@ -29,6 +29,7 @@ const viewModules: Record<string, () => Promise<any>> = {
   'menu:appUser': () => import('../views/tenant/AppUsers.vue'),
   'menu:tenantUser': () => import('../views/tenant/TenantUsers.vue'),
   'menu:tenantRole': () => import('../views/tenant/TenantRoles.vue'),
+  'menu:tenantDept': () => import('../views/tenant/TenantDepts.vue'),
   'menu:about': () => import('../views/about/About.vue'),
   'menu:dict': () => import('../views/system/Dicts.vue'),
   'menu:sysConfig': () => import('../views/system/Configs.vue'),

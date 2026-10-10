@@ -64,6 +64,7 @@ import type {
   TMVersion,
   TelemetryHistory,
   Tenant,
+  TenantDept,
   TenantLoginLog,
   TenantOperationLog,
   TenantRole,
@@ -187,8 +188,9 @@ export const resetAppUserPassword = (id: number, password: string) =>
   request.put<R<null>>(`/app-users/${id}/password`, { password })
 
 // ---- 租户用户/角色（平台第四套身份：经开放面实时消费；id/tenant_id/role_ids 均为平台 ID） ----
-// kw 模糊匹配用户名/昵称，phone 精确匹配，tenant_id 按平台租户筛选（单租户绑定）
-export const listTenantUsers = (params: { page: number; page_size: number; kw?: string; phone?: string; status?: number; tenant_id?: number }) =>
+// kw 模糊匹配用户名/昵称，phone 精确匹配，tenant_id 按平台租户筛选（单租户绑定）；
+// dept_id 为本地部门筛选（含后代展开，服务端本地交集过滤）
+export const listTenantUsers = (params: { page: number; page_size: number; kw?: string; phone?: string; status?: number; tenant_id?: number; dept_id?: number }) =>
   request.get<R<PageResult<TenantUserAccount>>>('/tenant-users', { params })
 export const createTenantUser = (data: { tenant_id: number; username: string; password: string; nickname?: string; phone?: string; email?: string; role_ids?: number[] }) =>
   request.post<R<TenantUserAccount>>('/tenant-users', data)
@@ -203,7 +205,22 @@ export const resetTenantUserPassword = (id: number, password: string) =>
 // 角色全量替换（role_ids 须为该用户归属租户下的角色）
 export const setTenantUserRoles = (id: number, roleIds: number[]) =>
   request.put<R<null>>(`/tenant-users/${id}/roles`, { role_ids: roleIds })
+// 部门全量替换（多部门；dept_ids 须为该用户归属租户下的部门）
+export const setTenantUserDepts = (id: number, deptIds: number[]) =>
+  request.put<R<null>>(`/tenant-users/${id}/depts`, { dept_ids: deptIds })
 export const deleteTenantUser = (id: number) => request.delete<R<null>>(`/tenant-users/${id}`)
+
+// ---- 租户部门（本地域：租户内部数据隔离基础能力；id/tenant_id 均为本地库 ID 与平台租户 ID） ----
+// 平表全量返回（树形组装在前端按 parent_id 完成）；member_count 为直属成员数
+export const listTenantDepts = (tenantId: number) =>
+  request.get<R<TenantDept[]>>('/tenant-depts', { params: { tenant_id: tenantId } })
+export const createTenantDept = (data: { tenant_id: number; parent_id?: number; name: string; code: string; sort?: number; remark?: string }) =>
+  request.post<R<TenantDept>>('/tenant-depts', data)
+// code/tenant_id 创建后不可修改；parent_id 变更服务端防环
+export const updateTenantDept = (id: number, data: { parent_id?: number; name?: string; sort?: number; remark?: string }) =>
+  request.put<R<null>>(`/tenant-depts/${id}`, data)
+// 有子部门时拒绝删除；成员绑定随删除级联解除
+export const deleteTenantDept = (id: number) => request.delete<R<null>>(`/tenant-depts/${id}`)
 
 export const listTenantRoles = (params: { page: number; page_size: number; kw?: string; tenant_id?: number }) =>
   request.get<R<PageResult<TenantRole>>>('/tenant-roles', { params })
