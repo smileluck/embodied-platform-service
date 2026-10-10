@@ -68,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   NButton, NCard, NDataTable, NDatePicker, NForm, NFormItem, NInput, NModal,
   NRadioButton, NRadioGroup, NSelect, NTag, NTooltip, useDialog, useMessage,
@@ -218,6 +218,11 @@ function onSearchUsers(kw: string) {
   }, 300)
 }
 onBeforeUnmount(() => { if (searchTimer) clearTimeout(searchTimer) })
+
+// 远程搜索下拉打开即空会误以为无用户：切到「按用户」时预载首屏（后端 kw 空串返回前 20 个启用用户）
+watch(() => form.scope, (v) => {
+  if (v === 'users' && !userOptions.value.length) onSearchUsers('')
+})
 
 // 编辑回显：已选用户若无选项（未被当前搜索命中），用回显名称补齐选项
 function seedUserOptions(row: NoticeInfo) {

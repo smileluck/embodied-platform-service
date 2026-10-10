@@ -144,7 +144,8 @@ func (r *repo) userNames(ctx context.Context, ids []uint) map[uint]string {
 		if row.Nickname == "" {
 			out[row.PlatformUserID] = row.Username
 		} else {
-			out[row.ID] = row.Nickname + "(" + row.Username + ")"
+			// 与前端选项口径一致「昵称（用户名）」；键必须是 platform_user_id（调用方按其查找）
+			out[row.PlatformUserID] = row.Nickname + "（" + row.Username + "）"
 		}
 	}
 	return out
