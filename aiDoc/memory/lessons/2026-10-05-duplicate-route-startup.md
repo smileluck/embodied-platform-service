@@ -1,4 +1,5 @@
-<!-- last-updated: 2026-10-05 -->
+<!-- last-updated: 2026-10-10 -->
+<!-- lesson-meta: status=pending count=1 post=0 target= -->
 # 路由重复注册只在启动期暴露：改动 router 后必须做一次启动验证
 
 ## 场景

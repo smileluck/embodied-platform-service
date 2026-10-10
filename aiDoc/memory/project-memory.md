@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-09 -->
+<!-- last-updated: 2026-10-10 -->
 # 项目记忆索引
 
 ## 长期记忆
@@ -15,6 +15,7 @@
 - [business/2026-10-09-租户门户日志.md](business/2026-10-09-租户门户日志.md) — 门户登录/操作审计独立两表（tenant_login_logs/tenant_operation_logs 带 tenant_id）+ 门户日志页（log:list）+ 管理端可查可清
 - [business/2026-10-08-登录日志恢复与首页修复.md](business/2026-10-08-登录日志恢复与首页修复.md) — 管理端登录改后端代理平台，恢复登录日志模块；首页空卡片与活跃趋势口径修复
 - [business/2026-10-08-主题恢复工业琥珀配色.md](business/2026-10-08-主题恢复工业琥珀配色.md) — 全站主题从清水蓝恢复石墨深壳 + 工业琥珀色板，保留亮暗双套并修复暗色可读性
+- [business/2026-10-10-四项界面缺陷修复批次.md](business/2026-10-10-四项界面缺陷修复批次.md) — 通知按用户发布选项预载 + 设备页状态 i18n/时间统一格式 + 定时任务禁用不被执行收尾复活（手动执行保持放行）
 
 ## 经验记忆（lessons）
 
@@ -27,12 +28,13 @@
 - [lessons/2026-10-09-vue-i18n-literal-braces.md](lessons/2026-10-09-vue-i18n-literal-braces.md) — locale 文案要展示字面 `{xxx}`（如 source_topic 占位符）时，调用处必须传同名字面参数，否则 vue-i18n 当插值变量解析
 - [lessons/2026-10-09-menu-seed-softdelete-restore.md](lessons/2026-10-09-menu-seed-softdelete-restore.md) — 种子「Unscoped 判存在 + 缺失插入」必须配软删恢复分支；菜单软删会引发按钮孤儿化次生症状
 - [lessons/2026-10-09-debug-server-port-occupancy.md](lessons/2026-10-09-debug-server-port-occupancy.md) — 调试二进制占用 dev 端口会让 air 热重载静默失效（bind 失败只进日志、build text-file-busy 致 air wedge）；「改了不生效」先 lsof 确认监听者
+- [lessons/2026-10-09-new-table-legacy-name-collision.md](lessons/2026-10-09-new-table-legacy-name-collision.md) — 新增本地表先查 migrateLegacy 清理名单，撞旧表名会被每次启动反复清空（tenant_user_roles→tenant_user_role_binds）
+- [lessons/2026-10-09-setup-tdz-ref-before-declaration.md](lessons/2026-10-09-setup-tdz-ref-before-declaration.md) — script setup 顶层 TDZ：函数先调用、const ref 后声明，setup 抛错整页白屏；排查白屏先查顶层执行顺序
+- [lessons/2026-10-10-nselect-remote-no-preload.md](lessons/2026-10-10-nselect-remote-no-preload.md) — 远程搜索 n-select 不预载首屏选项，「打开即空」会被用户感知为无数据；字段可见时以空关键词预载一次
+- [lessons/2026-10-10-async-task-full-row-writeback.md](lessons/2026-10-10-async-task-full-row-writeback.md) — 异步任务收尾整行 Update 回写快照会覆盖执行期间并发的启停/编辑；只定向回写自己拥有的列
 
 ## 维护说明
 
 - 新增记忆时创建文件并更新此索引
 - 过时记忆及时清理，并同步清理索引条目
 - 索引每条一行：文件相对路径 + 一句话摘要
-
-- [lessons/2026-10-09-new-table-legacy-name-collision.md](lessons/2026-10-09-new-table-legacy-name-collision.md) — 新增本地表先查 migrateLegacy 清理名单，撞旧表名会被每次启动反复清空（tenant_user_roles→tenant_user_role_binds）
-- [lessons/2026-10-09-setup-tdz-ref-before-declaration.md](lessons/2026-10-09-setup-tdz-ref-before-declaration.md) — script setup 顶层 TDZ：函数先调用、const ref 后声明，setup 抛错整页白屏；排查白屏先查顶层执行顺序
