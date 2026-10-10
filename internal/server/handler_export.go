@@ -28,7 +28,7 @@ func (s *HTTPServer) submitExport(c *gin.Context, biz string) {
 	vo, err := s.export.Submit(c.Request.Context(), biz, params, sub.UserID, sub.Username)
 	if err != nil {
 		switch {
-		case isErr(err, bizexport.ErrQueueFull):
+		case isErr(err, bizexport.ErrQueueFull), isErr(err, bizexport.ErrTooManyActive):
 			response.FailI18n(c, http.StatusTooManyRequests, response.CodeErr, err)
 		case isErr(err, bizexport.ErrUnsupportedBiz):
 			response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)

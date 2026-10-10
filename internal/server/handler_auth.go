@@ -60,10 +60,23 @@ func (s *HTTPServer) refreshToken(c *gin.Context) {
 	}
 	pair, err := s.auth.Refresh(ctx, req)
 	if err != nil {
-		s.authProxyErr(c, err)
+		s.refreshProxyErr(c, err)
 		return
 	}
 	response.OK(c, pair)
+}
+
+// refreshProxyErr 刷新令牌错误映射：平台 401（refresh_token 无效/过期/已吊销）统一回
+// 明确的「登录已过期」文案——平台侧该分支的 msg 是内部兜底文案（“服务器内部错误”），
+// 透传会给用户 500 语义的误导；其余错误沿用认证代理映射（平台业务错透传/不可达 503）
+func (s *HTTPServer) refreshProxyErr(c *gin.Context, err error) {
+	var perr *platform.Error
+	if errors.As(err, &perr) && perr.HTTPStatus == http.StatusUnauthorized {
+		response.Fail(c, http.StatusUnauthorized, response.CodeUnauthorized,
+			i18n.T(c.Request.Context(), "auth.refresh_failed"))
+		return
+	}
+	s.authProxyErr(c, err)
 }
 
 // captcha 取平台登录验证码（开关在平台侧；enabled=false 时无需传 captcha 字段）

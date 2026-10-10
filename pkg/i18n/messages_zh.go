@@ -6,11 +6,13 @@ var messagesZh = map[string]string{
 	"auth.invalid_credentials": "用户名或密码错误",
 	"auth.account_disabled":    "账号已被禁用",
 	"auth.captcha_invalid":     "验证码错误或已过期",
+	"auth.refresh_failed":      "登录已过期，请重新登录",
 	// 用户
 	"user.not_found":              "用户不存在",
 	"user.name_exists":            "用户名已存在，请更换",
 	"user.super_protected":        "无权操作超级管理员账号",
 	"user.super_delete_forbidden": "超级管理员账号禁止删除",
+	"user.not_bound":              "该用户未绑定本商户",
 	// 角色
 	"role.not_found":    "角色不存在",
 	"role.has_users":    "该角色下存在用户，请先移除用户与该角色的关联",
@@ -34,6 +36,7 @@ var messagesZh = map[string]string{
 	"file.driver_unavailable":  "文件所属的存储后端未配置，无法访问",
 	// 异步导出
 	"export.queue_full":      "导出任务队列已满，请稍后重试",
+	"export.too_many_active": "进行中的导出任务过多，请等待完成后再提交",
 	"export.unsupported_biz": "不支持的导出类型",
 	"export.not_found":       "导出记录不存在",
 	"export.not_owner":       "无权操作他人的导出记录",
@@ -77,6 +80,7 @@ var messagesZh = map[string]string{
 	// 通用/安全中间件
 	"common.invalid_params":   "请求参数不合法",
 	"security.invalid_chars":  "请求参数包含非法字符",
+	"security.param_too_long": "请求参数过长",
 	"security.login_frequent": "登录尝试过于频繁，请稍后再试",
 	"security.rate_limited":   "请求过于频繁，请稍后再试",
 	"blacklist.ip_banned":     "该 IP 因连续登录失败已被临时封禁，请约 %d 分钟后再试",
@@ -96,8 +100,11 @@ var messagesZh = map[string]string{
 	"tenant.not_found":    "租户不存在",
 	"tenant.name_exists":  "租户名称已存在，请更换",
 	"tenant.code_exists":  "租户编码已存在，请更换",
+	"tenant.code_invalid": "租户编码仅支持字母、数字、下划线或中划线（2-64 位）",
 	"tenant.in_use":       "该租户下存在应用用户，请先移除关联",
 	"tenant.not_in_scope": "租户不在商户绑定范围内",
+	// 设备
+	"device.not_found": "设备不存在",
 	// 应用用户
 	"appuser.not_found":             "应用用户不存在",
 	"appuser.cross_merchant_delete": "应用用户仍挂靠其他商户的租户，请先解除其在本商户外的归属",

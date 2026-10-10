@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
@@ -24,8 +25,15 @@ func NewUsecase(repo Repo, platform PlatformSyncer) *Usecase {
 	return &Usecase{repo: repo, platform: platform}
 }
 
+// tenantCodePattern 租户业务标识字符集（与前端 min/max 规则对齐；
+// code 是平台侧命名空间键，中文/空格等字符会导致同步与 URL 场景歧义）
+var tenantCodePattern = regexp.MustCompile(`^[a-zA-Z0-9_-]{2,64}$`)
+
 // Create 创建租户：平台创建（含商户绑定）→ 本地落库；本地失败回滚平台侧
 func (uc *Usecase) Create(ctx context.Context, name, code, contactName, contactPhone, remark string) (*Tenant, error) {
+	if !tenantCodePattern.MatchString(code) {
+		return nil, ErrInvalidTenantCode
+	}
 	t := &Tenant{
 		Name: name, Code: code,
 		ContactName: contactName, ContactPhone: contactPhone,

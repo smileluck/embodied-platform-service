@@ -36,7 +36,11 @@ func NewUsecase(repo Repo, registry *Registry, enq Enqueuer, storage *bizfile.St
 	return &Usecase{repo: repo, registry: registry, enq: enq, storage: storage, cfg: c}
 }
 
-// Submit 提交导出任务：校验业务类型 → 落 pending 记录 → 入队；
+// maxActivePerUser 单用户进行中（pending/running）任务上限：导出是重 IO 操作，
+// 防止单用户刷屏占满全局队列（全局队列另有 queueSize 上限兜底）
+const maxActivePerUser = 5
+
+// Submit 提交导出任务：校验业务类型 → 用户进行中任务数前置检查 → 落 pending 记录 → 入队；
 // 队列满时回滚记录并返回 ErrQueueFull（不残留永不执行的 pending 数据）。
 // 展示名/文件名按请求语言即时翻译落库；语言一并快照进记录，
 // 供无请求上下文的 worker 翻译表头与行内枚举值（worker 后台执行拿不到 Accept-Language）
@@ -44,6 +48,11 @@ func (uc *Usecase) Submit(ctx context.Context, biz string, params url.Values, us
 	exp, ok := uc.registry.Get(biz)
 	if !ok {
 		return nil, ErrUnsupportedBiz
+	}
+	if n, err := uc.repo.CountActiveByUser(ctx, userID); err == nil && n >= maxActivePerUser {
+		return nil, ErrTooManyActive
+	} else if err != nil {
+		logger.Warn("export count active failed, allow submit", zap.Uint("user_id", userID), zap.Error(err))
 	}
 	paramsJSON, err := json.Marshal(params)
 	if err != nil {

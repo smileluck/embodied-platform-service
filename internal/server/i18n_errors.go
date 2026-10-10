@@ -38,6 +38,7 @@ var errKeys = []struct {
 	{bizauth.ErrPlatformUnavailable, "auth.platform_unavailable"},
 	// 准入
 	{bizadmission.ErrNotFound, "user.not_found"},
+	{bizadmission.ErrPlatformNotBound, "user.not_bound"},
 	{bizadmission.ErrDuplicatePlatformUser, "user.name_exists"},
 	// 角色
 	{role.ErrRoleNotFound, "role.not_found"},
@@ -61,6 +62,7 @@ var errKeys = []struct {
 	{bizfile.ErrFileGone, "file.gone"},
 	// 异步导出
 	{bizexport.ErrQueueFull, "export.queue_full"},
+	{bizexport.ErrTooManyActive, "export.too_many_active"},
 	{bizexport.ErrUnsupportedBiz, "export.unsupported_biz"},
 	{bizexport.ErrNotFound, "export.not_found"},
 	{bizexport.ErrNotOwner, "export.not_owner"},
@@ -75,6 +77,7 @@ var errKeys = []struct {
 	{biztenant.ErrTenantNotFound, "tenant.not_found"},
 	{biztenant.ErrDuplicateTenantName, "tenant.name_exists"},
 	{biztenant.ErrDuplicateTenantCode, "tenant.code_exists"},
+	{biztenant.ErrInvalidTenantCode, "tenant.code_invalid"},
 	{biztenant.ErrTenantInUse, "tenant.in_use"},
 	// 应用用户（开放面消费；凭证/禁用由平台侧处置，本地不再有登录面）
 	{bizappuser.ErrAppUserNotFound, "appuser.not_found"},

@@ -42,6 +42,31 @@ func ContainsSQLInjection(s string) bool {
 	return false
 }
 
+// xssPayloadPatterns 查询入参的高危 XSS 载体特征（刻意限定「标签/伪协议/标签内事件属性」
+// 三类明确载体，普通文本含尖括号或等号不误报——输出转义仍是主防线，这里是入口拦截层）
+var xssPayloadPatterns = []*regexp.Regexp{
+	// 危险标签起始（<script / </script / <iframe ...；<img 依赖词边界，"<image" 不误报）
+	regexp.MustCompile(`(?i)<\s*/?\s*(script|iframe|object|embed|svg|style|link|meta|img|body)\b`),
+	// 标签内联事件属性（<xxx onerror=... / <a onclick=...）
+	regexp.MustCompile(`(?i)<\s*[a-z][^>]*\bon[a-z]+\s*=`),
+}
+
+// ContainsXSSPayload 检测字符串是否含高危 XSS 载体（查询入参 WAF 式拦截用）
+func ContainsXSSPayload(s string) bool {
+	if s == "" {
+		return false
+	}
+	if jsProtocolPattern.MatchString(s) {
+		return true
+	}
+	for _, p := range xssPayloadPatterns {
+		if p.MatchString(s) {
+			return true
+		}
+	}
+	return false
+}
+
 // StripHTML 剥离 HTML 标签与 javascript: 伪协议（防御存储型 XSS；普通文本不受影响）
 func StripHTML(s string) string {
 	if !strings.Contains(s, "<") && !strings.ContainsAny(s, ":") {

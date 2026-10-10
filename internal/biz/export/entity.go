@@ -19,6 +19,9 @@ const (
 // ErrQueueFull 导出队列已满（提交方映射为 429）
 var ErrQueueFull = errors.New("导出任务队列已满，请稍后重试")
 
+// ErrTooManyActive 该用户进行中（pending/running）的导出任务已达上限（提交方映射为 429）
+var ErrTooManyActive = errors.New("进行中的导出任务过多，请等待完成后再提交")
+
 // ErrUnsupportedBiz 不支持的导出业务类型
 var ErrUnsupportedBiz = errors.New("不支持的导出类型")
 

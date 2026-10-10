@@ -357,6 +357,12 @@ func (s *HTTPServer) registerRoutes() {
 	authmw := middleware.PlatformAuth(s.auth, s.admissionUC, s.identityCache)
 	protected := v1.Group("", authmw, middleware.OpLog(s.log), middleware.RBAC(s.auth, s.rbacCache))
 
+	// 导出提交频控（按用户 10 次/分钟）：导出是重 IO 操作，防连点/脚本刷量；
+	// 单用户进行中任务数另有 biz 层上限（ErrTooManyActive）
+	exportLimit := middleware.NewRateLimit(s.rdb, middleware.RateLimitConfig{
+		KeyPrefix: "rl:export:", Max: 10, Window: time.Minute, ByUser: true, MessageKey: "security.rate_limited",
+	})
+
 	// 用户（成员管理：列表实时来自平台本商户绑定成员；新增/删除推送平台——
 	// 新增=平台无此账号则创建有则绑定本商户，删除=仅解除关联账号本体保留；
 	// 路由 :id 一律为平台用户 ID，本地准入开关/角色仍存投影）
@@ -371,7 +377,7 @@ func (s *HTTPServer) registerRoutes() {
 		// 从平台拉取本商户绑定成员：补建缺失投影（成员=准入开启）/刷新快照
 		users.POST("/sync", s.syncUsersFromPlatform)
 		// 导出用户列表（查询条件透传 query，与列表页一致）
-		users.POST("/export", func(c *gin.Context) { s.submitExport(c, "user") })
+		users.POST("/export", exportLimit, func(c *gin.Context) { s.submitExport(c, "user") })
 	}
 
 	roles := protected.Group("/roles")
@@ -397,14 +403,14 @@ func (s *HTTPServer) registerRoutes() {
 	{
 		opLogs.GET("", s.listOperationLogs)
 		opLogs.DELETE("", s.clearOperationLogs)
-		opLogs.POST("/export", func(c *gin.Context) { s.submitExport(c, "op_log") })
+		opLogs.POST("/export", exportLimit, func(c *gin.Context) { s.submitExport(c, "op_log") })
 	}
 
 	loginLogs := protected.Group("/login-logs")
 	{
 		loginLogs.GET("", s.listLoginLogs)
 		loginLogs.DELETE("", s.clearLoginLogs)
-		loginLogs.POST("/export", func(c *gin.Context) { s.submitExport(c, "login_log") })
+		loginLogs.POST("/export", exportLimit, func(c *gin.Context) { s.submitExport(c, "login_log") })
 	}
 
 	// 租户门户日志（独立两表；GET 支持 tenant_id 精确筛选，缺省全租户）
@@ -760,7 +766,9 @@ func (s *HTTPServer) Stop(ctx context.Context) error {
 	return s.srv.Shutdown(ctx)
 }
 
-// pageParams 解析分页参数：单页上限取运行时参数 page.sizeMax（系统参数页可调，未配置回退 100）
+// pageParams 解析分页参数：类型/最小值校验由 SQLInjectionGuard 中间件全局前置完成
+// （非整数、page<1、page_size<0 直接 400），此处仅做兜底规范化与上限夹取；
+// 单页上限取运行时参数 page.sizeMax（系统参数页可调，未配置回退 100）
 func (s *HTTPServer) pageParams(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))

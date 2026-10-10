@@ -145,13 +145,22 @@ func (s *HTTPServer) listDeviceDataEvents(c *gin.Context) {
 	response.OK(c, gin.H{"list": events})
 }
 
-// deviceErr 设备代理错误映射：本地租户校验 400；平台错误（含 SDK *platformsdk.Error）透传
+// deviceErr 设备代理错误映射：本地租户校验 400；平台 404（设备/资源不存在）回明确的
+// 业务文案——平台开放面对不存在的资源回内部兜底 msg，透传会给用户 500 语义误导；
+// 其余平台错误（含 SDK *platformsdk.Error）经归一后透传
 func (s *HTTPServer) deviceErr(c *gin.Context, err error) {
 	if isErr(err, bizdevice.ErrTenantNotSynced) {
 		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 		return
 	}
-	s.platformErr(c, normalizeSDKError(err))
+	err = normalizeSDKError(err)
+	var perr *platformError
+	if errorsAs(err, &perr) && perr.HTTPStatus == http.StatusNotFound {
+		response.Fail(c, http.StatusNotFound, response.CodeErr,
+			i18n.T(c.Request.Context(), "device.not_found"))
+		return
+	}
+	s.platformErr(c, err)
 }
 
 // normalizeSDKError 把 SDK 的 *platformsdk.Error 归一为平台信封错误（复用 platformErr 的透传逻辑）

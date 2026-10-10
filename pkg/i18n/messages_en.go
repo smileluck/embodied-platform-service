@@ -6,11 +6,13 @@ var messagesEn = map[string]string{
 	"auth.invalid_credentials": "Invalid username or password",
 	"auth.account_disabled":    "Account has been disabled",
 	"auth.captcha_invalid":     "Captcha code is invalid or expired",
+	"auth.refresh_failed":      "Session expired, please sign in again",
 	// 用户
 	"user.not_found":              "User not found",
 	"user.name_exists":            "Username already exists, please choose another one",
 	"user.super_protected":        "Not allowed to operate on the super admin account",
 	"user.super_delete_forbidden": "The super admin account cannot be deleted",
+	"user.not_bound":              "The user is not bound to this merchant",
 	// 角色
 	"role.not_found":    "Role not found",
 	"role.has_users":    "Users are still assigned to this role; remove the associations first",
@@ -34,6 +36,7 @@ var messagesEn = map[string]string{
 	"file.driver_unavailable":  "The storage backend for this file is not configured",
 	// 异步导出
 	"export.queue_full":      "The export queue is full, please try again later",
+	"export.too_many_active": "Too many export tasks in progress, please wait for them to finish",
 	"export.unsupported_biz": "Unsupported export type",
 	"export.not_found":       "Export record not found",
 	"export.not_owner":       "Not allowed to operate on other users' export records",
@@ -77,6 +80,7 @@ var messagesEn = map[string]string{
 	// 通用/安全中间件
 	"common.invalid_params":   "Invalid request parameters",
 	"security.invalid_chars":  "Request parameters contain illegal characters",
+	"security.param_too_long": "Request parameter is too long",
 	"security.login_frequent": "Too many login attempts, please try again later",
 	"security.rate_limited":   "Too many requests, please try again later",
 	"blacklist.ip_banned":     "This IP has been temporarily banned due to repeated login failures; please try again in about %d minutes",
@@ -96,8 +100,11 @@ var messagesEn = map[string]string{
 	"tenant.not_found":    "Tenant not found",
 	"tenant.name_exists":  "Tenant name already exists, please choose another one",
 	"tenant.code_exists":  "Tenant code already exists, please choose another one",
+	"tenant.code_invalid": "Tenant code may only contain letters, digits, underscore or hyphen (2-64 chars)",
 	"tenant.in_use":       "App users are still assigned to this tenant; remove the associations first",
 	"tenant.not_in_scope": "Tenant is outside the merchant bound tenant set",
+	// Device
+	"device.not_found": "Device not found",
 	// App user
 	"appuser.not_found":             "App user not found",
 	"appuser.cross_merchant_delete": "The app user is still attached to tenants of another merchant; detach those first",

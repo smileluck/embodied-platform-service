@@ -15,6 +15,8 @@ type Repo interface {
 	ListByUser(ctx context.Context, userID uint, page, pageSize int) ([]*ExportRecord, int64, error)
 	// RecentByUser 按归属用户取最近 limit 条（任务浮层轮询用）
 	RecentByUser(ctx context.Context, userID uint, limit int) ([]*ExportRecord, error)
+	// CountActiveByUser 该用户进行中（pending/running）的任务数（提交频控用）
+	CountActiveByUser(ctx context.Context, userID uint) (int64, error)
 	FindByID(ctx context.Context, id uint) (*ExportRecord, error)
 	Delete(ctx context.Context, id uint) error
 	// DeleteBefore 物理删除 cutoff 之前（不含）创建的记录，返回删除行数（保留期清理用）

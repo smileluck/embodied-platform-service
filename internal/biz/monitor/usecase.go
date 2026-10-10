@@ -123,13 +123,16 @@ func (uc *Usecase) currentSnapshot() *Snapshot {
 // LatestSnapshot 当前最新采样帧（告警通知分发器越限评估用；与历史落库同源）
 func (uc *Usecase) LatestSnapshot() *Snapshot { return uc.currentSnapshot() }
 
-// History 历史快照（时间升序；hours 上限 72，最多 5000 点）
+// History 历史快照（时间升序；缺省/非正值回 24h，超过最大回看窗口夹取 72h，最多 5000 点）
 func (uc *Usecase) History(ctx context.Context, hours int) ([]*Snapshot, error) {
 	if uc.snapRepo == nil {
 		return nil, ErrCollectFailed
 	}
-	if hours <= 0 || hours > 72 {
+	if hours <= 0 {
 		hours = 24
+	}
+	if hours > 72 {
+		hours = 72
 	}
 	return uc.snapRepo.ListSnapshots(ctx, time.Now().Add(-time.Duration(hours)*time.Hour), 5000)
 }
@@ -266,8 +269,10 @@ func (uc *Usecase) cachedHost() *HostInfo {
 		uc.mu.RUnlock()
 		return h
 	}
+	// 主机名不透出（内部基础设施信息脱敏：业务侧无需感知真实主机名，
+	// 环境拓扑经运维渠道获取）；其余静态信息仅作技术栈展示保留
 	h := &HostInfo{
-		Hostname: info.Hostname, OS: info.OS, Platform: info.Platform,
+		Hostname: "", OS: info.OS, Platform: info.Platform,
 		PlatformVersion: info.PlatformVersion, KernelArch: info.KernelArch,
 		KernelVersion: info.KernelVersion, BootTime: info.BootTime,
 	}

@@ -159,6 +159,17 @@ func (c *Client) doList(ctx context.Context, path string, query url.Values, list
 
 // ---- 业务方法 ----
 
+// normPageSize 开放面列表 page_size 归一：本系统约定 page_size=0 为「全量」（本地仓储
+// 原生支持），但平台开放面多数列表按字面 0 返回空列表——统一翻译为大页（200，平台侧
+// 仍按自身 page.sizeMax 夹取），使 0=全量 语义在代理链路行为一致不返回空集。
+// thing-models 列表平台侧原生支持 0=全量，不经本函数。
+func normPageSize(n int) int {
+	if n <= 0 {
+		return 200
+	}
+	return n
+}
+
 // Ping 凭证自检（返回商户脱敏信息）
 func (c *Client) Ping(ctx context.Context) (map[string]any, error) {
 	var out map[string]any
@@ -173,7 +184,7 @@ func (c *Client) Ping(ctx context.Context) (map[string]any, error) {
 func (c *Client) ListDevices(ctx context.Context, page, pageSize int, filter DeviceFilter) ([]*Device, *Page, error) {
 	q := url.Values{}
 	q.Set("page", strconv.Itoa(page))
-	q.Set("page_size", strconv.Itoa(pageSize))
+	q.Set("page_size", strconv.Itoa(normPageSize(pageSize)))
 	if filter.Keyword != "" {
 		q.Set("kw", filter.Keyword)
 	}
@@ -249,7 +260,7 @@ func (c *Client) IssueCommand(ctx context.Context, deviceID uint, req IssueComma
 func (c *Client) ListDeviceCommands(ctx context.Context, deviceID uint, status string, page, pageSize int) ([]*Command, *Page, error) {
 	q := url.Values{}
 	q.Set("page", strconv.Itoa(page))
-	q.Set("page_size", strconv.Itoa(pageSize))
+	q.Set("page_size", strconv.Itoa(normPageSize(pageSize)))
 	if status != "" {
 		q.Set("status", status)
 	}
@@ -336,7 +347,7 @@ type TenantFilter struct {
 func (c *Client) ListTenants(ctx context.Context, page, pageSize int, filter TenantFilter) ([]*Tenant, *Page, error) {
 	q := url.Values{}
 	q.Set("page", strconv.Itoa(page))
-	q.Set("page_size", strconv.Itoa(pageSize))
+	q.Set("page_size", strconv.Itoa(normPageSize(pageSize)))
 	if filter.Name != "" {
 		q.Set("name", filter.Name)
 	}
@@ -408,7 +419,7 @@ type ModelFilter struct {
 func (c *Client) ListDeviceModels(ctx context.Context, page, pageSize int, filter ModelFilter) ([]*DeviceModel, *Page, error) {
 	q := url.Values{}
 	q.Set("page", strconv.Itoa(page))
-	q.Set("page_size", strconv.Itoa(pageSize))
+	q.Set("page_size", strconv.Itoa(normPageSize(pageSize)))
 	if filter.Keyword != "" {
 		q.Set("kw", filter.Keyword)
 	}
@@ -597,7 +608,7 @@ type UserFilter struct {
 func (c *Client) ListUsers(ctx context.Context, page, pageSize int, filter UserFilter) ([]*MerchantUser, *Page, error) {
 	q := url.Values{}
 	q.Set("page", strconv.Itoa(page))
-	q.Set("page_size", strconv.Itoa(pageSize))
+	q.Set("page_size", strconv.Itoa(normPageSize(pageSize)))
 	if filter.Keyword != "" {
 		q.Set("kw", filter.Keyword)
 	}
@@ -641,7 +652,7 @@ type AppUserFilter struct {
 func (c *Client) ListAppUsers(ctx context.Context, page, pageSize int, filter AppUserFilter) ([]*AppUser, *Page, error) {
 	q := url.Values{}
 	q.Set("page", strconv.Itoa(page))
-	q.Set("page_size", strconv.Itoa(pageSize))
+	q.Set("page_size", strconv.Itoa(normPageSize(pageSize)))
 	if filter.Keyword != "" {
 		q.Set("kw", filter.Keyword)
 	}
@@ -710,7 +721,7 @@ type TenantUserFilter struct {
 func (c *Client) ListTenantUsers(ctx context.Context, page, pageSize int, filter TenantUserFilter) ([]*TenantUser, *Page, error) {
 	q := url.Values{}
 	q.Set("page", strconv.Itoa(page))
-	q.Set("page_size", strconv.Itoa(pageSize))
+	q.Set("page_size", strconv.Itoa(normPageSize(pageSize)))
 	if filter.Keyword != "" {
 		q.Set("kw", filter.Keyword)
 	}
@@ -785,7 +796,7 @@ func (c *Client) DeleteTenantUser(ctx context.Context, id uint) error {
 func (c *Client) ListMappingDefs(ctx context.Context, kw string, page, pageSize int) ([]*DataMappingDef, *Page, error) {
 	q := url.Values{}
 	q.Set("page", strconv.Itoa(page))
-	q.Set("page_size", strconv.Itoa(pageSize))
+	q.Set("page_size", strconv.Itoa(normPageSize(pageSize)))
 	if kw != "" {
 		q.Set("kw", kw)
 	}

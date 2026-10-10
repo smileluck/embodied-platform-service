@@ -14,6 +14,10 @@ var ErrDuplicateTenantName = errors.New("租户名称已存在，请更换")
 // ErrDuplicateTenantCode 租户编码重复
 var ErrDuplicateTenantCode = errors.New("租户编码已存在，请更换")
 
+// ErrInvalidTenantCode 租户编码字符集非法：业务标识（code 同时是平台侧命名空间键）
+// 仅允许字母/数字/下划线/中划线，长度 2-64
+var ErrInvalidTenantCode = errors.New("租户编码仅支持字母、数字、下划线或中划线（2-64 位）")
+
 // ErrTenantInUse 租户下存在应用用户，禁止删除
 var ErrTenantInUse = errors.New("该租户下存在应用用户，请先移除关联")
 

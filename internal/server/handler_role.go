@@ -43,7 +43,7 @@ func (s *HTTPServer) getRole(c *gin.Context) {
 	}
 	r, err := s.role.Get(c.Request.Context(), id)
 	if err != nil {
-		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
+		s.roleErr(c, err)
 		return
 	}
 	response.OK(c, r)
@@ -95,11 +95,14 @@ func (s *HTTPServer) setRolePermissions(c *gin.Context) {
 	response.OK(c, nil)
 }
 
-// roleErr 角色操作错误映射：超管角色保护类返回 403，其余返回 400
+// roleErr 角色操作错误映射：不存在 404，超管角色保护类返回 403，其余返回 400
 func (s *HTTPServer) roleErr(c *gin.Context, err error) {
-	if isErr(err, role.ErrBuiltinRoleLocked) {
+	switch {
+	case isErr(err, role.ErrRoleNotFound):
+		response.FailI18n(c, http.StatusNotFound, response.CodeErr, err)
+	case isErr(err, role.ErrBuiltinRoleLocked):
 		response.FailI18n(c, http.StatusForbidden, response.CodeForbidden, err)
-		return
+	default:
+		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 	}
-	response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 }

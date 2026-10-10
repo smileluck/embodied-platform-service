@@ -94,6 +94,15 @@ func (r *repo) RecentByUser(ctx context.Context, userID uint, limit int) ([]*biz
 	return out, nil
 }
 
+// CountActiveByUser 该用户进行中（pending/running）的任务数（提交频控用）
+func (r *repo) CountActiveByUser(ctx context.Context, userID uint) (int64, error) {
+	var n int64
+	err := r.data.DB.WithContext(ctx).Model(&model.ExportRecordPO{}).
+		Where("user_id = ? AND status IN ?", userID, []string{bizexport.StatusPending, bizexport.StatusRunning}).
+		Count(&n).Error
+	return n, err
+}
+
 func (r *repo) FindByID(ctx context.Context, id uint) (*bizexport.ExportRecord, error) {
 	var po model.ExportRecordPO
 	if err := r.data.DB.WithContext(ctx).First(&po, id).Error; err != nil {

@@ -87,7 +87,8 @@ func (s *HTTPServer) tenantPortalRefresh(c *gin.Context) {
 	}
 	pair, err := s.tenantIds.TenantRefresh(c.Request.Context(), req.RefreshToken)
 	if err != nil {
-		s.platformErr(c, err)
+		// 平台 401（token 无效/过期）统一回明确文案，不透传平台内部兜底文案（同管理端 refresh）
+		s.refreshProxyErr(c, err)
 		return
 	}
 	response.OK(c, pair)

@@ -113,16 +113,22 @@ func (s *HTTPServer) syncUsersFromPlatform(c *gin.Context) {
 	response.OK(c, gin.H{"created": created, "refreshed": refreshed})
 }
 
-// admissionErr 准入/成员操作错误映射：不存在 404；平台信封错误透传；其余 400
+// admissionErr 准入/成员操作错误映射：
+//   - 本地哨兵：不存在/平台未绑定 404，重复成员 400（i18n）
+//   - 平台信封错误（含 SDK *platformsdk.Error 归一后）透传 HTTP 状态与 msg——
+//     避免裸 err.Error()（"openapi: http 403 code 403: ..."）把 SDK 内部格式泄露给前端
+//   - 其余本地错误 400
 func (s *HTTPServer) admissionErr(c *gin.Context, err error) {
-	if isErr(err, bizadmission.ErrNotFound) {
+	switch {
+	case isErr(err, bizadmission.ErrNotFound), isErr(err, bizadmission.ErrPlatformNotBound):
 		response.FailI18n(c, http.StatusNotFound, response.CodeErr, err)
-		return
+	case isErr(err, bizadmission.ErrDuplicatePlatformUser):
+		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
+	default:
+		if e := normalizeSDKError(err); e != err {
+			s.platformErr(c, e)
+			return
+		}
+		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 	}
-	var perr *platformError
-	if errorsAs(err, &perr) {
-		s.platformErr(c, err)
-		return
-	}
-	response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 }
