@@ -10,7 +10,7 @@
             <span v-if="device" class="sx-led" :class="device.online ? 'sx-led--ok sx-led--live' : 'sx-led--off'">
               <i></i>{{ device.online ? t('tenantPortal.devices.online') : t('tenantPortal.devices.offline') }}
             </span>
-            <n-tag v-if="device" size="small" :bordered="false">{{ device.status }}</n-tag>
+            <n-tag v-if="device" size="small" :bordered="false">{{ statusText(device.status) }}</n-tag>
             <n-tag v-if="device" size="small" :bordered="false">{{ device.transport || t('tenantPortal.devices.transportDefault') }}</n-tag>
           </div>
         </div>
@@ -22,8 +22,8 @@
       <n-descriptions-item :label="t('tenantPortal.devices.sn')"><span class="mono-cell">{{ device.sn }}</span></n-descriptions-item>
       <n-descriptions-item :label="t('tenantPortal.devices.model')">#{{ device.model_id }}</n-descriptions-item>
       <n-descriptions-item :label="t('tenantPortal.devices.firmware')">{{ device.firmware_version || '—' }}</n-descriptions-item>
-      <n-descriptions-item :label="t('tenantPortal.devices.lastSeen')">{{ device.last_seen_at || '—' }}</n-descriptions-item>
-      <n-descriptions-item :label="t('common.createTime')">{{ device.created_at }}</n-descriptions-item>
+      <n-descriptions-item :label="t('tenantPortal.devices.lastSeen')">{{ formatDateTime(device.last_seen_at) || '—' }}</n-descriptions-item>
+      <n-descriptions-item :label="t('common.createTime')">{{ formatDateTime(device.created_at) }}</n-descriptions-item>
     </n-descriptions>
 
     <n-tabs v-if="device" type="line" style="margin-top: 16px">
@@ -61,12 +61,20 @@ import {
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { getTenantDevice, getTenantDeviceShadow, getTenantDeviceTelemetry, type DeviceShadow, type TenantDevice, type TelemetryItem } from '../../api/tenant'
+import { formatDateTime } from '../../utils/datetime'
 
 const { t } = useI18n()
 const message = useMessage()
 const route = useRoute()
 const router = useRouter()
 const id = Number(route.params.id)
+
+// 状态原文是英文枚举，展示需按 i18n 映射（未知值兜底显原值）
+const statusText = (s: string) =>
+  (({
+    inactive: t('tenantPortal.devices.statusInactive'), active: t('tenantPortal.devices.statusActive'),
+    disabled: t('tenantPortal.devices.statusDisabled'), retired: t('tenantPortal.devices.statusRetired'),
+  }) as Record<string, string>)[s] ?? s
 
 const loading = ref(false)
 const device = ref<TenantDevice | null>(null)
@@ -138,7 +146,7 @@ async function loadTelemetryMore() {
 const tlColumns = computed<DataTableColumns<TelemetryItem>>(() => [
   { title: t('tenantPortal.devices.metric'), key: 'metric', width: 180 },
   { title: t('tenantPortal.devices.value'), key: 'value', width: 140 },
-  { title: t('tenantPortal.devices.ts'), key: 'ts', width: 200 },
+  { title: t('tenantPortal.devices.ts'), key: 'ts', width: 200, render: (row) => formatDateTime(row.ts) },
 ])
 
 onMounted(() => {

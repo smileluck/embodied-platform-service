@@ -18,6 +18,7 @@ import { useI18n } from 'vue-i18n'
 import SearchCard from '../../components/SearchCard.vue'
 import { listTenantDevices } from '../../api/tenant'
 import { usePagination } from '../../utils/pagination'
+import { formatDateTime } from '../../utils/datetime'
 import type { TenantDevice } from '../../api/tenant'
 
 const { t } = useI18n()
@@ -33,11 +34,17 @@ const query = reactive({
 })
 
 const statusOptions = computed(() => [
-  { label: 'active', value: 'active' },
-  { label: 'inactive', value: 'inactive' },
-  { label: 'disabled', value: 'disabled' },
-  { label: 'retired', value: 'retired' },
+  { label: t('tenantPortal.devices.statusInactive'), value: 'inactive' },
+  { label: t('tenantPortal.devices.statusActive'), value: 'active' },
+  { label: t('tenantPortal.devices.statusDisabled'), value: 'disabled' },
+  { label: t('tenantPortal.devices.statusRetired'), value: 'retired' },
 ])
+// 状态原文是英文枚举，展示需按 i18n 映射（未知值兜底显原值）
+const statusText = (s: string) =>
+  (({
+    inactive: t('tenantPortal.devices.statusInactive'), active: t('tenantPortal.devices.statusActive'),
+    disabled: t('tenantPortal.devices.statusDisabled'), retired: t('tenantPortal.devices.statusRetired'),
+  }) as Record<string, string>)[s] ?? s
 const onlineOptions = computed(() => [
   { label: t('tenantPortal.devices.online'), value: true },
   { label: t('tenantPortal.devices.offline'), value: false },
@@ -82,13 +89,13 @@ const columns = computed<DataTableColumns<TenantDevice>>(() => [
     render: (row) => h(NTag, {
       type: row.status === 'active' ? 'success' : row.status === 'disabled' ? 'error' : 'default',
       size: 'small', bordered: false,
-    }, { default: () => row.status }),
+    }, { default: () => statusText(row.status) }),
   },
   {
     title: t('tenantPortal.devices.online'), key: 'online', width: 90,
     render: (row) => h(NTag, { type: row.online ? 'success' : 'default', size: 'small', bordered: false }, { default: () => (row.online ? t('tenantPortal.devices.online') : t('tenantPortal.devices.offline')) }),
   },
-  { title: t('tenantPortal.devices.lastSeen'), key: 'last_seen_at', width: 170, render: (row) => row.last_seen_at || '—' },
+  { title: t('tenantPortal.devices.lastSeen'), key: 'last_seen_at', width: 170, render: (row) => formatDateTime(row.last_seen_at) || '—' },
   {
     title: t('common.operation'), key: 'actions', width: 90,
     render: (row) => h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/tenant-portal/devices/${row.id}`) }, { default: () => t('common.detail') }),

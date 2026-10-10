@@ -52,6 +52,7 @@ import SearchCard from '../../components/SearchCard.vue'
 import { useI18n } from 'vue-i18n'
 import { listDeviceModels, listDevices, listTenants, registerDevice } from '../../api'
 import { usePagination } from '../../utils/pagination'
+import { formatDateTime } from '../../utils/datetime'
 import type { Device } from '../../api/types'
 
 const { t } = useI18n()
@@ -75,6 +76,9 @@ const statusOptions = [
   { label: t('device.statusDisabled'), value: 'disabled' },
   { label: t('device.statusRetired'), value: 'retired' },
 ]
+// 激活状态原文是英文枚举（inactive/active/disabled/retired），列表需按 i18n 映射展示
+const statusText = (s: string) =>
+  ({ inactive: t('device.statusInactive'), active: t('device.statusActive'), disabled: t('device.statusDisabled'), retired: t('device.statusRetired') } as Record<string, string>)[s] ?? s
 const onlineOptions = [
   { label: t('device.online'), value: 'true' },
   { label: t('device.offline'), value: 'false' },
@@ -98,10 +102,10 @@ const columns: DataTableColumns<Device> = [
   },
   {
     title: t('device.status'), key: 'status', width: 90,
-    render: (row) => h(NTag, { type: row.status === 'active' ? 'info' : row.status === 'disabled' ? 'error' : 'warning', size: 'small' }, { default: () => row.status }),
+    render: (row) => h(NTag, { type: row.status === 'active' ? 'info' : row.status === 'disabled' ? 'error' : 'warning', size: 'small' }, { default: () => statusText(row.status) }),
   },
   { title: t('device.transportCol'), key: 'transport', width: 90, render: (row) => row.transport || '—' },
-  { title: t('device.lastSeen'), key: 'last_seen_at', width: 160 },
+  { title: t('device.lastSeen'), key: 'last_seen_at', width: 160, render: (row) => formatDateTime(row.last_seen_at) || '—' },
   {
     title: t('common.operation'), key: 'actions', width: 90,
     render: (row) =>

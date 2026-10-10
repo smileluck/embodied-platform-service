@@ -11,7 +11,7 @@
             <span v-if="device" class="sx-led" :class="device.online ? 'sx-led--ok sx-led--live' : 'sx-led--off'">
               <i></i>{{ device.online ? t('device.online') : t('device.offline') }}
             </span>
-            <span v-if="device" class="sx-led" :class="statusLed(device.status)"><i></i>{{ device.status }}</span>
+            <span v-if="device" class="sx-led" :class="statusLed(device.status)"><i></i>{{ statusText(device.status) }}</span>
             <n-tag v-if="device" size="small" :bordered="false">{{ device.transport || t('device.transportDefault') }}</n-tag>
           </div>
         </div>
@@ -25,8 +25,8 @@
       <n-descriptions-item :label="t('device.tenantId')">{{ device.tenant_id }}</n-descriptions-item>
       <n-descriptions-item :label="t('device.transportCol')">{{ device.transport || t('device.transportDefault') }}</n-descriptions-item>
       <n-descriptions-item :label="t('device.firmware')">{{ device.firmware_version || '—' }}</n-descriptions-item>
-      <n-descriptions-item :label="t('device.lastSeen')">{{ device.last_seen_at || '—' }}</n-descriptions-item>
-      <n-descriptions-item :label="t('common.createTime')">{{ device.created_at }}</n-descriptions-item>
+      <n-descriptions-item :label="t('device.lastSeen')">{{ formatDateTime(device.last_seen_at) || '—' }}</n-descriptions-item>
+      <n-descriptions-item :label="t('common.createTime')">{{ formatDateTime(device.created_at) }}</n-descriptions-item>
       <n-descriptions-item label="">{{ }}</n-descriptions-item>
     </n-descriptions>
 
@@ -82,6 +82,7 @@ import {
   issueDeviceCommand, listDeviceCommands, listDeviceDataEvents,
 } from '../../api'
 import { usePagination } from '../../utils/pagination'
+import { formatDateTime } from '../../utils/datetime'
 import type { DataEvent, Device, DeviceCommand, DeviceShadow } from '../../api/types'
 
 const { t } = useI18n()
@@ -138,14 +139,24 @@ const statusTagType = (s: string) =>
 const statusLed = (s: string) =>
   s === 'active' ? 'sx-led--ok' : s === 'inactive' ? 'sx-led--warn' : s === 'disabled' ? 'sx-led--danger' : 'sx-led--off'
 
+// 状态/命令状态原文是英文枚举，展示需按 i18n 映射（未知值兜底显原值）
+const statusText = (s: string) =>
+  ({ inactive: t('device.statusInactive'), active: t('device.statusActive'), disabled: t('device.statusDisabled'), retired: t('device.statusRetired') } as Record<string, string>)[s] ?? s
+const cmdStatusText = (s: string) =>
+  (({
+    pending: t('device.cmdStatusPending'), dispatched: t('device.cmdStatusDispatched'), acked: t('device.cmdStatusAcked'),
+    succeeded: t('device.cmdStatusSucceeded'), failed: t('device.cmdStatusFailed'), cancelling: t('device.cmdStatusCancelling'),
+    cancelled: t('device.cmdStatusCancelled'), preempted: t('device.cmdStatusPreempted'), timeout: t('device.cmdStatusTimeout'),
+  }) as Record<string, string>)[s] ?? s
+
 const cmdColumns: DataTableColumns<DeviceCommand> = [
   { title: 'ID', key: 'id', width: 80, render: (row) => h(NButton, { text: true, type: 'info', onClick: () => refreshCommand(row.id) }, { default: () => `#${row.id}` }) },
   { title: t('device.cmdType'), key: 'command_type', width: 200, ellipsis: { tooltip: true } },
   // 命令等级章：P0 急停=实心急停红、P1 运维=琥珀描边、P2/P3 中性
   { title: t('device.priority'), key: 'priority', width: 70, render: (row) => h('span', { class: ['prio-chip', `prio-${row.priority}`] }, `P${row.priority}`) },
-  { title: t('device.cmdStatus'), key: 'status', width: 100, render: (row) => h(NTag, { type: statusTagType(row.status), size: 'small', bordered: false }, { default: () => row.status }) },
+  { title: t('device.cmdStatus'), key: 'status', width: 100, render: (row) => h(NTag, { type: statusTagType(row.status), size: 'small', bordered: false }, { default: () => cmdStatusText(row.status) }) },
   { title: t('device.caller'), key: 'caller', width: 150 },
-  { title: t('common.createTime'), key: 'created_at', width: 160 },
+  { title: t('common.createTime'), key: 'created_at', width: 160, render: (row) => formatDateTime(row.created_at) },
 ]
 
 async function loadCommands() {
@@ -166,7 +177,7 @@ async function refreshCommand(cmdId: number) {
     const { data: resp } = await getDeviceCommand(cmdId)
     const idx = commands.value.findIndex((c) => c.id === cmdId)
     if (idx >= 0) commands.value[idx] = resp.data
-    message.success(resp.data.status)
+    message.success(cmdStatusText(resp.data.status))
   } catch (e: any) {
     message.error(e?.response?.data?.msg || t('common.loadFailed'))
   }
@@ -200,7 +211,7 @@ const tlQuery = reactive({ metric: '' })
 const tlColumns: DataTableColumns<{ metric: string; value: number; ts: string }> = [
   { title: t('device.metric'), key: 'metric', width: 160 },
   { title: t('device.value'), key: 'value', width: 120 },
-  { title: 'TS', key: 'ts' },
+  { title: 'TS', key: 'ts', render: (row) => formatDateTime(row.ts) },
 ]
 
 async function loadTelemetry() {
@@ -238,7 +249,7 @@ const eventColumns: DataTableColumns<DataEvent> = [
   { title: 'ID', key: 'id', width: 80 },
   { title: t('device.eventType'), key: 'event_type', width: 160 },
   { title: t('device.payload'), key: 'payload', ellipsis: { tooltip: true } },
-  { title: t('device.occurredAt'), key: 'occurred_at', width: 170 },
+  { title: t('device.occurredAt'), key: 'occurred_at', width: 170, render: (row) => formatDateTime(row.occurred_at) },
 ]
 
 async function loadEvents() {
