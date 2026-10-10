@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-10-10T08:09:23.898Z",
+  "generatedAt": "2026-10-10T08:27:17.598Z",
   "commits": [
+    {
+      "hash": "c727c6ed6",
+      "date": "2026-10-10",
+      "type": "fix",
+      "scope": "tenant",
+      "message": "删除租户用户级联清理部门绑定——成员计数不再虚高"
+    },
     {
       "hash": "49b95613b",
       "date": "2026-10-10",
