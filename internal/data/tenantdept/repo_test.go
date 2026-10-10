@@ -146,6 +146,17 @@ func TestBindSemantics(t *testing.T) {
 	if err != nil || names[d1.ID] != "研发" || names[d2.ID] != "运维" {
 		t.Fatalf("部门名解析失败, got %v err %v", names, err)
 	}
+	// 删号级联清理：user7 绑定清空后计数回落；对无绑定用户幂等
+	if err := r.DeleteUserDepts(ctx, 7); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.DeleteUserDepts(ctx, 999); err != nil {
+		t.Fatalf("无绑定用户清理应幂等成功, got %v", err)
+	}
+	counts, _ = r.MemberCounts(ctx, 71)
+	if counts[d1.ID] != 1 {
+		t.Fatalf("清理后 d1 直属成员应回落为 1, got %v", counts)
+	}
 }
 
 // 用例守卫：更新防环（父级指向自身/后代拒绝，指向合法部门放行）、

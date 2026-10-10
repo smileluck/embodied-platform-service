@@ -11,7 +11,9 @@ import (
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	biztenantdept "github.com/smilex/smilex-admin-gin/internal/biz/tenantdept"
 	biztenantuser "github.com/smilex/smilex-admin-gin/internal/biz/tenantuser"
+	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
+	"go.uber.org/zap"
 )
 
 // TenantNameResolver 本地租户名解析（按平台租户 ID；*biztenant.Usecase 满足）。
@@ -312,10 +314,18 @@ func (s *Service) SetUserDepts(ctx context.Context, id uint, req SetDeptsRequest
 	return s.depts.SetUserDepts(ctx, u.TenantID, id, req.DeptIDs)
 }
 
-// DeleteUser 删除用户：平台软删账号；本地角色绑定随账号失能自然失义（账号不可登录即无权限，
-// 零投影原则不做对账清理）
+// DeleteUser 删除用户：平台软删账号；本地部门绑定级联清理（成员计数依赖 binds，残留会
+// 虚增 member_count——与角色绑定不同，后者残留无害仅影响回填，零投影原则不做清理）。
+// 平台侧直接删号无回调通道，残留为已知边界（见 boundary.md）
 func (s *Service) DeleteUser(ctx context.Context, id uint) error {
-	return s.gw.DeleteUser(ctx, id)
+	if err := s.gw.DeleteUser(ctx, id); err != nil {
+		return err
+	}
+	if err := s.depts.ClearUserDepts(ctx, id); err != nil {
+		// 账号已删成定局，清理失败仅计数虚高——告警不阻断，避免误报「删除失败」
+		logger.Warn("tenant user dept binds cleanup failed after delete", zap.Uint("user_id", id), zap.Error(err))
+	}
+	return nil
 }
 
 // ---- 租户角色（本地 RBAC） ----

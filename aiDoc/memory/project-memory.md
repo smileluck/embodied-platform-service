@@ -33,6 +33,7 @@
 - [lessons/2026-10-09-setup-tdz-ref-before-declaration.md](lessons/2026-10-09-setup-tdz-ref-before-declaration.md) — script setup 顶层 TDZ：函数先调用、const ref 后声明，setup 抛错整页白屏；排查白屏先查顶层执行顺序
 - [lessons/2026-10-10-nselect-remote-no-preload.md](lessons/2026-10-10-nselect-remote-no-preload.md) — 远程搜索 n-select 不预载首屏选项，「打开即空」会被用户感知为无数据；字段可见时以空关键词预载一次
 - [lessons/2026-10-10-async-task-full-row-writeback.md](lessons/2026-10-10-async-task-full-row-writeback.md) — 异步任务收尾整行 Update 回写快照会覆盖执行期间并发的启停/编辑；只定向回写自己拥有的列
+- [lessons/2026-10-10-precedent-tradeoff-reuse.md](lessons/2026-10-10-precedent-tradeoff-reuse.md) — 沿用先例的「残留无害」结论要按新场景消费方重查：有计数/聚合消费的绑定残留即有形伤害，需级联清理
 
 ## 维护说明
 

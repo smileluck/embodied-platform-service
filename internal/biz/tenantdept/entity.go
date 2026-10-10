@@ -60,6 +60,9 @@ type DeptRepo interface {
 	CountChildren(ctx context.Context, parentID uint) (int64, error)
 	// ReplaceUserDepts 事务内全量替换用户部门绑定（先删后插；deptIDs 已由用例层校验同租户）
 	ReplaceUserDepts(ctx context.Context, userID uint, deptIDs []uint) error
+	// DeleteUserDepts 清理用户全部部门绑定（用户删号时级联——成员计数依赖 binds，
+	// 残留会虚增 member_count；幂等，无绑定删 0 行）
+	DeleteUserDepts(ctx context.Context, userID uint) error
 	// UserDeptIDs 批量取用户部门绑定（user_id -> dept_ids；列表补齐用）
 	UserDeptIDs(ctx context.Context, userIDs []uint) (map[uint][]uint, error)
 	// UserIDsByDepts 取部门直属成员用户 ID 集合（不含子部门——后代展开由用例层完成）

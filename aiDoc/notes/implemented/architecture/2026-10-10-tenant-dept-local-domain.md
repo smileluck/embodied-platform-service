@@ -22,15 +22,17 @@
 - **设备级隔离留二期**：门户端按部门过滤设备需平台侧先建部门域 + 开放面过滤维度，届时本表可作为平台部门域的迁移源。
 - **交集路径性能受限**：单租户用户量超出常规规模（数千以上）时翻页拉取成本上升；平台侧支持部门维度后应下推过滤（见 boundary.md 标注）。
 - **部门筛选与租户筛选联动**：dept_id 自带租户归属，与显式 tenant_id 不符时返回空集（防御跨租户拼参）。
-- 平台删号后本地 binds 成孤儿——无害（账号进不来即无归属语义），零投影原则不做对账清理。
+- **删号级联清理（2026-10-10 当日修正）**：初版沿用「角色 binds 孤儿无害、零投影不清理」的先例到部门——但成员计数直接依赖 binds，残留会让 member_count 虚高且与成员列表（平台交集）口径分裂。管理端 `DELETE /tenant-users/:id` 与门户 `DELETE /tenant-api/v1/members/:id` 平台删号成功后级联 `ClearUserDepts`（清理失败仅告警：账号已删成定局，残留只是计数虚高，不应误报删除失败）。平台侧直接删号无回调通道，残留为已知边界。角色 binds 维持不清理（残留仅影响回填，无计数语义）。
+- **计数双口径为产品语义**：部门行「直属成员」列与「成员（含子部门）」弹窗数字天然不同（多部门用户各计 1、弹窗跨部门去重），UI 文案已各自标注，保持现状。
 - 门户端（tenant-api）本期不加部门能力（成员列表/权限码均不动）。
 
 ## 关键落点
 
 - `internal/data/model/tenantdept.go`（两 PO）、`internal/data/data.go`（AutoMigrate + 菜单/按钮种子 menu:tenantDept、tenantDept:*、tenantUser:setDepts）
-- `internal/biz/tenantdept/entity.go`（聚合/哨兵/DeptRepo 端口）、`usecase.go`（CRUD+防环+删除守卫+UserIDsUnderDept 后代展开）
-- `internal/data/tenantdept/repo.go`（墓碑/唯一冲突映射/替换语义/MemberCounts/DeptNamesByIDs）+ `repo_test.go`
-- `internal/service/tenantdept/service.go`（DTO）；`internal/service/tenantuser/service.go`（depts 回填 + listUsersByDept 交集路径 + SetUserDepts）
+- `internal/biz/tenantdept/entity.go`（聚合/哨兵/DeptRepo 端口）、`usecase.go`（CRUD+防环+删除守卫+UserIDsUnderDept 后代展开+ClearUserDepts 级联）
+- `internal/data/tenantdept/repo.go`（墓碑/唯一冲突映射/替换语义/MemberCounts/DeptNamesByIDs/DeleteUserDepts）+ `repo_test.go`
+- `internal/service/tenantdept/service.go`（DTO）；`internal/service/tenantuser/service.go`（depts 回填 + listUsersByDept 交集路径 + SetUserDepts + DeleteUser 级联清理）
+- `internal/service/tenantmember/service.go`（Remove 级联清理，增 depts 依赖）+ `service_test.go`（TestRemoveClearsDeptBinds）
 - `internal/server/handler_tenantdept.go` + `router.go`（路由组）+ `i18n_errors.go`（tenant_dept.* 四哨兵）
 - `pkg/i18n/messages_{zh,en}.go`（错误文案 + menu.menu:tenantDept 双语）
 - `migrations/{mysql,postgres,sqlite}.sql`（两表三方言 DDL）
@@ -38,6 +40,7 @@
 
 ## 验证
 
-- `go build ./...` 全绿；wire 重新生成（tenantusersvc.NewService 增 depts 依赖、tenantdeptService 接入 HTTPServer）。
-- 新增测试 `data/tenantdept/repo_test.go`：墓碑释放/同码重建、(tenant_id,code) 唯一冲突、绑定替换语义、MemberCounts/DeptNamesByIDs、更新防环（自身/后代）、删除守卫（有子部门拒绝、清空后放行）、跨租户守卫、UserIDsUnderDept 后代展开（三层树成员分布）——全部通过；相邻包回归 `tenantrole` 通过。
+- `go build ./...` 全绿；wire 重新生成（tenantusersvc.NewService 增 depts 依赖、tenantmembersvc.NewService 增 depts 依赖、tenantdeptService 接入 HTTPServer）。
+- 新增测试 `data/tenantdept/repo_test.go`：墓碑释放/同码重建、(tenant_id,code) 唯一冲突、绑定替换语义、MemberCounts/DeptNamesByIDs、DeleteUserDepts 级联回落+幂等、更新防环（自身/后代）、删除守卫（有子部门拒绝、清空后放行）、跨租户守卫、UserIDsUnderDept 后代展开（三层树成员分布）——全部通过。
+- `service/tenantmember/service_test.go`：TestRemoveClearsDeptBinds（移除级联清理 + 守卫拒绝路径不触发清理）通过；相邻包 `tenantrole`/`appuser` 回归通过。
 - 前端 `npm run lint` 0 error、`npm run build`（含 vue-tsc）通过。

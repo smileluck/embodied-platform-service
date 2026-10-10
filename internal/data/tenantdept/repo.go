@@ -122,6 +122,13 @@ func (r *Repo) ReplaceUserDepts(ctx context.Context, userID uint, deptIDs []uint
 	})
 }
 
+// DeleteUserDepts 清理用户全部部门绑定（用户删号时级联——残留会虚增 member_count；
+// 幂等，无绑定时删 0 行）
+func (r *Repo) DeleteUserDepts(ctx context.Context, userID uint) error {
+	return r.data.DB.WithContext(ctx).Where("user_id = ?", userID).
+		Delete(&model.TenantUserDeptBindPO{}).Error
+}
+
 // UserDeptIDs 批量取用户部门绑定（user_id -> dept_ids；user_ids 为平台 tenant_user ID）
 func (r *Repo) UserDeptIDs(ctx context.Context, userIDs []uint) (map[uint][]uint, error) {
 	out := make(map[uint][]uint, len(userIDs))

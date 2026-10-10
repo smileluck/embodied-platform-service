@@ -8,8 +8,11 @@ import (
 	"context"
 	"errors"
 
+	biztenantdept "github.com/smilex/smilex-admin-gin/internal/biz/tenantdept"
 	biztenantuser "github.com/smilex/smilex-admin-gin/internal/biz/tenantuser"
+	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
+	"go.uber.org/zap"
 )
 
 var (
@@ -29,10 +32,11 @@ const memberPermPrefix = "member:"
 type Service struct {
 	gw    biztenantuser.Gateway      // 平台开放面租户用户网关（账号身份；tenant_id 由本层锁定）
 	roles *biztenantuser.RoleUsecase // 本地租户角色用例（角色/绑定/权限）
+	depts *biztenantdept.Usecase     // 本地租户部门用例（成员移出时级联清理部门绑定）
 }
 
-func NewService(gw biztenantuser.Gateway, roles *biztenantuser.RoleUsecase) *Service {
-	return &Service{gw: gw, roles: roles}
+func NewService(gw biztenantuser.Gateway, roles *biztenantuser.RoleUsecase, depts *biztenantdept.Usecase) *Service {
+	return &Service{gw: gw, roles: roles, depts: depts}
 }
 
 // CreateRequest 新增成员入参（role_ids 为本租户下本地租户角色，缺省无角色）
@@ -263,7 +267,8 @@ func (s *Service) ResetPassword(ctx context.Context, tid, id uint, password stri
 }
 
 // Remove 删除成员（平台软删账号；不可对本人操作，受最后管理员守卫。
-// 本地角色绑定随账号失能自然失义，零投影原则不做对账清理）
+// 本地角色绑定随账号失能自然失义，零投影原则不做对账清理；部门绑定因成员计数
+// 依赖 binds 须级联清理——残留会虚增 member_count，清理失败仅告警不阻断）
 func (s *Service) Remove(ctx context.Context, tid, id, actorID uint) error {
 	if _, err := s.locateMember(ctx, tid, id); err != nil {
 		return err
@@ -274,7 +279,13 @@ func (s *Service) Remove(ctx context.Context, tid, id, actorID uint) error {
 	if err := s.guardNotLastAdmin(ctx, tid, id, nil); err != nil {
 		return err
 	}
-	return s.gw.DeleteUser(ctx, id)
+	if err := s.gw.DeleteUser(ctx, id); err != nil {
+		return err
+	}
+	if err := s.depts.ClearUserDepts(ctx, id); err != nil {
+		logger.Warn("member dept binds cleanup failed after remove", zap.Uint("user_id", id), zap.Error(err))
+	}
+	return nil
 }
 
 // SetRoles 全量替换成员角色（本地绑定；不可对本人操作，受最后管理员守卫）

@@ -225,3 +225,8 @@ func (uc *Usecase) UserIDsUnderDept(ctx context.Context, deptID uint) ([]uint, u
 func (uc *Usecase) DeptNamesByIDs(ctx context.Context, deptIDs []uint) (map[uint]string, error) {
 	return uc.depts.DeptNamesByIDs(ctx, deptIDs)
 }
+
+// ClearUserDepts 清理用户全部部门绑定（用户删号/移出租户时级联；幂等）
+func (uc *Usecase) ClearUserDepts(ctx context.Context, userID uint) error {
+	return uc.depts.DeleteUserDepts(ctx, userID)
+}

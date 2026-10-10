@@ -168,7 +168,7 @@ func wireApp() (*server.HTTPServer, func(), error) {
 	tenantdeptUsecase := tenantdept2.NewUsecase(tenantdeptRepo, tenantUsecase)
 	tenantuserService := tenantuser2.NewService(tenantUserGateway, tenantuserRoleUsecase, tenantdeptUsecase, tenantUsecase)
 	tenantdeptService := tenantdept3.NewService(tenantdeptUsecase)
-	tenantmemberService := tenantmember.NewService(tenantUserGateway, tenantuserRoleUsecase)
+	tenantmemberService := tenantmember.NewService(tenantUserGateway, tenantuserRoleUsecase, tenantdeptUsecase)
 	appIdentityClient := platform.NewAppIdentityClient(bootstrap)
 	appIdentityAdapter := auth.NewAppIdentityAdapter(appIdentityClient)
 	tenantIdentityClient := platform.NewTenantIdentityClient(bootstrap)
