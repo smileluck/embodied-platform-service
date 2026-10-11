@@ -21,7 +21,7 @@
     <n-descriptions v-if="device" :column="3" label-placement="left" size="small" bordered>
       <n-descriptions-item label="ID">{{ device.id }}</n-descriptions-item>
       <n-descriptions-item :label="t('device.sn')"><span class="mono-cell">{{ device.sn }}</span></n-descriptions-item>
-      <n-descriptions-item :label="t('device.model')">#{{ device.model_id }}</n-descriptions-item>
+      <n-descriptions-item :label="t('device.model')">{{ modelName }}</n-descriptions-item>
       <n-descriptions-item :label="t('device.tenantId')">{{ device.tenant_id }}</n-descriptions-item>
       <n-descriptions-item :label="t('device.transportCol')">{{ device.transport || t('device.transportDefault') }}</n-descriptions-item>
       <n-descriptions-item :label="t('device.firmware')">{{ device.firmware_version || '—' }}</n-descriptions-item>
@@ -78,7 +78,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { NButton, NCard, NDataTable, NDescriptions, NDescriptionsItem, NInput, NSelect, NTabPane, NTabs, NTag, useMessage, type DataTableColumns } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import {
-  getDevice, getDeviceCommand, getDeviceShadow, getDeviceTelemetry,
+  getDevice, getDeviceCommand, getDeviceModel, getDeviceShadow, getDeviceTelemetry,
   issueDeviceCommand, listDeviceCommands, listDeviceDataEvents,
 } from '../../api'
 import { usePagination } from '../../utils/pagination'
@@ -94,17 +94,29 @@ const id = Number(route.params.id)
 const loading = ref(false)
 const device = ref<Device | null>(null)
 const shadow = ref<DeviceShadow | null>(null)
+// 型号名称单独解析（设备 VO 只有 model_id；失败兜底 #id）
+const modelName = ref('')
 
 async function loadDevice() {
   loading.value = true
   try {
     const { data: resp } = await getDevice(id)
     device.value = resp.data
+    loadModelName(resp.data.model_id)
   } catch (e: any) {
     message.error(e?.response?.data?.msg || t('common.loadFailed'))
   } finally {
     loading.value = false
   }
+}
+
+async function loadModelName(modelId: number) {
+  modelName.value = `#${modelId}`
+  if (!modelId) return
+  try {
+    const { data: resp } = await getDeviceModel(modelId)
+    modelName.value = `${resp.data.name}（${resp.data.code}）`
+  } catch { /* 型号不可用时保留 #id 兜底 */ }
 }
 
 async function loadShadow() {

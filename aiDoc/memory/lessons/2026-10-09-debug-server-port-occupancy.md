@@ -1,5 +1,5 @@
-<!-- last-updated: 2026-10-09 -->
-<!-- lesson-meta: status=pending count=1 post=0 target= -->
+<!-- last-updated: 2026-10-11 -->
+<!-- lesson-meta: status=promoted count=2 post=0 target=aiDoc/relations/development-workflow.md -->
 # 调试二进制占用 dev 端口导致 air 热重载静默失效
 
 ## 情境
@@ -20,15 +20,15 @@
 
 ## 出现次数
 
-1（2026-10-09，数据映射「未授权」排查中发现：3 个 server-verify 残留 + bin/server 悬挂 + air wedge）
+2（2026-10-09，数据映射「未授权」排查中发现：3 个 server-verify 残留 + bin/server 悬挂 + air wedge；2026-10-11，设备中心「改了不生效」排查中发现：28170 被另一目录 `wujie-embodied-ego-platform/web` 的 vite 占用，用户一直看旧前端——同族模式从前端 dev server 方向复发，监听者身份不核对就会误诊为代码缺陷）
 
 ## 状态
 
-pending
+promoted
 
 ## 晋升去向
 
-（待第 2 次出现或用户确认后晋升，候选：`AGENTS.md` 操作不变量或 module-development.md 调试纪律）
+`aiDoc/relations/development-workflow.md` 联调验证段（2026-10-11 第 2 次出现后晋升）
 
 ## 晋升后复发
 

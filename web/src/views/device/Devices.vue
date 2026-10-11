@@ -68,6 +68,9 @@ const query = reactive({
 })
 
 const modelOptions = ref<{ label: string; value: number }[]>([])
+// 型号 ID → 名称映射：列表/详情按名称展示，未命中兜底 #id（含已禁用型号，故下拉与映射共用同一份全量列表）
+const modelNameMap = ref<Record<number, string>>({})
+const modelName = (id: number) => modelNameMap.value[id] ?? `#${id}`
 const tenantOptions = ref<{ label: string; value: number }[]>([])
 
 const statusOptions = [
@@ -94,7 +97,7 @@ const columns: DataTableColumns<Device> = [
   { title: 'ID', key: 'id', width: 70 },
   { title: t('device.sn'), key: 'sn', width: 160, ellipsis: { tooltip: true }, render: (row) => h('span', { class: 'mono-cell' }, row.sn) },
   { title: t('device.name'), key: 'name', minWidth: 120, ellipsis: { tooltip: true } },
-  { title: t('device.model'), key: 'model_id', width: 80, render: (row) => `#${row.model_id}` },
+  { title: t('device.model'), key: 'model_id', width: 140, ellipsis: { tooltip: true }, render: (row) => modelName(row.model_id) },
   {
     title: t('device.online'), key: 'online', width: 110,
     // 状态灯语（.sx-led 定义于 tokens.css）：在线=信号绿、离线=空心点
@@ -186,10 +189,13 @@ async function save() {
 
 onMounted(async () => {
   load()
-  // 型号下拉（平台侧启用态）与本地已同步租户下拉
+  // 型号全量（含禁用态：列表列按名称显示需覆盖存量设备）+ 本地已同步租户下拉
   try {
-    const { data: resp } = await listDeviceModels({ page: 1, page_size: 100, status: 1 })
-    modelOptions.value = (resp.data.list || []).map((m) => ({ label: `${m.name}（${m.code}）`, value: m.id }))
+    const { data: resp } = await listDeviceModels({ page: 1, page_size: 100 })
+    const models = resp.data.list || []
+    // 下拉仅启用态（注册/筛选语义不变）；名称映射含禁用态以覆盖存量设备
+    modelOptions.value = models.filter((m) => m.status === 1).map((m) => ({ label: `${m.name}（${m.code}）`, value: m.id }))
+    modelNameMap.value = Object.fromEntries(models.map((m) => [m.id, `${m.name}（${m.code}）`]))
   } catch { /* 下拉加载失败不阻断列表 */
   }
   try {

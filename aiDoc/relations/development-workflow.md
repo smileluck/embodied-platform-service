@@ -25,6 +25,8 @@
 
 联调验证：`make dev` 同起后端(28180)与前端(28170)；平台相关功能需平台侧服务可用（默认 `http://localhost:27080`）。
 
+调试纪律（教训晋升，见 [../memory/lessons/2026-10-09-debug-server-port-occupancy.md](../memory/lessons/2026-10-09-debug-server-port-occupancy.md)）：「改了代码不生效」先核对端口监听者身份再怀疑代码——`lsof -iTCP:28170,28180 -sTCP:LISTEN` 确认进程路径是本仓库的 `web/`（vite）与 `bin/server`（air），而非调试残留实例或同机其他副本目录；手动验证用实例一律独立端口、验证完立即杀掉。
+
 ## 分支策略
 
 | 分支 | 用途 |

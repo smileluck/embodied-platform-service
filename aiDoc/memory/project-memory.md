@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-10 -->
+<!-- last-updated: 2026-10-11 -->
 # 项目记忆索引
 
 ## 长期记忆
@@ -17,6 +17,7 @@
 - [business/2026-10-08-主题恢复工业琥珀配色.md](business/2026-10-08-主题恢复工业琥珀配色.md) — 全站主题从清水蓝恢复石墨深壳 + 工业琥珀色板，保留亮暗双套并修复暗色可读性
 - [business/2026-10-10-四项界面缺陷修复批次.md](business/2026-10-10-四项界面缺陷修复批次.md) — 通知按用户发布选项预载 + 设备页状态 i18n/时间统一格式 + 定时任务禁用不被执行收尾复活（手动执行保持放行）
 - [business/2026-10-10-租户部门管理.md](business/2026-10-10-租户部门管理.md) — 租户内部数据隔离基础能力：本地部门树（tenant_depts）+ 用户多部门归属（tenant_user_dept_binds）+ 管理端部门页/分配/筛选；设备级隔离留二期
+- [business/2026-10-11-设备中心型号与状态显示修复.md](business/2026-10-11-设备中心型号与状态显示修复.md) — 设备中心型号列/详情按名称显示（前端映射，兜底 #id）；状态 i18n 复查为外部旧 dev server 占用 28170 所致
 
 ## 经验记忆（lessons）
 
@@ -28,7 +29,7 @@
 - [lessons/2026-10-08-obsolete-perm-codes-restore.md](lessons/2026-10-08-obsolete-perm-codes-restore.md) — 恢复旧菜单/权限 code 前必须先移出 obsoletePermCodes 淘汰清单，否则种子被 migrateLegacy 反复清掉
 - [lessons/2026-10-09-vue-i18n-literal-braces.md](lessons/2026-10-09-vue-i18n-literal-braces.md) — locale 文案要展示字面 `{xxx}`（如 source_topic 占位符）时，调用处必须传同名字面参数，否则 vue-i18n 当插值变量解析
 - [lessons/2026-10-09-menu-seed-softdelete-restore.md](lessons/2026-10-09-menu-seed-softdelete-restore.md) — 种子「Unscoped 判存在 + 缺失插入」必须配软删恢复分支；菜单软删会引发按钮孤儿化次生症状
-- [lessons/2026-10-09-debug-server-port-occupancy.md](lessons/2026-10-09-debug-server-port-occupancy.md) — 调试二进制占用 dev 端口会让 air 热重载静默失效（bind 失败只进日志、build text-file-busy 致 air wedge）；「改了不生效」先 lsof 确认监听者
+- [lessons/2026-10-09-debug-server-port-occupancy.md](lessons/2026-10-09-debug-server-port-occupancy.md) — 调试残留/外部副本占用 dev 端口会让热重载静默失效（air bind 失败只进日志；vite 被别目录占用）；「改了不生效」先 lsof 确认监听者（已晋升至 relations/development-workflow.md 调试纪律）
 - [lessons/2026-10-09-new-table-legacy-name-collision.md](lessons/2026-10-09-new-table-legacy-name-collision.md) — 新增本地表先查 migrateLegacy 清理名单，撞旧表名会被每次启动反复清空（tenant_user_roles→tenant_user_role_binds）
 - [lessons/2026-10-09-setup-tdz-ref-before-declaration.md](lessons/2026-10-09-setup-tdz-ref-before-declaration.md) — script setup 顶层 TDZ：函数先调用、const ref 后声明，setup 抛错整页白屏；排查白屏先查顶层执行顺序
 - [lessons/2026-10-10-nselect-remote-no-preload.md](lessons/2026-10-10-nselect-remote-no-preload.md) — 远程搜索 n-select 不预载首屏选项，「打开即空」会被用户感知为无数据；字段可见时以空关键词预载一次
