@@ -79,11 +79,11 @@ import { NButton, NCard, NDataTable, NDescriptions, NDescriptionsItem, NInput, N
 import { useI18n } from 'vue-i18n'
 import {
   getDevice, getDeviceCommand, getDeviceModel, getDeviceShadow, getDeviceTelemetry,
-  issueDeviceCommand, listDeviceCommands, listDeviceDataEvents,
+  issueDeviceCommand, listDeviceCommands, listDeviceDataEvents, resolveThingModel,
 } from '../../api'
 import { usePagination } from '../../utils/pagination'
 import { formatDateTime } from '../../utils/datetime'
-import type { DataEvent, Device, DeviceCommand, DeviceShadow } from '../../api/types'
+import type { DataEvent, Device, DeviceCommand, DeviceShadow, TMService } from '../../api/types'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -116,7 +116,17 @@ async function loadModelName(modelId: number) {
   try {
     const { data: resp } = await getDeviceModel(modelId)
     modelName.value = `${resp.data.name}（${resp.data.code}）`
+    loadCmdTypes(resp.data.tm_node_id, resp.data.tm_version_id)
   } catch { /* 型号不可用时保留 #id 兜底 */ }
+}
+
+// 命令类型跟随型号绑定的物模型版本（pin 该版本，避免基线漂移出未定义命令）
+async function loadCmdTypes(nodeId: number, versionId: number) {
+  if (!nodeId) return
+  try {
+    const { data: resp } = await resolveThingModel(nodeId, versionId || undefined)
+    tmServices.value = resp.data.schema?.services ?? null
+  } catch { /* 物模型不可用时保留内置急停与手输 */ }
 }
 
 async function loadShadow() {
@@ -133,9 +143,13 @@ const issuing = ref(false)
 const cmdQuery = reactive({ page: 1, page_size: 10 })
 const { pagination: cmdPagination } = usePagination(cmdQuery, () => loadCommands())
 
-const cmdTypeOptions = [
-  { label: 'emergency:estop', value: 'emergency:estop' },
-]
+// 命令类型选项 = 物模型服务名 + 平台内置急停兜底（未在物模型定义时补位；select tag 模式仍可手输）
+const tmServices = ref<Record<string, TMService> | null>(null)
+const cmdTypeOptions = computed(() => {
+  const names = Object.keys(tmServices.value ?? {})
+  if (!names.includes('emergency:estop')) names.push('emergency:estop')
+  return names.map((name) => ({ label: name, value: name }))
+})
 const priorityOptions = computed(() => [
   { label: t('device.p0'), value: 0 },
   { label: t('device.p1'), value: 1 },

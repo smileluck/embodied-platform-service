@@ -1,6 +1,20 @@
 {
-  "generatedAt": "2026-10-11T03:38:18.806Z",
+  "generatedAt": "2026-10-11T09:16:58.245Z",
   "commits": [
+    {
+      "hash": "e19b7983d",
+      "date": "2026-10-11",
+      "type": "fix",
+      "scope": "web",
+      "message": "设备中心型号按名称显示（映射兜底 #id）+ 调试纪律教训晋升"
+    },
+    {
+      "hash": "6eb3fff8e",
+      "date": "2026-10-11",
+      "type": "fix",
+      "scope": "web",
+      "message": "首次访问不再误拼 reason=expired——无 token 干净落地登录页，会话失效提示一次性消费"
+    },
     {
       "hash": "3004a97ba",
       "date": "2026-10-10",
