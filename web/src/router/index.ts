@@ -58,8 +58,10 @@ router.beforeEach(async (to) => {
   if (to.path.startsWith('/tenant-portal')) {
     const store = useTenantUserStore()
     if (to.path === '/tenant-portal/login') return true
+    // 无 token（首次访问/已登出）：干净落地不带 reason——expired 仅在
+    // 「曾持有会话后失效」（加载上下文失败/刷新失败）时才有语义
     if (!store.accessToken) {
-      return tenantLoginRedirect()
+      return { path: '/tenant-portal/login', replace: true }
     }
     if (!store.contextLoaded) {
       try {
@@ -87,8 +89,10 @@ router.beforeEach(async (to) => {
   if (PUBLIC_PATHS.has(to.path)) {
     return true
   }
+  // 无 token（首次访问/已登出）：干净落地不带 reason——expired 仅在
+  // 「曾持有会话后失效」（加载菜单 401/刷新失败）时才有语义
   if (!userStore.accessToken) {
-    return loginRedirect()
+    return { path: '/login', replace: true }
   }
   if (!userStore.routesLoaded) {
     try {

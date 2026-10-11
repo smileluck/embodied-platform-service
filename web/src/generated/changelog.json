@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-10-10T08:27:17.598Z",
+  "generatedAt": "2026-10-11T03:38:18.806Z",
   "commits": [
+    {
+      "hash": "3004a97ba",
+      "date": "2026-10-10",
+      "type": "chore",
+      "scope": "web",
+      "message": "重新生成 changelog.json——补录 c727c6ed6 租户部门绑定级联清理"
+    },
     {
       "hash": "c727c6ed6",
       "date": "2026-10-10",

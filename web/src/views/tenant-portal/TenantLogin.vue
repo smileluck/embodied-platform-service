@@ -88,8 +88,10 @@ async function onLogin() {
 }
 
 onMounted(() => {
+  // 会话失效被踢回登录页；提示一次性消费后清掉 query，刷新不重复弹
   if (route.query.reason === 'expired') {
     message.warning(t('tenantPortal.login.sessionExpired'))
+    router.replace({ path: '/tenant-portal/login' })
   }
 })
 </script>

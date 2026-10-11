@@ -245,13 +245,16 @@ async function onLogin() {
 onMounted(() => {
   restoreRemembered()
   loadCaptcha()
-  // 会话失效被踢回登录页（平台侧吊销/被顶替/长期未活跃过期）
+  // 会话失效被踢回登录页（平台侧吊销/被顶替/长期未活跃过期）。
+  // 提示一次性消费后清掉 query，刷新/再次进入不重复弹
   if (route.query.reason === 'expired') {
     message.warning(t('login.sessionExpired'))
+    router.replace({ path: '/login' })
   }
   // 平台身份有效但本系统准入未开启：提示联系管理员开启
   if (route.query.reason === 'notAdmitted') {
     message.warning(t('login.notAdmitted'))
+    router.replace({ path: '/login' })
   }
 })
 </script>
