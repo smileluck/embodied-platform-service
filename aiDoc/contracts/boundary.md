@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-09 -->
+<!-- last-updated: 2026-10-12 -->
 # 契约层（boundary）
 
 > 本项目为 mixed：本文件维护三条契约边界——**web 前端 ↔ 本服务 API**、**本服务 ↔ 平台开放面（服务端 HMAC）**、**本服务 ↔ 平台认证公开 API（管理端登录代理）**。契约结构来自真实代码。
@@ -42,6 +42,13 @@
 
 - 全链路 **snake_case**（后端 json tag → 前端 `web/src/api/types.ts`），两侧不做任何风格转换
 - 前端提交对象统一深度去首尾空格：`web/src/api/request.ts`（`deepTrim`，密码/文件除外）
+
+### 时间字段输出与展示（2026-10-12 起）
+
+- 面向直显的字符串时间字段（VO 内 `created_at` 等）统一 `pkg/timex`（`yyyy-MM-dd HH:mm:ss`，零值输出空串），业务代码禁止散落格式字面量
+- 机器消费字段保持原样：token `expires_at` RFC3339、监控 `time`/`boot_time` unix 秒；后端已有 RFC3339 输出不改写为格式化字符串（丢时区且属大范围契约变更）
+- 前端一切时间戳展示统一 `formatDateTime`（`web/src/utils/datetime.ts`，对 RFC3339 与已格式化字符串均安全）；禁止 `slice+replace('T')` 手工截断、`toLocaleTimeString` 自造格式、裸显
+- 例外（不改）：图表轴刻度（HH:mm）、平台透传的格式化文本（如准入 `bound_at`）、数字千分位 `toLocaleString()`
 
 ### 关键类型桥接
 

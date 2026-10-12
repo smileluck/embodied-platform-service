@@ -7,6 +7,7 @@ import (
 
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
+	"github.com/smilex/smilex-admin-gin/pkg/timex"
 )
 
 type Service struct {
@@ -88,18 +89,11 @@ func (s *Service) toVO(b *bizblacklist.IPBlacklist) *BlacklistVO {
 	vo := &BlacklistVO{
 		ID: b.ID, IP: b.IP, Reason: b.Reason, Source: b.Source,
 		CreatorName: b.CreatorName,
-		CreatedAt:   formatTime(b.CreatedAt),
+		CreatedAt:   timex.Format(b.CreatedAt),
 	}
 	if b.ExpireAt != nil {
-		t := formatTime(*b.ExpireAt)
+		t := timex.Format(*b.ExpireAt)
 		vo.ExpireAt = &t
 	}
 	return vo
-}
-
-func formatTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format("2006-01-02 15:04:05")
 }

@@ -3,10 +3,10 @@ package log
 
 import (
 	"context"
-	"time"
 
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
+	"github.com/smilex/smilex-admin-gin/pkg/timex"
 )
 
 type Service struct {
@@ -65,7 +65,7 @@ func (s *Service) ListLoginLogs(ctx context.Context, q bizlog.LoginLogQuery, pag
 		vos = append(vos, &LoginLogVO{
 			ID: l.ID, Username: l.Username, IP: l.IP, UserAgent: l.UserAgent,
 			Device: l.Device, Status: l.Status, Msg: l.Msg,
-			CreatedAt: formatTime(l.CreatedAt),
+			CreatedAt: timex.Format(l.CreatedAt),
 		})
 	}
 	return vos, pg, nil
@@ -83,7 +83,7 @@ func (s *Service) ListOperationLogs(ctx context.Context, q bizlog.OperationLogQu
 			ID: o.ID, UserID: o.UserID, Username: o.Username, Method: o.Method,
 			Path: o.Path, Route: o.Route, Action: o.Action, Params: o.Params,
 			IP: o.IP, UserAgent: o.UserAgent, StatusCode: o.StatusCode,
-			LatencyMs: o.LatencyMs, CreatedAt: formatTime(o.CreatedAt),
+			LatencyMs: o.LatencyMs, CreatedAt: timex.Format(o.CreatedAt),
 		})
 	}
 	return vos, pg, nil
@@ -155,7 +155,7 @@ func (s *Service) ListTenantLoginLogs(ctx context.Context, q bizlog.TenantLoginL
 		vos = append(vos, &TenantLoginLogVO{
 			ID: l.ID, TenantID: l.TenantID, Username: l.Username, IP: l.IP,
 			UserAgent: l.UserAgent, Status: l.Status, Msg: l.Msg,
-			CreatedAt: formatTime(l.CreatedAt),
+			CreatedAt: timex.Format(l.CreatedAt),
 		})
 	}
 	return vos, pg, nil
@@ -173,7 +173,7 @@ func (s *Service) ListTenantOperationLogs(ctx context.Context, q bizlog.TenantOp
 			ID: o.ID, TenantID: o.TenantID, UserID: o.UserID, Username: o.Username,
 			Method: o.Method, Path: o.Path, Route: o.Route, Action: o.Action,
 			Params: o.Params, IP: o.IP, UserAgent: o.UserAgent, StatusCode: o.StatusCode,
-			LatencyMs: o.LatencyMs, CreatedAt: formatTime(o.CreatedAt),
+			LatencyMs: o.LatencyMs, CreatedAt: timex.Format(o.CreatedAt),
 		})
 	}
 	return vos, pg, nil
@@ -187,11 +187,4 @@ func (s *Service) ClearTenantLoginLogs(ctx context.Context) (int64, error) {
 // ClearTenantOperationLogs 清空租户门户操作日志，返回删除行数
 func (s *Service) ClearTenantOperationLogs(ctx context.Context) (int64, error) {
 	return s.uc.ClearTenantOperationLogs(ctx)
-}
-
-func formatTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format("2006-01-02 15:04:05")
 }

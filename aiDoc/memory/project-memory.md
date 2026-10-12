@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-11 -->
+<!-- last-updated: 2026-10-12 -->
 # 项目记忆索引
 
 ## 长期记忆
@@ -19,6 +19,7 @@
 - [business/2026-10-10-租户部门管理.md](business/2026-10-10-租户部门管理.md) — 租户内部数据隔离基础能力：本地部门树（tenant_depts）+ 用户多部门归属（tenant_user_dept_binds）+ 管理端部门页/分配/筛选；设备级隔离留二期
 - [business/2026-10-11-设备中心型号与状态显示修复.md](business/2026-10-11-设备中心型号与状态显示修复.md) — 设备中心型号列/详情按名称显示（前端映射，兜底 #id）；状态 i18n 复查为外部旧 dev server 占用 28170 所致
 - [business/2026-10-11-命令下发读取物模型服务.md](business/2026-10-11-命令下发读取物模型服务.md) — 设备详情命令下发类型下拉从硬编码急停改为：型号绑定物模型版本（pin）解析 services 生成 + 内置急停兜底 + tag 手输
+- [business/2026-10-12-全站时间格式统一.md](business/2026-10-12-全站时间格式统一.md) — 全站时间展示统一 yyyy-MM-dd HH:mm:ss：前端 12 文件收敛 formatDateTime + 后端 pkg/timex 单源；机器字段（RFC3339/unix 秒/图表轴）例外不动
 
 ## 经验记忆（lessons）
 
@@ -37,6 +38,7 @@
 - [lessons/2026-10-10-async-task-full-row-writeback.md](lessons/2026-10-10-async-task-full-row-writeback.md) — 异步任务收尾整行 Update 回写快照会覆盖执行期间并发的启停/编辑；只定向回写自己拥有的列
 - [lessons/2026-10-10-precedent-tradeoff-reuse.md](lessons/2026-10-10-precedent-tradeoff-reuse.md) — 沿用先例的「残留无害」结论要按新场景消费方重查：有计数/聚合消费的绑定残留即有形伤害，需级联清理
 - [lessons/2026-10-11-gui-smoke-admission-credential.md](lessons/2026-10-11-gui-smoke-admission-credential.md) — 管理端 GUI 冒烟凭据：admin 密码在平台 config（或播种日志）；「无权进入本系统」是准入 403 非密码错，阻塞时按 not-run 报告不反复试密
+- [lessons/2026-10-12-format-drift-no-mechanical-gate.md](lessons/2026-10-12-format-drift-no-mechanical-gate.md) — 格式化规则无机械闸门必漂移：formatDateTime 两轮漏网后晋升 rg 自查模式进 frontend-utils（promoted）
 
 ## 维护说明
 

@@ -8,6 +8,7 @@ import (
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
+	"github.com/smilex/smilex-admin-gin/pkg/timex"
 )
 
 // UserExporter 用户（准入投影）列表导出（复用准入仓储分页查询；查询条件与列表页一致）
@@ -60,7 +61,7 @@ func (e *UserExporter) Fetch(ctx context.Context, params url.Values, offset, lim
 			u.Nickname,
 			u.Email,
 			status,
-			u.CreatedAt.Format("2006-01-02 15:04:05"),
+			timex.Format(u.CreatedAt),
 		}
 		maskRow(cols, e.mask, row)
 		rows = append(rows, row)

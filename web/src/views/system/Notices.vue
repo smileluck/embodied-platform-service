@@ -79,6 +79,7 @@ import SearchCard from '../../components/SearchCard.vue'
 import { renderActions } from '../../utils/tableActions'
 import { usePagination } from '../../utils/pagination'
 import { useUserStore } from '../../stores/user'
+import { formatDateTime } from '../../utils/datetime'
 import { createNotice, deleteNotice, listNoticeRoleOptions, listNoticeUserOptions, listNotices, updateNotice } from '../../api'
 import type { NoticeInfo } from '../../api/types'
 
@@ -129,12 +130,12 @@ const columns = computed<DataTableColumns<NoticeInfo>>(() => [
     },
   },
   {
-    title: t('notice.publishAt'), key: 'publish_at', width: 150,
-    render: (row) => row.publish_at?.slice(0, 16).replace('T', ' ') ?? '—',
+    title: t('notice.publishAt'), key: 'publish_at', width: 170,
+    render: (row) => formatDateTime(row.publish_at) || '—',
   },
   {
-    title: t('notice.expireAt'), key: 'expire_at', width: 150,
-    render: (row) => (row.expire_at ? row.expire_at.slice(0, 16).replace('T', ' ') : t('notice.longTerm')),
+    title: t('notice.expireAt'), key: 'expire_at', width: 170,
+    render: (row) => formatDateTime(row.expire_at) || t('notice.longTerm'),
   },
   { title: t('notice.creator'), key: 'creator_name', width: 100 },
   {

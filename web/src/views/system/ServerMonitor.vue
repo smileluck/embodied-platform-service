@@ -135,6 +135,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NRadioButton, NRadioGroup } from 'naive-ui'
 import { isDarkRef } from '../../stores/theme'
+import { formatDateTime } from '../../utils/datetime'
 import { getMonitorHistory } from '../../api'
 import type { MonitorHistoryPoint } from '../../api/types'
 import { NButton, NCard, NSelect, useMessage } from 'naive-ui'
@@ -195,7 +196,7 @@ const swapText = computed(() => {
   return `${fmtBytes(m.swap_used)} / ${fmtBytes(m.swap_total)} (${m.swap_percent.toFixed(0)}%)`
 })
 const lastUpdateText = computed(() =>
-  status.value ? new Date(status.value.time * 1000).toLocaleTimeString() : '—')
+  status.value ? formatDateTime(status.value.time * 1000) : '—')
 const sortedNet = computed(() =>
   [...(status.value?.net || [])].sort((a, b) => (b.recv_rate + b.send_rate) - (a.recv_rate + a.send_rate)))
 const goItems = computed(() => {

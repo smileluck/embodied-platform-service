@@ -95,6 +95,7 @@ import SearchCard from '../../components/SearchCard.vue'
 import { renderActions } from '../../utils/tableActions'
 import { usePagination } from '../../utils/pagination'
 import { useUserStore } from '../../stores/user'
+import { formatDateTime } from '../../utils/datetime'
 import { createSkill, deleteSkill, listSkills, updateSkill } from '../../api'
 import type { SkillInfo } from '../../api/types'
 
@@ -135,8 +136,8 @@ const columns = computed<DataTableColumns<SkillInfo>>(() => [
       { default: () => (row.status === 1 ? t('common.enabled') : t('common.disabled')) }),
   },
   {
-    title: t('common.updateTime'), key: 'updated_at', width: 150,
-    render: (row) => row.updated_at?.slice(0, 16).replace('T', ' ') ?? '—',
+    title: t('common.updateTime'), key: 'updated_at', width: 170,
+    render: (row) => formatDateTime(row.updated_at) || '—',
   },
   {
     title: t('common.actions'), key: 'actions', width: 120,

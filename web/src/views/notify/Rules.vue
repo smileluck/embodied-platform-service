@@ -70,6 +70,7 @@ import { useI18n } from 'vue-i18n'
 import SearchCard from '../../components/SearchCard.vue'
 import { renderActions } from '../../utils/tableActions'
 import { useUserStore } from '../../stores/user'
+import { formatDateTime } from '../../utils/datetime'
 import { createNotifyRule, deleteNotifyRule, listNotifyChannels, listNotifyRules, updateNotifyRule } from '../../api'
 import type { NotifyRule } from '../../api/types'
 
@@ -147,8 +148,8 @@ const columns = computed<DataTableColumns<NotifyRule>>(() => [
       { default: () => row.status === 1 ? t('notify.rule.enabled') : t('notify.rule.disabled') }),
   },
   {
-    title: t('notify.rule.lastTriggered'), key: 'last_triggered_at', width: 150,
-    render: (row) => row.last_triggered_at ? row.last_triggered_at.slice(0, 19).replace('T', ' ') : t('notify.rule.never'),
+    title: t('notify.rule.lastTriggered'), key: 'last_triggered_at', width: 170,
+    render: (row) => formatDateTime(row.last_triggered_at) || t('notify.rule.never'),
   },
   {
     title: t('common.actions'), key: 'actions', width: 130,

@@ -118,7 +118,7 @@
                       <span v-if="!n.has_read" class="notice-item-flag">{{ t('layout.notice.new') }}</span>
                     </div>
                     <div v-if="expandedNotice === n.id" class="notice-item-body" v-html="renderNoticeBody(n.content)"></div>
-                    <div class="notice-item-time mono">{{ n.publish_at?.slice(0, 16).replace('T', ' ') }}</div>
+                    <div class="notice-item-time mono">{{ formatDateTime(n.publish_at) }}</div>
                   </div>
                 </div>
               </n-popover>
@@ -355,6 +355,7 @@ import {
 import { SearchOutline, DownloadOutline, LanguageOutline, NotificationsOutline, MoonOutline, SunnyOutline, SettingsOutline, ChevronBackOutline, ChevronForwardOutline, ChevronDownOutline } from '@vicons/ionicons5'
 import SiderToggleIcon from '../components/SiderToggleIcon.vue'
 import { useUserStore } from '../stores/user'
+import { formatDateTime } from '../utils/datetime'
 import { isDarkRef, mode as themeMode, setMode, toggleTheme } from '../stores/theme'
 import { showTabs, darkSider, narrowContent, siderWidth, SIDER_WIDTH_MIN, SIDER_WIDTH_MAX, setShowTabs, setDarkSider, setNarrowContent, setSiderWidth } from '../stores/settings'
 import { renderMenuIcon } from '../utils/menuIcon'

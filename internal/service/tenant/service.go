@@ -3,9 +3,9 @@ package tenant
 
 import (
 	"context"
-	"time"
 
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
+	"github.com/smilex/smilex-admin-gin/pkg/timex"
 )
 
 type Service struct {
@@ -56,7 +56,7 @@ func ToVO(t *biztenant.Tenant) *VO {
 		ID: t.ID, PlatformID: t.PlatformID, Name: t.Name, Code: t.Code,
 		ContactName: t.ContactName, ContactPhone: t.ContactPhone,
 		Remark: t.Remark, Status: int(t.Status),
-		CreatedAt: formatTime(t.CreatedAt), UpdatedAt: formatTime(t.UpdatedAt),
+		CreatedAt: timex.Format(t.CreatedAt), UpdatedAt: timex.Format(t.UpdatedAt),
 	}
 }
 
@@ -105,11 +105,4 @@ func (s *Service) SyncExisting(ctx context.Context, id uint) (*VO, error) {
 		return nil, err
 	}
 	return ToVO(t), nil
-}
-
-func formatTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format("2006-01-02 15:04:05")
 }

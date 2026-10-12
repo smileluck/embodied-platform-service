@@ -5,10 +5,10 @@ package tenantuser
 
 import (
 	"context"
-	"time"
 
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
+	"github.com/smilex/smilex-admin-gin/pkg/timex"
 )
 
 // TenantChecker 本地租户投影存在性检查最小接口（*biztenant.Usecase 满足，依赖倒置）
@@ -64,7 +64,7 @@ func (uc *RoleUsecase) toView(r *TenantRole) *TenantRoleView {
 	vo := &TenantRoleView{
 		ID: r.ID, TenantID: r.TenantID, Name: r.Name, Code: r.Code, Remark: r.Remark,
 		PermCodes: r.PermCodes,
-		CreatedAt: formatTime(r.CreatedAt), UpdatedAt: formatTime(r.UpdatedAt),
+		CreatedAt: timex.Format(r.CreatedAt), UpdatedAt: timex.Format(r.UpdatedAt),
 	}
 	if vo.PermCodes == nil {
 		vo.PermCodes = []string{}
@@ -186,12 +186,4 @@ func (uc *RoleUsecase) PermCatalog() []*PermDefView {
 		out = append(out, &PermDefView{Code: d.Code, Group: d.Group})
 	}
 	return out
-}
-
-// formatTime 视图时间格式（与管理台口径一致）
-func formatTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format("2006-01-02 15:04:05")
 }

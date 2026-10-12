@@ -8,6 +8,7 @@ import (
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
 	"github.com/smilex/smilex-admin-gin/pkg/i18n"
+	"github.com/smilex/smilex-admin-gin/pkg/timex"
 )
 
 // LoginLogExporter 登录日志导出（复用日志仓储；查询条件与列表页一致：username / ip / status / start / end）
@@ -65,7 +66,7 @@ func (e *LoginLogExporter) Fetch(ctx context.Context, params url.Values, offset,
 			l.Device,
 			status,
 			l.Msg,
-			l.CreatedAt.Format("2006-01-02 15:04:05"),
+			timex.Format(l.CreatedAt),
 		}
 		maskRow(cols, e.mask, row)
 		rows = append(rows, row)

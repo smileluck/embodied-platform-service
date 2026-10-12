@@ -89,6 +89,7 @@ import { useI18n } from 'vue-i18n'
 import SearchCard from '../../components/SearchCard.vue'
 import { renderActions } from '../../utils/tableActions'
 import { useUserStore } from '../../stores/user'
+import { formatDateTime } from '../../utils/datetime'
 import { createNotifyChannel, deleteNotifyChannel, listNotifyChannels, testNotifyChannel, updateNotifyChannel } from '../../api'
 import type { NotifyChannel, NotifyChannelType } from '../../api/types'
 
@@ -146,7 +147,7 @@ const columns = computed<DataTableColumns<NotifyChannel>>(() => [
     render: (row) => h(NTag, { size: 'small', bordered: false, type: row.status === 1 ? 'success' : 'default' },
       { default: () => row.status === 1 ? t('notify.channel.enabled') : t('notify.channel.disabled') }),
   },
-  { title: t('common.updateTime'), key: 'updated_at', width: 150, render: (row) => row.updated_at?.slice(0, 19).replace('T', ' ') ?? '—' },
+  { title: t('common.updateTime'), key: 'updated_at', width: 170, render: (row) => formatDateTime(row.updated_at) || '—' },
   {
     title: t('common.actions'), key: 'actions', width: 200,
     render: (row) => {

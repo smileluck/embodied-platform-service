@@ -14,6 +14,7 @@ import (
 	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
 	"github.com/smilex/smilex-admin-gin/pkg/security"
+	"github.com/smilex/smilex-admin-gin/pkg/timex"
 	"go.uber.org/zap"
 )
 
@@ -71,7 +72,7 @@ func NewUsecase(repo Repo, rdb *redis.Client, reader SnapshotReader, cfg *conf.B
 	// 事件订阅：Publish 是同步调用，回调只入队，不做 I/O
 	eventbus.Subscribe(TopicJobFailed, func(e eventbus.Event) {
 		if ev, ok := e.(job.FailedEvent); ok {
-			started := ev.StartedAt.Format("2006-01-02 15:04:05")
+			started := timex.Format(ev.StartedAt)
 			uc.enqueue(pendingAlert{
 				source: SourceJobFailed,
 				key:    fmt.Sprintf("job:%d", ev.JobID),
@@ -88,7 +89,7 @@ func NewUsecase(repo Repo, rdb *redis.Client, reader SnapshotReader, cfg *conf.B
 				key:    "ip:" + ev.IP,
 				title:  fmt.Sprintf("登录失败 IP 已自动封禁：%s", ev.IP),
 				content: fmt.Sprintf("- IP：`%s`\n- 连续登录失败：%d 次\n- 封禁时长：%s\n- 时间：%s",
-					ev.IP, ev.FailCount, ev.Duration, time.Now().Format("2006-01-02 15:04:05")),
+					ev.IP, ev.FailCount, ev.Duration, timex.Format(time.Now())),
 			})
 		}
 	})
@@ -168,7 +169,7 @@ func (uc *Usecase) evalMonitor() {
 				key:    "metric:" + string(r.Metric),
 				title:  fmt.Sprintf("监控指标越限：%s %.1f%% ≥ %.1f%%", MetricName(r.Metric), v, r.Threshold),
 				content: fmt.Sprintf("- 指标：%s\n- 当前值：**%.1f%%**\n- 阈值：%.1f%%\n- 采样时间：%s",
-					MetricName(r.Metric), v, r.Threshold, snap.Ts.Format("2006-01-02 15:04:05")),
+					MetricName(r.Metric), v, r.Threshold, timex.Format(snap.Ts)),
 				rule: r,
 			})
 		}

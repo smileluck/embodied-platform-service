@@ -4,9 +4,9 @@ package tenantdept
 
 import (
 	"context"
-	"time"
 
 	biztenant "github.com/smilex/smilex-admin-gin/internal/biz/tenant"
+	"github.com/smilex/smilex-admin-gin/pkg/timex"
 )
 
 // TenantChecker 本地租户投影存在性检查最小接口（*biztenant.Usecase 满足，依赖倒置；
@@ -47,16 +47,8 @@ func toView(d *TenantDept, memberCount int64) *DeptView {
 	return &DeptView{
 		ID: d.ID, TenantID: d.TenantID, ParentID: d.ParentID, Name: d.Name, Code: d.Code,
 		Sort: d.Sort, Remark: d.Remark, MemberCount: memberCount,
-		CreatedAt: formatTime(d.CreatedAt), UpdatedAt: formatTime(d.UpdatedAt),
+		CreatedAt: timex.Format(d.CreatedAt), UpdatedAt: timex.Format(d.UpdatedAt),
 	}
-}
-
-// formatTime 视图时间格式（与管理台口径一致）
-func formatTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format("2006-01-02 15:04:05")
 }
 
 // ListDepts 部门平表全量（含直属成员数；树形组装在前端按 parent_id 完成）

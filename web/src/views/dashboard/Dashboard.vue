@@ -41,6 +41,7 @@ import { useI18n } from 'vue-i18n'
 import { getDashboardStats } from '../../api'
 import type { DashboardStats } from '../../api/types'
 import { isDarkRef } from '../../stores/theme'
+import { formatDateTime } from '../../utils/datetime'
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -61,7 +62,7 @@ const columns = computed<DataTableColumns<DashboardStats['recent_logins'][number
   },
   {
     title: t('common.createTime'), key: 'created_at', width: 170,
-    render: (row) => row.created_at?.slice(0, 19).replace('T', ' ') ?? '—',
+    render: (row) => formatDateTime(row.created_at) || '—',
   },
 ])
 

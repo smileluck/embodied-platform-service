@@ -7,6 +7,7 @@ import (
 
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
+	"github.com/smilex/smilex-admin-gin/pkg/timex"
 )
 
 type Service struct {
@@ -35,10 +36,10 @@ func toVO(r *bizexport.ExportRecord) *RecordVO {
 	vo := &RecordVO{
 		ID: r.ID, Biz: r.Biz, Name: r.Name, Status: r.Status,
 		Size: r.Size, Rows: r.Rows, Truncated: r.Truncated, Error: r.Error,
-		CreatedAt: r.CreatedAt.Format("2006-01-02 15:04:05"),
+		CreatedAt: timex.Format(r.CreatedAt),
 	}
 	if r.FinishedAt != nil {
-		vo.FinishedAt = r.FinishedAt.Format("2006-01-02 15:04:05")
+		vo.FinishedAt = timex.Format(*r.FinishedAt)
 	}
 	return vo
 }

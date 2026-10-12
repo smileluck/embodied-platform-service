@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-03 -->
+<!-- last-updated: 2026-10-12 -->
 # 前端工具函数复用规则（frontend utils）
 
 > 先查现有工具，禁止重复造轮子。清单来自 `web/src/utils/` 真实导出。
@@ -13,7 +13,7 @@
 
 | 工具 | 位置 | 用途 |
 |---|---|---|
-| `formatDateTime` | `web/src/utils/datetime.ts` | 统一时间展示格式化 |
+| `formatDateTime` | `web/src/utils/datetime.ts` | 统一时间展示格式化（输出 `yyyy-MM-dd HH:mm:ss`；对 RFC3339 与已格式化字符串均安全） |
 | `saveBlob` / `parseDispositionFilename` | `web/src/utils/download.ts` | 文件下载落盘与 Content-Disposition 文件名解析 |
 | `renderMarkdown` | `web/src/utils/markdown.ts` | markdown 渲染（含复制按钮） |
 | `isImageIcon` / `resolveIcon` / `renderMenuIcon` | `web/src/utils/menuIcon.ts` | 菜单图标解析与渲染 |
@@ -31,7 +31,13 @@
 | 发起本服务请求 | `web/src/api/request.ts` 实例（禁止裸 axios/fetch） |
 | 调平台认证接口 | `web/src/api/platform.ts`（禁止走本服务实例） |
 | 列表页分页 | `usePagination` + 后端 `{list, page}` 信封 |
-| 时间展示 | `formatDateTime`（禁止各页面 toLocaleString 自造格式） |
+| 时间展示 | `formatDateTime`（禁止 toLocaleString / `slice+replace('T')` 手工截断 / 裸显后端时间字符串；例外：图表轴刻度 HH:mm 等非时间戳语义） |
+
+时间格式的机械自查（收尾时跑，零命中为过；例外清单见 `aiDoc/contracts/boundary.md`「时间字段输出与展示」）：
+
+```sh
+rg "slice\(0, 1[69]\)\.replace\('T'|toLocaleTimeString" web/src -g '!generated'
+```
 | 文件下载 | `saveBlob`（配 `parseDispositionFilename`） |
 | 表格操作列 | `renderActions` |
 | 菜单图标 | `renderMenuIcon` / `resolveIcon` |

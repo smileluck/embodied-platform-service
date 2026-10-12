@@ -62,6 +62,7 @@ import {
   listThingModelNodes, listThingModelVersions, updateDeviceModel,
 } from '../../api'
 import { usePagination } from '../../utils/pagination'
+import { formatDateTime } from '../../utils/datetime'
 import type { DeviceModel, TMNode, TMVersion } from '../../api/types'
 
 const { t } = useI18n()
@@ -102,7 +103,7 @@ const columns: DataTableColumns<DeviceModel> = [
     title: t('common.status'), key: 'status', width: 80,
     render: (row) => h(NTag, { type: row.status === 1 ? 'success' : 'error', size: 'small' }, { default: () => (row.status === 1 ? t('common.enabled') : t('common.disabled')) }),
   },
-  { title: t('common.createTime'), key: 'created_at', width: 160 },
+  { title: t('common.createTime'), key: 'created_at', width: 170, render: (row) => formatDateTime(row.created_at) },
   {
     title: t('common.operation'), key: 'actions', width: 130,
     render: (row) => {

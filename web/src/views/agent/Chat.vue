@@ -49,7 +49,7 @@
               @click="selectedConv = cv"
             >
               <div class="conv-title">{{ cv.title }}</div>
-              <div class="conv-meta mono">{{ fmtTime(cv.last_msg_at) }}</div>
+              <div class="conv-meta mono">{{ formatDateTime(cv.last_msg_at) }}</div>
               <div class="conv-ops">
                 <n-button size="tiny" quaternary @click.stop="openRename(cv)">{{ t('agent.chat.rename') }}</n-button>
                 <n-button size="tiny" quaternary type="error" @click.stop="confirmDelete(cv)">✕</n-button>
@@ -97,6 +97,7 @@ import {
   listAgentModels, listAgentProviders, listAgents, renameAgentConversation,
 } from '../../api'
 import type { AgentConversation, AgentInfo, AgentModel, AgentProvider } from '../../api/types'
+import { formatDateTime } from '../../utils/datetime'
 import { useUserStore } from '../../stores/user'
 
 const { t } = useI18n()
@@ -144,14 +145,6 @@ function modelLabel(a: AgentInfo): string {
   const m = modelById.value.get(a.model_id)
   if (!m) return '—'
   return `${providerName.value.get(m.provider_id) ?? ''} · ${m.display_name || m.name}`
-}
-
-function fmtTime(iso: string): string {
-  const d = new Date(iso)
-  const now = new Date()
-  const sameDay = d.toDateString() === now.toDateString()
-  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  return sameDay ? hm : `${d.getMonth() + 1}-${String(d.getDate()).padStart(2, '0')} ${hm}`
 }
 
 // 选中 Agent：加载其会话并自动选中最近一个（无会话则无状态模式，点新建后开始持久对话）

@@ -61,6 +61,7 @@ import SearchCard from '../../components/SearchCard.vue'
 import { renderActions } from '../../utils/tableActions'
 import { usePagination } from '../../utils/pagination'
 import { useUserStore } from '../../stores/user'
+import { formatDateTime } from '../../utils/datetime'
 import { createJob, deleteJob, listJobHandlers, listJobLogs, listJobs, runJobOnce, setJobStatus, updateJob } from '../../api'
 import type { JobHandler, JobInfo, JobLog } from '../../api/types'
 
@@ -86,8 +87,8 @@ const columns = computed<DataTableColumns<JobInfo>>(() => [
       { default: () => (row.status === 1 ? t('common.enabled') : t('common.disabled')) }),
   },
   {
-    title: t('job.lastRun'), key: 'last_run_at', width: 150,
-    render: (row) => (row.last_run_at ? row.last_run_at.slice(0, 19).replace('T', ' ') : '—'),
+    title: t('job.lastRun'), key: 'last_run_at', width: 170,
+    render: (row) => formatDateTime(row.last_run_at) || '—',
   },
   { title: t('common.remark'), key: 'remark', ellipsis: { tooltip: true } },
   {
@@ -224,7 +225,7 @@ const logColumns = computed<DataTableColumns<JobLog>>(() => [
       { default: () => (row.status === 'success' ? t('job.runSuccess') : t('job.runFailed')) }),
   },
   { title: t('job.duration'), key: 'duration_ms', width: 90, render: (row) => `${row.duration_ms}ms` },
-  { title: t('job.startedAt'), key: 'started_at', width: 150, render: (row) => row.started_at.slice(0, 19).replace('T', ' ') },
+  { title: t('job.startedAt'), key: 'started_at', width: 170, render: (row) => formatDateTime(row.started_at) },
   { title: t('job.output'), key: 'output', ellipsis: { tooltip: true } },
 ])
 

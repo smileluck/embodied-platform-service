@@ -8,6 +8,7 @@ import (
 
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
 	"github.com/smilex/smilex-admin-gin/internal/conf"
+	"github.com/smilex/smilex-admin-gin/pkg/timex"
 )
 
 // parseUnix 解析 unix 秒级时间戳查询参数（与日志列表页 start/end 入参一致；空/非法返回零值表示不限）
@@ -74,7 +75,7 @@ func (e *OpLogExporter) Fetch(ctx context.Context, params url.Values, offset, li
 			o.IP,
 			strconv.Itoa(o.StatusCode),
 			strconv.Itoa(o.LatencyMs),
-			o.CreatedAt.Format("2006-01-02 15:04:05"),
+			timex.Format(o.CreatedAt),
 		}
 		maskRow(cols, e.mask, row)
 		rows = append(rows, row)

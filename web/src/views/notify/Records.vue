@@ -23,7 +23,7 @@
       <n-tag size="small" :bordered="false" :type="detail?.status === 'sent' ? 'success' : 'error'">
         {{ detail?.status === 'sent' ? t('notify.record.sent') : t('notify.record.failed') }}
       </n-tag>
-      <span>{{ detail?.channel_name }} · {{ detail?.rule_name }} · {{ detail?.created_at?.slice(0, 19).replace('T', ' ') }} · {{ detail?.duration_ms }}ms</span>
+      <span>{{ detail?.channel_name }} · {{ detail?.rule_name }} · {{ formatDateTime(detail?.created_at) }} · {{ detail?.duration_ms }}ms</span>
     </div>
     <div v-if="detail?.error" class="detail-error">{{ detail.error }}</div>
     <div class="detail-body" v-html="renderedContent" />
@@ -41,6 +41,7 @@ import SearchCard from '../../components/SearchCard.vue'
 import { renderActions } from '../../utils/tableActions'
 import { usePagination } from '../../utils/pagination'
 import { useUserStore } from '../../stores/user'
+import { formatDateTime } from '../../utils/datetime'
 import { clearNotifyRecords, listNotifyChannels, listNotifyRecords } from '../../api'
 import type { NotifyRecord } from '../../api/types'
 import { renderMarkdown } from '../../utils/markdown'
@@ -87,7 +88,7 @@ const statusFilterOptions = computed(() => [
 ])
 
 const columns = computed<DataTableColumns<NotifyRecord>>(() => [
-  { title: t('notify.record.time'), key: 'created_at', width: 150, render: (row) => row.created_at?.slice(0, 19).replace('T', ' ') ?? '—' },
+  { title: t('notify.record.time'), key: 'created_at', width: 170, render: (row) => formatDateTime(row.created_at) || '—' },
   {
     title: t('notify.record.channel'), key: 'channel_name', width: 150, ellipsis: { tooltip: true },
     render: (row) => `${row.channel_name}（${channelTypeLabel(row.channel_type)}）`,
