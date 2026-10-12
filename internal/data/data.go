@@ -409,6 +409,7 @@ var systemButtonPerms = []systemButtonPermDef{
 	{Name: "查询事件", Code: "device:dataEvent", Menu: "menu:device", Method: "GET", Path: "/api/v1/devices/*/data-events", Sort: 7},
 	{Name: "下发命令", Code: "device:commandIssue", Menu: "menu:device", Method: "POST", Path: "/api/v1/devices/*/commands", Sort: 8},
 	{Name: "命令详情", Code: "device:commandGet", Menu: "menu:device", Method: "GET", Path: "/api/v1/device-commands/*", Sort: 9},
+	{Name: "绑定租户", Code: "device:bind", Menu: "menu:device", Method: "PUT", Path: "/api/v1/devices/*/tenant", Sort: 10},
 	// 型号管理（管理面代理）
 	{Name: "查询型号", Code: "model:list", Menu: "menu:deviceModel", Method: "GET", Path: "/api/v1/device-models", Sort: 1},
 	{Name: "型号详情", Code: "model:view", Menu: "menu:deviceModel", Method: "GET", Path: "/api/v1/device-models/*", Sort: 2},

@@ -59,6 +59,7 @@
 
 - 本服务 API：`Authorization: Bearer <平台 access_token>`；语言 `Accept-Language`（响应 msg 与菜单名均本地化）
 - 路由分档（`internal/server/router.go:registerRoutes`）：basic（PlatformAuth，本人数据）→ protected（PlatformAuth+RBAC，默认拒绝）；App 面 `/app-api/v1/*`（AppAuth+租户闸门）与租户门户 `/tenant-api/v1/*`（TenantAuth+本地租户闸门）各自独立分档（见下两节）
+- 设备改绑租户（2026-10-12 起）：`PUT /api/v1/devices/:id/tenant`（protected+RBAC，权限点 `device:bind`，种子 `PUT /api/v1/devices/*/tenant`），body `{tenant_id}`=平台租户 ID；代理平台开放面（见下节）
 
 ## web-api 变体：App 面 HTTP 契约（C 端 App ↔ 本服务 `/app-api/v1`）
 
@@ -87,6 +88,7 @@
 - 调用经 `internal/platformsdk/client.go:Client`（HMAC 签名 `signer.go`；直连 `/open-api/v1`，经网关 `/gw/open-api/v1`，签名按实际完整 path）；业务封装在 `internal/data/platform/`（设备/租户/型号同步、storage-gateway）
 - 平台信封同为 `{code,msg,data}`，`code!=0` 报错；`cmd/server/main.go:checkPlatform` 启动时异步自检连通性
 - `ListDevices` 支持可选 `tenant_id` 单租户过滤（平台租户 ID，⊆ 商户绑定租户集，越界 403）——租户端设备列表依赖此参数（2026-10-08 起，双侧已同步）
+- 设备改绑租户（2026-10-12 起，双侧同步）：平台 `PUT /open-api/v1/devices/:id/tenant`（scope `device:bind-tenant`），body `{tenant_id}`=平台租户 ID，须在商户绑定租户集内否则 403（`ErrTenantNotInScope`）；设备不在本商户数据范围（含他商户独立型号下设备）404；改绑成功后设备 `merchant_id` 快照由平台同步刷新。本服务经 `Client.BindDeviceTenant` 代理为 `PUT /api/v1/devices/:id/tenant`（RBAC `device:bind`），biz `Usecase.BindTenant` 复用注册链口径（本地租户已同步且启用校验 + 平台 403 时 RelinkByPlatformID 补链重试一次）。**存量商户需在平台管理端为 appKey 补勾 `device:bind-tenant` scope**，否则开放面 403
 - 型号/物模型商户归属收敛（2026-10-08 起，跟随平台 `bdd1c9b9`）：`DeviceModel`/`TMNode` 带 `merchant_id`（0=通用 / >0=商户独立）；型号读=通用+本商户，创建 merchant_id 平台注入，**更新/删除仅本商户独立型号（通用/他商户统一 404，本服务 DeleteModel 不再幂等放行 404）**；物模型节点选择器同口径收敛；设备查询叠加型号可见性（他商户独立型号下设备列表过滤、子资源 404），设备注册 `model_id` 须对商户可见（否则 404）
 - 数据映射域（2026-10-09 起，平台 `/open-api/v1/data-mappings*`，scope `mapping:*`）：15 端点全量代理到本服务 `/api/v1/data-mappings*`（biz `MappingGateway` ← data `MappingGatewayAdapter` 纯透传，无本地表）；同口径商户收敛（读=通用+本商户、写仅本商户独立 404、创建 merchant_id 平台注入）；版本管理=单草稿制 + 发布不可变 + 追加式回滚（`publish=true` 一步回退）；`GET /data-mappings/effective?model_id=` 无已发布版本返回 `data: null`（非错误）；平台信封错误经 `platformErr`（内聚 SDK 错误归一）按状态码透传
 - 物模型写面（2026-10-09 起，平台 `/open-api/v1/thing-models*` 写端点，scope `thing-model:write`；读仍 `thing-model:read`）：13 端点代理到本服务 `/api/v1/thing-models*`（节点 CRUD + 版本 draft/publish/rollback/delete + `GET /:id/resolve?version_id=` 解析结果 + `GET /:id/inheritance-status` 继承滞后检测）；同口径商户收敛（通用节点只读，写仅本商户独立 404，创建 merchant_id 平台注入）；版本语义同数据映射（单草稿制、发布不可变、追加式回滚 `publish=true` 一步回退）；`TMSchema` 为 map 结构（要素名为主键，含 properties/services/events 三段），本服务 `TMSchemaUpdateRequest.Schema` binding required、原样透传；错误经 `platformErr` 透传平台 msg

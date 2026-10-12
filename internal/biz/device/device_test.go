@@ -9,9 +9,11 @@ import (
 	"github.com/smilex/smilex-admin-gin/internal/platformsdk"
 )
 
-// fakeGateway 平台设备网关假实现：第一次 Register 返回 403（租户不在绑定集），重试成功
+// fakeGateway 平台设备网关假实现：第一次 Register/BindDeviceTenant 返回 firstErr
+// （如 403 租户不在绑定集），重试成功
 type fakeGateway struct {
 	registerCalls []uint // 记录每次注册的 TenantID
+	bindCalls     []uint // 记录每次改绑的 TenantID
 	dev           *platformsdk.Device
 	firstErr      error
 }
@@ -25,6 +27,13 @@ func (f *fakeGateway) GetDevice(ctx context.Context, id uint) (*platformsdk.Devi
 func (f *fakeGateway) RegisterDevice(ctx context.Context, req platformsdk.RegisterDeviceRequest) (*platformsdk.Device, error) {
 	f.registerCalls = append(f.registerCalls, req.TenantID)
 	if len(f.registerCalls) == 1 && f.firstErr != nil {
+		return nil, f.firstErr
+	}
+	return f.dev, nil
+}
+func (f *fakeGateway) BindDeviceTenant(ctx context.Context, id uint, req platformsdk.BindDeviceTenantRequest) (*platformsdk.Device, error) {
+	f.bindCalls = append(f.bindCalls, req.TenantID)
+	if len(f.bindCalls) == 1 && f.firstErr != nil {
 		return nil, f.firstErr
 	}
 	return f.dev, nil
@@ -119,5 +128,40 @@ func TestRegister_RelinkFailPropagates(t *testing.T) {
 	var se *platformsdk.Error
 	if !errors.As(err, &se) || se.HTTPStatus != http.StatusForbidden {
 		t.Fatalf("应透传原始 403, got %v", err)
+	}
+}
+
+// TestBindTenant_RelinkRetryOn403 改绑与注册同口径：平台 403 → 补链重建后带新平台租户 ID 重试成功
+func TestBindTenant_RelinkRetryOn403(t *testing.T) {
+	gw := &fakeGateway{firstErr: &platformsdk.Error{HTTPStatus: http.StatusForbidden, Msg: "租户不在商户绑定范围内"}, dev: &platformsdk.Device{ID: 7, TenantID: 99}}
+	relinker := &fakeRelinker{newPID: 99}
+	uc := NewUsecase(gw, &fakeTenants{available: map[uint]bool{55: true}}, relinker)
+
+	dev, err := uc.BindTenant(context.Background(), 7, 55)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dev.TenantID != 99 {
+		t.Fatalf("重试应成功返回改绑后设备, got %+v", dev)
+	}
+	if len(relinker.calledWith) != 1 || relinker.calledWith[0] != 55 {
+		t.Fatalf("应按原平台租户 ID 补链: %v", relinker.calledWith)
+	}
+	if len(gw.bindCalls) != 2 || gw.bindCalls[1] != 99 {
+		t.Fatalf("重试应使用补链后的新租户 ID: %v", gw.bindCalls)
+	}
+}
+
+// TestBindTenant_TenantNotSynced 本地租户未同步/停用直接 400 哨兵，不调平台
+func TestBindTenant_TenantNotSynced(t *testing.T) {
+	gw := &fakeGateway{}
+	uc := NewUsecase(gw, &fakeTenants{available: map[uint]bool{}}, nil)
+
+	_, err := uc.BindTenant(context.Background(), 7, 55)
+	if !errors.Is(err, ErrTenantNotSynced) {
+		t.Fatalf("应返回 ErrTenantNotSynced, got %v", err)
+	}
+	if len(gw.bindCalls) != 0 {
+		t.Fatal("本地校验失败不应调平台")
 	}
 }

@@ -11,6 +11,7 @@ const (
 	ScopeDeviceList         = "device:list"
 	ScopeDeviceGet          = "device:get"
 	ScopeDeviceRegister     = "device:register"
+	ScopeDeviceBindTenant   = "device:bind-tenant"
 	ScopeDeviceShadowRead   = "device:shadow:read"
 	ScopeDeviceCommandList  = "device:command:list"
 	ScopeDeviceCommandIssue = "device:command:issue"
@@ -71,6 +72,12 @@ type RegisterDeviceRequest struct {
 	HardwareVersion string            `json:"hardware_version,omitempty"`
 	ServiceVersions map[string]string `json:"service_versions,omitempty"`
 	Transport       string            `json:"transport,omitempty"` // socket | mqtt（空=跟随平台默认）
+}
+
+// BindDeviceTenantRequest 设备改绑租户入参（tenant_id 须在商户绑定租户集内，否则 403；
+// 设备不在本商户数据范围内 404；改绑后 merchant_id 快照由平台同步刷新）
+type BindDeviceTenantRequest struct {
+	TenantID uint `json:"tenant_id"`
 }
 
 // Shadow 设备影子（desired 平台下发 / reported 设备回报，均为 JSON 文本）
@@ -549,4 +556,3 @@ type TenantUserUpdateRequest struct {
 	Email    *string `json:"email,omitempty"`
 	Status   *int    `json:"status,omitempty"`
 }
-

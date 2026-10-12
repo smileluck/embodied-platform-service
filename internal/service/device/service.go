@@ -54,6 +54,15 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*platforms
 	})
 }
 
+// BindTenantRequest 设备改绑租户入参（TenantID 为本地租户同步而得的平台租户 ID）
+type BindTenantRequest struct {
+	TenantID uint `json:"tenant_id" binding:"required"`
+}
+
+func (s *Service) BindTenant(ctx context.Context, id uint, req BindTenantRequest) (*platformsdk.Device, error) {
+	return s.uc.BindTenant(ctx, id, req.TenantID)
+}
+
 func (s *Service) Get(ctx context.Context, id uint) (*platformsdk.Device, error) {
 	return s.uc.Get(ctx, id)
 }

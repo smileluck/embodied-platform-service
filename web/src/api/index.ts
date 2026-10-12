@@ -244,6 +244,9 @@ export const registerDevice = (data: {
   sn: string; name: string; model_id?: number; tenant_id: number
   firmware_version?: string; hardware_version?: string; transport?: string
 }) => request.post<R<Device>>('/devices', data)
+// 改绑租户：tenant_id 为平台租户 ID（须在商户绑定租户集内）
+export const bindDeviceTenant = (id: number, tenant_id: number) =>
+  request.put<R<Device>>(`/devices/${id}/tenant`, { tenant_id })
 export const getDevice = (id: number) => request.get<R<Device>>(`/devices/${id}`)
 export const getDeviceShadow = (id: number) => request.get<R<DeviceShadow>>(`/devices/${id}/shadow`)
 export const listDeviceCommands = (id: number, params: { page: number; page_size: number; status?: string }) =>

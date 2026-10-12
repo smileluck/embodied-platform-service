@@ -29,6 +29,10 @@ func (a *GatewayAdapter) RegisterDevice(ctx context.Context, req platformsdk.Reg
 	return a.client.RegisterDevice(ctx, req)
 }
 
+func (a *GatewayAdapter) BindDeviceTenant(ctx context.Context, id uint, req platformsdk.BindDeviceTenantRequest) (*platformsdk.Device, error) {
+	return a.client.BindDeviceTenant(ctx, id, req)
+}
+
 func (a *GatewayAdapter) GetShadow(ctx context.Context, deviceID uint) (*platformsdk.Shadow, error) {
 	return a.client.GetShadow(ctx, deviceID)
 }

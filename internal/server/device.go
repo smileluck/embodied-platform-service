@@ -40,6 +40,24 @@ func (s *HTTPServer) registerDevice(c *gin.Context) {
 	response.OK(c, dev)
 }
 
+func (s *HTTPServer) bindDeviceTenant(c *gin.Context) {
+	id, ok := idParam(c)
+	if !ok {
+		return
+	}
+	var req devicesvc.BindTenantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
+		return
+	}
+	dev, err := s.device.BindTenant(c.Request.Context(), id, req)
+	if err != nil {
+		s.deviceErr(c, err)
+		return
+	}
+	response.OK(c, dev)
+}
+
 func (s *HTTPServer) getDevice(c *gin.Context) {
 	id, ok := idParam(c)
 	if !ok {

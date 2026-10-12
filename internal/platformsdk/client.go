@@ -237,6 +237,17 @@ func (c *Client) RegisterDevice(ctx context.Context, req RegisterDeviceRequest) 
 	return &out, nil
 }
 
+// BindDeviceTenant 设备改绑租户（tenant_id 须在商户绑定租户集内，否则 403；
+// 设备不在本商户数据范围内 404；返回改绑后的设备）
+func (c *Client) BindDeviceTenant(ctx context.Context, id uint, req BindDeviceTenantRequest) (*Device, error) {
+	var out Device
+	path := "/devices/" + strconv.FormatUint(uint64(id), 10) + "/tenant"
+	if err := c.do(ctx, http.MethodPut, path, nil, req, &out, nil); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // GetShadow 设备影子
 func (c *Client) GetShadow(ctx context.Context, deviceID uint) (*Shadow, error) {
 	var out Shadow

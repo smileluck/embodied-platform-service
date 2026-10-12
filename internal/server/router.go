@@ -673,6 +673,7 @@ func (s *HTTPServer) registerRoutes() {
 		devices.GET("", s.listDevices)
 		devices.POST("", s.registerDevice)
 		devices.GET("/:id", s.getDevice)
+		devices.PUT("/:id/tenant", s.bindDeviceTenant)
 		devices.GET("/:id/shadow", s.getDeviceShadow)
 		devices.GET("/:id/commands", s.listDeviceCommands)
 		devices.POST("/:id/commands", s.issueDeviceCommand)

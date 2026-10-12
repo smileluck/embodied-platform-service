@@ -41,6 +41,19 @@
       <n-button type="primary" :loading="saving" @click="save">{{ t('common.confirm') }}</n-button>
     </template>
   </n-modal>
+
+  <!-- 改绑租户 -->
+  <n-modal v-model:show="showBind" preset="dialog" :title="t('device.bindTenant')" style="width: 420px">
+    <n-form ref="bindFormRef" :model="bindForm" :rules="bindRules" label-placement="left" label-width="110">
+      <n-form-item :label="t('device.tenant')" path="tenant_id">
+        <n-select v-model:value="bindForm.tenant_id" :options="tenantOptions" filterable :placeholder="t('device.tenantPlaceholder')" />
+      </n-form-item>
+    </n-form>
+    <template #action>
+      <n-button @click="showBind = false">{{ t('common.cancel') }}</n-button>
+      <n-button type="primary" :loading="saving" @click="saveBind">{{ t('common.confirm') }}</n-button>
+    </template>
+  </n-modal>
 </template>
 
 <script setup lang="ts">
@@ -50,7 +63,7 @@ import { NCard, NInput, NButton, NDataTable, NModal, NForm, NFormItem, NSelect, 
 import { renderActions, type TableAction } from '../../utils/tableActions'
 import SearchCard from '../../components/SearchCard.vue'
 import { useI18n } from 'vue-i18n'
-import { listDeviceModels, listDevices, listTenants, registerDevice } from '../../api'
+import { listDeviceModels, listDevices, listTenants, registerDevice, bindDeviceTenant } from '../../api'
 import { usePagination } from '../../utils/pagination'
 import { formatDateTime } from '../../utils/datetime'
 import type { Device } from '../../api/types'
@@ -72,6 +85,9 @@ const modelOptions = ref<{ label: string; value: number }[]>([])
 const modelNameMap = ref<Record<number, string>>({})
 const modelName = (id: number) => modelNameMap.value[id] ?? `#${id}`
 const tenantOptions = ref<{ label: string; value: number }[]>([])
+// 平台租户 ID → 名称映射：列表列按名称展示，未命中兜底 #id（含已禁用租户，故下拉与映射共用同一份全量列表）
+const tenantNameMap = ref<Record<number, string>>({})
+const tenantName = (id: number) => tenantNameMap.value[id] ?? `#${id}`
 
 const statusOptions = [
   { label: t('device.statusInactive'), value: 'inactive' },
@@ -98,6 +114,7 @@ const columns: DataTableColumns<Device> = [
   { title: t('device.sn'), key: 'sn', width: 160, ellipsis: { tooltip: true }, render: (row) => h('span', { class: 'mono-cell' }, row.sn) },
   { title: t('device.name'), key: 'name', minWidth: 120, ellipsis: { tooltip: true } },
   { title: t('device.model'), key: 'model_id', width: 140, ellipsis: { tooltip: true }, render: (row) => modelName(row.model_id) },
+  { title: t('device.tenant'), key: 'tenant_id', width: 170, ellipsis: { tooltip: true }, render: (row) => (row.tenant_id ? tenantName(row.tenant_id) : '—') },
   {
     title: t('device.online'), key: 'online', width: 110,
     // 状态灯语（.sx-led 定义于 tokens.css）：在线=信号绿、离线=空心点
@@ -110,10 +127,11 @@ const columns: DataTableColumns<Device> = [
   { title: t('device.transportCol'), key: 'transport', width: 90, render: (row) => row.transport || '—' },
   { title: t('device.lastSeen'), key: 'last_seen_at', width: 160, render: (row) => formatDateTime(row.last_seen_at) || '—' },
   {
-    title: t('common.operation'), key: 'actions', width: 90,
+    title: t('common.operation'), key: 'actions', width: 140,
     render: (row) =>
       renderActions([
         { label: t('common.detail'), accent: true, permission: 'device:view', onClick: () => router.push(`/device/devices/${row.id}`) },
+        { label: t('device.bindTenant'), permission: 'device:bind', onClick: () => openBind(row) },
       ]),
   },
 ]
@@ -187,6 +205,40 @@ async function save() {
   }
 }
 
+// ---- 改绑租户 ----
+const showBind = ref(false)
+const bindFormRef = ref<FormInst | null>(null)
+const bindForm = reactive({ id: 0, tenant_id: null as number | null })
+
+const bindRules: FormRules = {
+  tenant_id: [{ required: true, type: 'number', message: t('device.tenantRequired'), trigger: ['blur', 'change'] }],
+}
+
+function openBind(row: Device) {
+  bindForm.id = row.id
+  bindForm.tenant_id = row.tenant_id || null
+  showBind.value = true
+}
+
+async function saveBind() {
+  try {
+    await bindFormRef.value?.validate()
+  } catch {
+    return
+  }
+  saving.value = true
+  try {
+    await bindDeviceTenant(bindForm.id, bindForm.tenant_id!)
+    message.success(t('device.bindTenantSuccess'))
+    showBind.value = false
+    load()
+  } catch (e: any) {
+    message.error(e?.response?.data?.msg || t('device.bindTenantFailed'))
+  } finally {
+    saving.value = false
+  }
+}
+
 onMounted(async () => {
   load()
   // 型号全量（含禁用态：列表列按名称显示需覆盖存量设备）+ 本地已同步租户下拉
@@ -199,10 +251,12 @@ onMounted(async () => {
   } catch { /* 下拉加载失败不阻断列表 */
   }
   try {
-    const { data: resp } = await listTenants({ page: 1, page_size: 100, status: 1 })
-    tenantOptions.value = (resp.data.list || [])
-      .filter((tn) => tn.platform_id > 0) // 仅已同步租户可注册设备
-      .map((tn) => ({ label: `${tn.name}（${tn.code}）`, value: tn.platform_id }))
+    // 租户全量（含禁用态：列表列按名称显示需覆盖存量设备绑定的租户）
+    const { data: resp } = await listTenants({ page: 1, page_size: 100 })
+    const tenants = (resp.data.list || []).filter((tn) => tn.platform_id > 0) // 仅已同步租户有平台口径
+    // 下拉仅启用态（注册/改绑语义不变）；名称映射含禁用态以覆盖存量设备
+    tenantOptions.value = tenants.filter((tn) => tn.status === 1).map((tn) => ({ label: `${tn.name}（${tn.code}）`, value: tn.platform_id }))
+    tenantNameMap.value = Object.fromEntries(tenants.map((tn) => [tn.platform_id, `${tn.name}（${tn.code}）`]))
   } catch { /* 同上 */ }
 })
 </script>

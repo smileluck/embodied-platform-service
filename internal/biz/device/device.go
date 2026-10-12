@@ -37,6 +37,7 @@ type Gateway interface {
 	ListDevices(ctx context.Context, page, pageSize int, filter platformsdk.DeviceFilter) ([]*platformsdk.Device, *platformsdk.Page, error)
 	GetDevice(ctx context.Context, id uint) (*platformsdk.Device, error)
 	RegisterDevice(ctx context.Context, req platformsdk.RegisterDeviceRequest) (*platformsdk.Device, error)
+	BindDeviceTenant(ctx context.Context, id uint, req platformsdk.BindDeviceTenantRequest) (*platformsdk.Device, error)
 	GetShadow(ctx context.Context, deviceID uint) (*platformsdk.Shadow, error)
 	IssueCommand(ctx context.Context, deviceID uint, req platformsdk.IssueCommandRequest) (*platformsdk.Command, error)
 	ListDeviceCommands(ctx context.Context, deviceID uint, status string, page, pageSize int) ([]*platformsdk.Command, *platformsdk.Page, error)
@@ -86,6 +87,28 @@ func (uc *Usecase) Register(ctx context.Context, req platformsdk.RegisterDeviceR
 	}
 	req.TenantID = newPID
 	return uc.gw.RegisterDevice(ctx, req)
+}
+
+// BindTenant 设备改绑租户：本地校验与 403 补链重试策略同 Register
+// （租户须本地已同步且启用；平台租户悬挂时 RelinkByPlatformID 补链后重试一次）
+func (uc *Usecase) BindTenant(ctx context.Context, id, tenantID uint) (*platformsdk.Device, error) {
+	ok, err := uc.tenants.TenantAvailable(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrTenantNotSynced
+	}
+	req := platformsdk.BindDeviceTenantRequest{TenantID: tenantID}
+	dev, err := uc.gw.BindDeviceTenant(ctx, id, req)
+	if err == nil || uc.relinker == nil || !isForbidden(err) {
+		return dev, err
+	}
+	newPID, rerr := uc.relinker.RelinkByPlatformID(ctx, tenantID)
+	if rerr != nil {
+		return nil, err // 补链失败：原错误透传
+	}
+	return uc.gw.BindDeviceTenant(ctx, id, platformsdk.BindDeviceTenantRequest{TenantID: newPID})
 }
 
 // isForbidden 平台开放面 403（租户不在商户绑定集 / scope 拒绝）
