@@ -1,5 +1,5 @@
-<!-- last-updated: 2026-10-11 -->
-<!-- lesson-meta: status=promoted count=2 post=0 target=aiDoc/relations/development-workflow.md -->
+<!-- last-updated: 2026-10-12 -->
+<!-- lesson-meta: status=promoted count=3 post=1 target=aiDoc/relations/development-workflow.md -->
 # 调试二进制占用 dev 端口导致 air 热重载静默失效
 
 ## 情境
@@ -20,7 +20,7 @@
 
 ## 出现次数
 
-2（2026-10-09，数据映射「未授权」排查中发现：3 个 server-verify 残留 + bin/server 悬挂 + air wedge；2026-10-11，设备中心「改了不生效」排查中发现：28170 被另一目录 `wujie-embodied-ego-platform/web` 的 vite 占用，用户一直看旧前端——同族模式从前端 dev server 方向复发，监听者身份不核对就会误诊为代码缺陷）
+3（2026-10-09，数据映射「未授权」排查中发现：3 个 server-verify 残留 + bin/server 悬挂 + air wedge；2026-10-11，设备中心「改了不生效」排查中发现：28170 被另一目录 `wujie-embodied-ego-platform/web` 的 vite 占用，用户一直看旧前端——同族模式从前端 dev server 方向复发，监听者身份不核对就会误诊为代码缺陷；2026-10-12，设备状态 i18n「裸英文」与登录页默认用户名两处反馈再查：28170 仍被同一旧目录 vite（PID 82272）占用，**且 28180 也被旧目录后端二进制 `bin/server`（PID 82624，cwd=旧目录）占用**——两个标准端口同时被旧副本占据，用户看到的全是旧副本；旧代码 `Devices.vue:104` 状态列确为 `row.status` 裸渲染、登录页确有 admin 硬编码，本仓代码与数据均正确。独立端口 38180 起本仓临时实例才完成真实验证——同一假象第三次出现，且从「前端端口」扩展到「前后端口双占」）
 
 ## 状态
 
@@ -32,7 +32,7 @@ promoted
 
 ## 晋升后复发
 
-0
+1（2026-10-12：28170 仍被 `wujie-embodied-ego-platform/web` 旧 vite 占用、**28180 同时被旧目录 `bin/server` 占用**（前后端口双占），用户看旧前端反馈「设备状态 i18n 裸英文」——旧目录 `Devices.vue:104` 确为 `row.status` 裸渲染，本仓无缺陷；本仓验证需独立端口临时实例）
 
 ## 记录日期
 

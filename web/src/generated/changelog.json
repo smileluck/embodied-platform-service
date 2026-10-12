@@ -1,6 +1,20 @@
 {
-  "generatedAt": "2026-10-11T09:16:58.245Z",
+  "generatedAt": "2026-10-12T03:38:35.548Z",
   "commits": [
+    {
+      "hash": "ca8d8dd94",
+      "date": "2026-10-12",
+      "type": "feat",
+      "scope": "",
+      "message": "全站时间展示统一 yyyy-MM-dd HH:mm:ss——前端 formatDateTime 收口 + 后端 pkg/timex 格式串单源"
+    },
+    {
+      "hash": "d1f63953a",
+      "date": "2026-10-11",
+      "type": "fix",
+      "scope": "web",
+      "message": "设备详情命令下发读取物模型服务——选项按型号绑定版本解析生成，急停兜底 + tag 手输"
+    },
     {
       "hash": "e19b7983d",
       "date": "2026-10-11",

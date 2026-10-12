@@ -128,7 +128,7 @@ function onLocaleChange(key: string | number) {
 }
 const formRef = ref<FormInst | null>(null)
 const loading = ref(false)
-const form = reactive({ username: 'admin', password: '', captchaCode: '' })
+const form = reactive({ username: '', password: '', captchaCode: '' })
 // 服务端 auth.captchaEnabled=false 时隐藏验证码表单并跳过其校验
 const captchaEnabled = ref(true)
 const rules = computed(() => ({

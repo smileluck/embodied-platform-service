@@ -20,6 +20,8 @@
 - [business/2026-10-11-设备中心型号与状态显示修复.md](business/2026-10-11-设备中心型号与状态显示修复.md) — 设备中心型号列/详情按名称显示（前端映射，兜底 #id）；状态 i18n 复查为外部旧 dev server 占用 28170 所致
 - [business/2026-10-11-命令下发读取物模型服务.md](business/2026-10-11-命令下发读取物模型服务.md) — 设备详情命令下发类型下拉从硬编码急停改为：型号绑定物模型版本（pin）解析 services 生成 + 内置急停兜底 + tag 手输
 - [business/2026-10-12-全站时间格式统一.md](business/2026-10-12-全站时间格式统一.md) — 全站时间展示统一 yyyy-MM-dd HH:mm:ss：前端 12 文件收敛 formatDateTime + 后端 pkg/timex 单源；机器字段（RFC3339/unix 秒/图表轴）例外不动
+- [business/2026-10-12-设备列表绑定租户.md](business/2026-10-12-设备列表绑定租户.md) — 设备改绑租户：平台开放面 PUT /devices/:id/tenant（scope device:bind-tenant）+ 本仓代理链（RBAC device:bind）+ 设备列表操作列改绑弹窗；同日补充设备列表「租户」列名称映射显示
+- [business/2026-10-12-登录页默认用户名.md](business/2026-10-12-登录页默认用户名.md) — 登录页用户名不再默认填 admin；验证发现 28170/28180 被旧目录副本前后端口双占（本仓验证走独立端口 38180）
 
 ## 经验记忆（lessons）
 
