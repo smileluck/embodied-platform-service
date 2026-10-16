@@ -12,6 +12,7 @@ export default {
   boundAt: '加入时间',
   notAdmitted: '未准入',
   merchantAdmin: '商户管理员', // 用户列表角色列的内置角色标签（与平台侧角色名一致）
+  platformSuperAdmin: '平台超管', // 平台超级管理员标记（该行成员操作锁定：按钮隐藏+接口拒绝）
   admissionStatus: '准入状态',
   admitted: '已准入',
   suspended: '已停用',

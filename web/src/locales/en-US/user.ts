@@ -14,6 +14,7 @@ export default {
   admissionStatus: 'Admission',
   admitted: 'Admitted',
   merchantAdmin: 'Merchant Admin', // built-in role tag in the roles column (matches the platform-side role name)
+  platformSuperAdmin: 'Platform Super Admin', // platform super admin flag (row locked: buttons hidden, API rejected)
   suspended: 'Suspended',
   nickname: 'Nickname',
   email: 'Email',

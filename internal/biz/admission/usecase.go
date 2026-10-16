@@ -18,9 +18,10 @@ type PlatformAccount struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
 	Nickname string `json:"nickname"`
-	Status   int    `json:"status"`   // 平台侧状态（1 启用 0 禁用；平台禁用=全局）
-	IsAdmin  bool   `json:"is_admin"` // 商户管理员标记（平台侧唯一事实源）
-	Admitted bool   `json:"admitted"` // 业务端准入状态（平台侧事实源，本端开关写回）
+	Status   int    `json:"status"`    // 平台侧状态（1 启用 0 禁用；平台禁用=全局）
+	IsSuper  bool   `json:"is_super"`  // 平台超级管理员标记（本端据此锁定该成员行的准入/移除操作）
+	IsAdmin  bool   `json:"is_admin"`  // 商户管理员标记（平台侧唯一事实源）
+	Admitted bool   `json:"admitted"`  // 业务端准入状态（平台侧事实源，本端开关写回）
 }
 
 // MerchantIdentity 本商户身份解析（开放面 ping 惰性发现；由 data 层实现）
@@ -35,6 +36,7 @@ type MemberRow struct {
 	Username       string `json:"username"`
 	Nickname       string `json:"nickname"`
 	PlatformStatus int    `json:"platform_status"` // 平台侧账号状态（禁用=平台全局封禁）
+	IsSuper        bool   `json:"is_super"`        // 平台超级管理员标记（实时；该行成员操作锁定，页面隐藏+接口拒绝）
 	IsAdmin        bool   `json:"is_admin"`        // 平台侧商户管理员标记（实时；本地角色2在其登录/同步后对齐）
 	Admitted       bool   `json:"admitted"`        // 业务端准入状态（平台侧实时事实源）
 	BoundAt        string `json:"bound_at"`        // 平台侧绑定时间（平台格式化文本）
@@ -44,6 +46,10 @@ type MemberRow struct {
 
 // ErrPlatformNotBound 平台侧该账号未绑定本商户（解绑幂等容忍：本地清理照常进行）
 var ErrPlatformNotBound = errors.New("平台侧该账号未关联本商户")
+
+// ErrPlatformSuperAdmin 平台超级管理员的成员行锁定：编辑类操作（开关准入/分配角色/移除）
+// 本地拒绝；平台侧开放面守卫同口径兜底（防绕过本端直调开放面）
+var ErrPlatformSuperAdmin = errors.New("平台超级管理员账号受保护，不允许开关准入、分配角色或移除")
 
 // MemberGateway 平台商户成员网关（开放面 user:* 域，data 层经平台 SDK 实现）。
 // 账号本体全局在平台：新增=平台无此账号则创建（初始密码调用方设置）、有则绑定本商户；
@@ -226,7 +232,7 @@ func (uc *Usecase) ListFromPlatform(ctx context.Context, keyword string, page, p
 	for _, a := range accounts {
 		rows = append(rows, &MemberRow{
 			PlatformUserID: a.ID, Username: a.Username, Nickname: a.Nickname,
-			PlatformStatus: a.Status, IsAdmin: a.IsAdmin, Admitted: a.Admitted, Projection: projections[a.ID],
+			PlatformStatus: a.Status, IsSuper: a.IsSuper, IsAdmin: a.IsAdmin, Admitted: a.Admitted, Projection: projections[a.ID],
 		})
 	}
 	return rows, pagination.Page{Page: page, PageSize: pageSize, Total: total}, nil
@@ -258,13 +264,16 @@ func (uc *Usecase) AddMember(ctx context.Context, username, nickname, password s
 }
 
 // DeleteMember 移除成员：先解除平台侧绑定（账号本体保留；未绑定容忍为幂等），
-// 再删除本地投影（同步吊销本地授权）。
+// 再删除本地投影（同步吊销本地授权）。平台超管行拒绝（平台侧守卫兜底未同步场景）。
 func (uc *Usecase) DeleteMember(ctx context.Context, platformUserID uint) error {
-	if err := uc.platform.Unbind(ctx, platformUserID); err != nil && !errors.Is(err, ErrPlatformNotBound) {
-		return err
-	}
 	p, err := uc.repo.FindByPlatformUserID(ctx, platformUserID)
 	if err != nil {
+		return err
+	}
+	if p != nil && p.IsSuper {
+		return ErrPlatformSuperAdmin
+	}
+	if err := uc.platform.Unbind(ctx, platformUserID); err != nil && !errors.Is(err, ErrPlatformNotBound) {
 		return err
 	}
 	if p == nil {
@@ -291,22 +300,30 @@ func (uc *Usecase) resolveByPlatformUser(ctx context.Context, platformUserID uin
 
 // SetEnabledByPlatformUser 开/关准入（按平台用户 ID）。平台先行：准入状态先写回平台
 // （merchant_users 事实源，经开放面），失败整体失败；成功后本地投影跟随并即时吊销/恢复本地授权。
+// 平台超管行本地先拒绝（哨兵快照），平台侧开放面守卫兜底直调。
 func (uc *Usecase) SetEnabledByPlatformUser(ctx context.Context, platformUserID uint, enabled bool) error {
-	if err := uc.platform.SetAdmission(ctx, platformUserID, enabled); err != nil {
-		return err
-	}
 	p, err := uc.resolveByPlatformUser(ctx, platformUserID)
 	if err != nil {
+		return err
+	}
+	if p.IsSuper {
+		return ErrPlatformSuperAdmin
+	}
+	if err := uc.platform.SetAdmission(ctx, platformUserID, enabled); err != nil {
 		return err
 	}
 	return uc.SetEnabled(ctx, p.ID, enabled)
 }
 
-// SetRolesByPlatformUser 调整本地角色（按平台用户 ID）
+// SetRolesByPlatformUser 调整本地角色（按平台用户 ID）。平台超管行拒绝（角色由平台侧语义决定，
+// 本端不做手工增删）。
 func (uc *Usecase) SetRolesByPlatformUser(ctx context.Context, platformUserID uint, roleIDs []uint) error {
 	p, err := uc.resolveByPlatformUser(ctx, platformUserID)
 	if err != nil {
 		return err
+	}
+	if p.IsSuper {
+		return ErrPlatformSuperAdmin
 	}
 	return uc.SetRoles(ctx, p.ID, roleIDs)
 }
@@ -339,7 +356,8 @@ func (uc *Usecase) SyncFromPlatform(ctx context.Context) (created, refreshed int
 					Username:       a.Username,
 					Nickname:       a.Nickname,
 					Email:          "",
-					Enabled:        true, // 绑定即成员：成员默认准入（角色另行分配）
+					IsSuper:        a.IsSuper, // 平台超管标记快照（该行成员操作本地锁定）
+					Enabled:        true,      // 绑定即成员：成员默认准入（角色另行分配）
 				}
 				if a.IsAdmin {
 					np.RoleIDs = []uint{MerchantAdminRoleID}
@@ -349,8 +367,8 @@ func (uc *Usecase) SyncFromPlatform(ctx context.Context) (created, refreshed int
 				}
 				continue
 			}
-			if p.Username != a.Username || p.Nickname != a.Nickname || p.Enabled != a.Admitted {
-				p.Username, p.Nickname = a.Username, a.Nickname
+			if p.Username != a.Username || p.Nickname != a.Nickname || p.Enabled != a.Admitted || p.IsSuper != a.IsSuper {
+				p.Username, p.Nickname, p.IsSuper = a.Username, a.Nickname, a.IsSuper
 				p.Enabled = a.Admitted // 准入状态以平台为事实源（漂移自愈）
 				if uerr := uc.repo.Update(ctx, p); uerr == nil {
 					refreshed++

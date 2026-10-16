@@ -55,7 +55,7 @@ func (r *repo) Update(ctx context.Context, p *bizadmission.Projection) error {
 	return r.data.DB.WithContext(ctx).Model(&model.PlatformUserPO{}).
 		Where("id = ?", p.ID).
 		Updates(map[string]interface{}{
-			"username": p.Username, "nickname": p.Nickname, "email": p.Email, "enabled": p.Enabled,
+			"username": p.Username, "nickname": p.Nickname, "email": p.Email, "is_super": p.IsSuper, "enabled": p.Enabled,
 		}).Error
 }
 

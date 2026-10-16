@@ -109,6 +109,9 @@ const columns: DataTableColumns<MemberRow> = [
     width: 200,
     render: (row) => {
       const tags = []
+      if (row.is_super) {
+        tags.push(h(NTag, { type: 'error', size: 'small', bordered: false }, { default: () => t('user.platformSuperAdmin') }))
+      }
       if (row.is_admin) {
         tags.push(h(NTag, { type: 'info', size: 'small', bordered: false }, { default: () => t('user.merchantAdmin') }))
       }
@@ -130,19 +133,22 @@ const columns: DataTableColumns<MemberRow> = [
     width: 240,
     render: (row) => {
       const actions: TableAction[] = []
-      if (row.projection) {
-        actions.push({
-          label: t('user.setRoles'),
-          permission: 'user:setRoles',
-          onClick: () => openRoles(row),
-        })
-      actions.push(
-        row.projection!.enabled
-          ? { label: t('user.suspend'), permission: 'user:setAdmission', onClick: () => setAdmission(row, false) }
-          : { label: t('user.admit'), permission: 'user:setAdmission', onClick: () => setAdmission(row, true) },
-      )
+      // 平台超管行锁定：分配角色/开关准入/移除一律不渲染（后端 ErrPlatformSuperAdmin 403 兜底）
+      if (!row.is_super) {
+        if (row.projection) {
+          actions.push({
+            label: t('user.setRoles'),
+            permission: 'user:setRoles',
+            onClick: () => openRoles(row),
+          })
+          actions.push(
+            row.projection!.enabled
+              ? { label: t('user.suspend'), permission: 'user:setAdmission', onClick: () => setAdmission(row, false) }
+              : { label: t('user.admit'), permission: 'user:setAdmission', onClick: () => setAdmission(row, true) },
+          )
+        }
+        actions.push({ label: t('common.delete'), permission: 'user:delete', onClick: () => confirmDelete(row) })
       }
-      actions.push({ label: t('common.delete'), permission: 'user:delete', onClick: () => confirmDelete(row) })
       return renderActions(actions)
     },
   },

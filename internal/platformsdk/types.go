@@ -437,9 +437,10 @@ type MerchantUser struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
 	Nickname string `json:"nickname"`
-	Status   int    `json:"status"`   // 平台侧账号状态：1 启用 0 禁用（禁用=平台全局，无法登录）
-	IsAdmin  bool   `json:"is_admin"` // 商户管理员标记（业务端据此投影为本地管理员角色）
-	Admitted bool   `json:"admitted"` // 业务端准入状态（业务端开/关准入写回平台）
+	Status   int    `json:"status"`    // 平台侧账号状态：1 启用 0 禁用（禁用=平台全局，无法登录）
+	IsSuper  bool   `json:"is_super"`  // 平台超级管理员标记（本端据此锁定该成员行的准入/移除操作）
+	IsAdmin  bool   `json:"is_admin"`  // 商户管理员标记（业务端据此投影为本地管理员角色）
+	Admitted bool   `json:"admitted"`  // 业务端准入状态（业务端开/关准入写回平台）
 	BoundAt  string `json:"bound_at"`
 }
 

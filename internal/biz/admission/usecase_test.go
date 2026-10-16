@@ -2,6 +2,7 @@ package admission
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -136,8 +137,14 @@ func (r *memRepo) RoleHolderUserIDs(_ context.Context, roleID uint) ([]uint, err
 	return ids, nil
 }
 
-// fakeMemberGateway 假平台成员网关：单页全量返回
-type fakeMemberGateway struct{ members []*PlatformAccount }
+// fakeMemberGateway 假平台成员网关：单页全量返回；记录写调用供守卫断言
+type fakeMemberGateway struct {
+	members []*PlatformAccount
+
+	unbinds        int
+	setAdmissions  int
+	lastAdmittedTo bool
+}
 
 func (f *fakeMemberGateway) ListMembers(_ context.Context, kw string, page, size int) ([]*PlatformAccount, int64, error) {
 	if page > 1 {
@@ -148,8 +155,15 @@ func (f *fakeMemberGateway) ListMembers(_ context.Context, kw string, page, size
 func (f *fakeMemberGateway) CreateOrBind(_ context.Context, u, n, p string) (uint, bool, error) {
 	return 0, false, nil
 }
-func (f *fakeMemberGateway) Unbind(_ context.Context, pid uint) error               { return nil }
-func (f *fakeMemberGateway) SetAdmission(_ context.Context, pid uint, b bool) error { return nil }
+func (f *fakeMemberGateway) Unbind(_ context.Context, pid uint) error {
+	f.unbinds++
+	return nil
+}
+func (f *fakeMemberGateway) SetAdmission(_ context.Context, pid uint, b bool) error {
+	f.setAdmissions++
+	f.lastAdmittedTo = b
+	return nil
+}
 
 // TestSyncFromPlatform_RecyclesOrphanProjections 平台删号/解绑后未感知的投影
 // 在同步时被回收（含其角色绑定），不再成为阻塞角色删除的幽灵
@@ -198,5 +212,59 @@ func TestSyncFromPlatform_NewMemberCreated(t *testing.T) {
 	holders, _ := repo.RoleHolderUserIDs(context.Background(), MerchantAdminRoleID)
 	if len(holders) != 1 || holders[0] != 31 {
 		t.Fatalf("管理员标记应投影为角色2: %v", holders)
+	}
+}
+
+// ---- 平台超管成员行锁定（页面隐藏 + 本地哨兵 + 平台侧守卫三层） ----
+
+// TestSuperAdmin_MemberOpsRejected 超管行的开关准入/分配角色/移除全部本地拒绝，
+// 且不触发任何平台写回（平台写回由平台侧开放面守卫另行兜底）
+func TestSuperAdmin_MemberOpsRejected(t *testing.T) {
+	repo := newMemRepo(
+		&Projection{PlatformUserID: 1, Username: "admin", IsSuper: true, Enabled: true},
+	)
+	gw := &fakeMemberGateway{}
+	uc := NewUsecase(repo, gw, nil, nil)
+	ctx := context.Background()
+
+	if err := uc.SetEnabledByPlatformUser(ctx, 1, false); !errors.Is(err, ErrPlatformSuperAdmin) {
+		t.Fatalf("关准入应拒绝: %v", err)
+	}
+	if err := uc.SetEnabledByPlatformUser(ctx, 1, true); !errors.Is(err, ErrPlatformSuperAdmin) {
+		t.Fatalf("开准入应拒绝: %v", err)
+	}
+	if err := uc.SetRolesByPlatformUser(ctx, 1, []uint{3}); !errors.Is(err, ErrPlatformSuperAdmin) {
+		t.Fatalf("分配角色应拒绝: %v", err)
+	}
+	if err := uc.DeleteMember(ctx, 1); !errors.Is(err, ErrPlatformSuperAdmin) {
+		t.Fatalf("移除成员应拒绝: %v", err)
+	}
+	if gw.setAdmissions != 0 || gw.unbinds != 0 {
+		t.Fatalf("守卫应先于平台写回: setAdmissions=%d unbinds=%d", gw.setAdmissions, gw.unbinds)
+	}
+	if p, _ := repo.FindByPlatformUserID(ctx, 1); p == nil || !p.Enabled {
+		t.Fatalf("超管投影应原样保留: %+v", p)
+	}
+}
+
+// TestSyncFromPlatform_SuperFlagSnapshotted 同步把平台 is_super 标记快照进投影
+// （存量投影升级后首次同步即补齐标记，守卫随之生效）
+func TestSyncFromPlatform_SuperFlagSnapshotted(t *testing.T) {
+	repo := newMemRepo(
+		&Projection{PlatformUserID: 1, Username: "admin", Enabled: true}, // 升级前建的投影：无标记
+	)
+	uc := NewUsecase(repo, &fakeMemberGateway{members: []*PlatformAccount{
+		{ID: 1, Username: "admin", Status: 1, IsSuper: true, Admitted: true},
+	}}, nil, nil)
+
+	if _, _, err := uc.SyncFromPlatform(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	p, _ := repo.FindByPlatformUserID(context.Background(), 1)
+	if p == nil || !p.IsSuper {
+		t.Fatalf("同步应快照 is_super 标记: %+v", p)
+	}
+	if err := uc.SetEnabledByPlatformUser(context.Background(), 1, false); !errors.Is(err, ErrPlatformSuperAdmin) {
+		t.Fatalf("标记补齐后守卫应生效: %v", err)
 	}
 }

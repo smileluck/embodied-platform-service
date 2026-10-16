@@ -34,6 +34,7 @@ type PlatformUserPO struct {
 	Username       string `gorm:"size:64;uniqueIndex"` // 平台用户名快照
 	Nickname       string `gorm:"size:64"`
 	Email          string `gorm:"size:128"`
+	IsSuper        bool   `gorm:"not null;default:false"` // 平台超管标记快照（同步自开放面 is_super）
 	Enabled        bool   `gorm:"not null;default:false"` // 准入开关
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -341,14 +342,14 @@ func (AgentUsageLogPO) TableName() string { return "agent_usage_logs" }
 func PlatformUserToPO(p *admission.Projection) *PlatformUserPO {
 	return &PlatformUserPO{
 		ID: p.ID, PlatformUserID: p.PlatformUserID, Username: p.Username,
-		Nickname: p.Nickname, Email: p.Email, Enabled: p.Enabled,
+		Nickname: p.Nickname, Email: p.Email, IsSuper: p.IsSuper, Enabled: p.Enabled,
 	}
 }
 
 func PlatformUserFromPO(po *PlatformUserPO) *admission.Projection {
 	return &admission.Projection{
 		ID: po.ID, PlatformUserID: po.PlatformUserID, Username: po.Username,
-		Nickname: po.Nickname, Email: po.Email, Enabled: po.Enabled,
+		Nickname: po.Nickname, Email: po.Email, IsSuper: po.IsSuper, Enabled: po.Enabled,
 		CreatedAt: po.CreatedAt, UpdatedAt: po.UpdatedAt,
 	}
 }
