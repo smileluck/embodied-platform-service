@@ -3,8 +3,11 @@ package admission
 import (
 	"context"
 	"errors"
+	"sync"
 
+	"github.com/smilex/smilex-admin-gin/pkg/logger"
 	"github.com/smilex/smilex-admin-gin/pkg/pagination"
+	"go.uber.org/zap"
 )
 
 // DecisionCache 准入/授权决策缓存（RBAC 判定缓存；变更时整体失效，
@@ -18,10 +21,10 @@ type PlatformAccount struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
 	Nickname string `json:"nickname"`
-	Status   int    `json:"status"`    // 平台侧状态（1 启用 0 禁用；平台禁用=全局）
-	IsSuper  bool   `json:"is_super"`  // 平台超级管理员标记（本端据此锁定该成员行的准入/移除操作）
-	IsAdmin  bool   `json:"is_admin"`  // 商户管理员标记（平台侧唯一事实源）
-	Admitted bool   `json:"admitted"`  // 业务端准入状态（平台侧事实源，本端开关写回）
+	Status   int    `json:"status"`   // 平台侧状态（1 启用 0 禁用；平台禁用=全局）
+	IsSuper  bool   `json:"is_super"` // 平台超级管理员标记（本端据此锁定该成员行的准入/移除操作）
+	IsAdmin  bool   `json:"is_admin"` // 商户管理员标记（平台侧唯一事实源）
+	Admitted bool   `json:"admitted"` // 业务端准入状态（平台侧事实源，本端开关写回）
 }
 
 // MerchantIdentity 本商户身份解析（开放面 ping 惰性发现；由 data 层实现）
@@ -70,6 +73,8 @@ type Usecase struct {
 	platform MemberGateway
 	cache    DecisionCache
 	identity MerchantIdentity // 本商户身份（成员/管理员判定用；测试可空）
+
+	syncMu sync.Mutex // SyncFromPlatform 互斥（手动同步与 admission_reconcile 定时任务重叠时串行）
 }
 
 func NewUsecase(repo Repo, platform MemberGateway, cache DecisionCache, identity MerchantIdentity) *Usecase {
@@ -338,7 +343,10 @@ func (uc *Usecase) GetByPlatformUser(ctx context.Context, platformUserID uint) (
 // （标记缺失/被移出成员列表的持有者一并回收），并回收孤儿投影——本地有投影、
 // 平台成员列表已无此人（平台删号/解绑后未感知），删除投影同步吊销本地授权，
 // 避免幽灵持有角色阻塞角色删除。返回（新建数，刷新数）。
+// 并发互斥：手动同步与 admission_reconcile 定时任务重叠时串行（job 层互斥只覆盖同任务触发）。
 func (uc *Usecase) SyncFromPlatform(ctx context.Context) (created, refreshed int, err error) {
+	uc.syncMu.Lock()
+	defer uc.syncMu.Unlock()
 	page := 1
 	const size = 100
 	memberIDs := map[uint]bool{} // 平台成员全集（值=是否标记管理员）
@@ -381,6 +389,15 @@ func (uc *Usecase) SyncFromPlatform(ctx context.Context) (created, refreshed int
 			break
 		}
 		page++
+	}
+	// 空结果护栏：平台拉取成功但成员集为空时跳过回收阶段——空结果无法区分「平台真无成员」
+	// 与「列表接口异常返回空」，定时对账无人值守运行，批量删投影/收角色不可逆，
+	// 宁可下一轮带上非空真相再回收（与 tenant_reconcile 同口径）
+	if len(memberIDs) == 0 {
+		locals, _ := uc.repo.ListPlatformUserIDs(ctx)
+		logger.Warn("admission sync: 平台成员列表为空，跳过回收阶段（防误删，待下轮非空真相）",
+			zap.Int("local_projections", len(locals)))
+		return created, refreshed, nil
 	}
 	// 持有角色2但已不在平台成员列表（或未标记）的：回收管理员绑定
 	holders, err := uc.repo.RoleHolderUserIDs(ctx, MerchantAdminRoleID)

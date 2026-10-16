@@ -84,8 +84,15 @@ func (b *blockingReconciler) ReconcileFromPlatform(ctx context.Context) (string,
 	return "done", nil
 }
 
+// noopAdmissionReconciler 成员准入对账替身（测试不触发对应 handler）
+type noopAdmissionReconciler struct{}
+
+func (noopAdmissionReconciler) SyncFromPlatform(ctx context.Context) (int, int, error) {
+	return 0, 0, nil
+}
+
 func newTestUsecase(repo *fakeRepo, tr TenantReconciler) *Usecase {
-	return NewUsecase(repo, noopCleaner{}, noopCleaner{}, noopCleaner{}, noopNotifyCleaner{}, tr)
+	return NewUsecase(repo, noopCleaner{}, noopCleaner{}, noopCleaner{}, noopNotifyCleaner{}, tr, noopAdmissionReconciler{})
 }
 
 // TestExecute_HandlerPanicIsolated handler panic → 失败日志而非进程崩溃

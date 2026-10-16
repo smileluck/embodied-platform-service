@@ -18,11 +18,12 @@ import (
 
 // 内置处理器键（种子任务按此引用）
 const (
-	HandlerLogCleanup      = "log_cleanup"
-	HandlerExportCleanup   = "export_cleanup"
-	HandlerUsageCleanup    = "agent_usage_cleanup"
-	HandlerNotifyCleanup   = "notify_cleanup"
-	HandlerTenantReconcile = "tenant_reconcile"
+	HandlerLogCleanup         = "log_cleanup"
+	HandlerExportCleanup      = "export_cleanup"
+	HandlerUsageCleanup       = "agent_usage_cleanup"
+	HandlerNotifyCleanup      = "notify_cleanup"
+	HandlerTenantReconcile    = "tenant_reconcile"
+	HandlerAdmissionReconcile = "admission_reconcile"
 )
 
 // 清理器接口（各仓储实现；保留期取各自配置）
@@ -42,6 +43,12 @@ type TenantReconciler interface {
 	ReconcileFromPlatform(ctx context.Context) (string, error)
 }
 
+// AdmissionReconciler 成员准入投影对账回流（admission.Usecase 实现）：
+// 平台准入/解绑/管理员标记直接变更 ≤ 任务周期内回流本地（免手动「从平台同步成员」）
+type AdmissionReconciler interface {
+	SyncFromPlatform(ctx context.Context) (created, refreshed int, err error)
+}
+
 // NotifyCleaner 告警发送记录清理（notify.Usecase 实现）
 type NotifyCleaner interface {
 	DeleteRecordsBefore(ctx context.Context, before time.Time) error
@@ -58,7 +65,7 @@ type Usecase struct {
 	running  map[uint]struct{} // 同任务在跑标记（cron tick 与手动 RunOnce 共用互斥）
 }
 
-func NewUsecase(repo Repo, lc LogCleaner, ec ExportCleaner, uc UsageCleaner, nc NotifyCleaner, tr TenantReconciler) *Usecase {
+func NewUsecase(repo Repo, lc LogCleaner, ec ExportCleaner, uc UsageCleaner, nc NotifyCleaner, tr TenantReconciler, ar AdmissionReconciler) *Usecase {
 	handlers := map[string]Handler{
 		HandlerLogCleanup: {
 			Key: HandlerLogCleanup, Description: "清理保留期外的操作日志",
@@ -100,6 +107,16 @@ func NewUsecase(repo Repo, lc LogCleaner, ec ExportCleaner, uc UsageCleaner, nc 
 			Key: HandlerTenantReconcile, Description: "租户投影对账：本地租户跟随平台真相（补建/更新/下线）",
 			Run: func(ctx context.Context, _ string) (string, error) {
 				return tr.ReconcileFromPlatform(ctx)
+			},
+		},
+		HandlerAdmissionReconcile: {
+			Key: HandlerAdmissionReconcile, Description: "成员准入投影对账：补建缺失投影/刷新快照/对账管理员标记/回收孤儿",
+			Run: func(ctx context.Context, _ string) (string, error) {
+				created, refreshed, err := ar.SyncFromPlatform(ctx)
+				if err != nil {
+					return "", err
+				}
+				return fmt.Sprintf("成员准入对账完成：新建 %d，刷新 %d", created, refreshed), nil
 			},
 		},
 	}
@@ -329,6 +346,8 @@ func (uc *Usecase) EnsureSeeded(ctx context.Context) error {
 			Remark: "清理保留期外的告警发送记录（保留 30 天）"},
 		{Name: "租户投影对账", Cron: "*/5 * * * *", HandlerKey: HandlerTenantReconcile, Status: StatusEnabled,
 			Remark: "本地租户投影跟随平台真相：平台侧直接变更（改名/启停/新建/删除）≤5 分钟回流"},
+		{Name: "成员准入投影对账", Cron: "*/5 * * * *", HandlerKey: HandlerAdmissionReconcile, Status: StatusEnabled,
+			Remark: "本地成员准入投影跟随平台真相：平台准入/解绑/管理员标记变更 ≤5 分钟回流（免手动「从平台同步成员」）"},
 	}
 	for _, s := range seeds {
 		if names[s.Name] {

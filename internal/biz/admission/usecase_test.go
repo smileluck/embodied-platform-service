@@ -215,6 +215,28 @@ func TestSyncFromPlatform_NewMemberCreated(t *testing.T) {
 	}
 }
 
+// TestSyncFromPlatform_EmptyPlatformListSkipsRecycle 空结果护栏：平台成员列表为空时
+// 跳过回收阶段（孤儿投影与管理员角色原样保留）——空结果无法区分「平台真无成员」与
+// 「列表接口异常返回空」，定时对账无人值守，批量删投影不可逆（与 tenant_reconcile 同口径）
+func TestSyncFromPlatform_EmptyPlatformListSkipsRecycle(t *testing.T) {
+	repo := newMemRepo(
+		&Projection{PlatformUserID: 11, Username: "alive", Enabled: true, RoleIDs: []uint{MerchantAdminRoleID}},
+		&Projection{PlatformUserID: 22, Username: "orphan", Enabled: true},
+	)
+	uc := NewUsecase(repo, &fakeMemberGateway{members: nil}, nil, nil)
+
+	if _, _, err := uc.SyncFromPlatform(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := repo.FindByPlatformUserID(context.Background(), 22); p == nil {
+		t.Fatal("空结果护栏应跳过孤儿回收（防误删）")
+	}
+	holders, _ := repo.RoleHolderUserIDs(context.Background(), MerchantAdminRoleID)
+	if len(holders) != 1 || holders[0] != 11 {
+		t.Fatalf("空结果护栏应跳过管理员角色回收: %v", holders)
+	}
+}
+
 // ---- 平台超管成员行锁定（页面隐藏 + 本地哨兵 + 平台侧守卫三层） ----
 
 // TestSuperAdmin_MemberOpsRejected 超管行的开关准入/分配角色/移除全部本地拒绝，

@@ -17,7 +17,7 @@ type Projection struct {
 	Username       string    `json:"username"`         // 平台用户名快照
 	Nickname       string    `json:"nickname"`         // 平台昵称快照（展示用，以平台为准）
 	Email          string    `json:"email"`
-	IsSuper        bool      `json:"is_super"`  // 平台超管标记快照（同步自开放面 is_super；超管行的成员操作本地拒绝）
+	IsSuper        bool      `json:"is_super"` // 平台超管标记快照（同步自开放面 is_super；超管行的成员操作本地拒绝）
 	Enabled        bool      `json:"enabled"`  // 准入开关：false 时无法访问本系统
 	RoleIDs        []uint    `json:"role_ids"` // 本地角色绑定
 	CreatedAt      time.Time `json:"created_at"`

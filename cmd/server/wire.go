@@ -131,6 +131,8 @@ var bizSet = wire.NewSet(
 	wire.Bind(new(biztenantuser.TenantChecker), new(*biztenant.Usecase)),
 	wire.Bind(new(biztenantdept.TenantChecker), new(*biztenant.Usecase)),
 	wire.Bind(new(bizjob.TenantReconciler), new(*biztenant.Usecase)),
+	// 成员准入投影定时对账（admission_reconcile）：平台准入/解绑/管理员标记 ≤5 分钟回流
+	wire.Bind(new(bizjob.AdmissionReconciler), new(*bizadmission.Usecase)),
 	// 智能体内置只读工具：服务器状态查询复用 monitor 用例
 	wire.Bind(new(bizagent.ServerStatusReader), new(*bizmonitor.Usecase)),
 	wire.Bind(new(bizagent.MCPToolSource), new(*bizmcp.Usecase)),
