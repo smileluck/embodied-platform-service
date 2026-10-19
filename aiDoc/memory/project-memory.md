@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-17 -->
+<!-- last-updated: 2026-10-19 -->
 # 项目记忆索引
 
 ## 长期记忆
@@ -22,7 +22,10 @@
 - [business/2026-10-12-全站时间格式统一.md](business/2026-10-12-全站时间格式统一.md) — 全站时间展示统一 yyyy-MM-dd HH:mm:ss：前端 12 文件收敛 formatDateTime + 后端 pkg/timex 单源；机器字段（RFC3339/unix 秒/图表轴）例外不动
 - [business/2026-10-12-设备列表绑定租户.md](business/2026-10-12-设备列表绑定租户.md) — 设备改绑租户：平台开放面 PUT /devices/:id/tenant（scope device:bind-tenant）+ 本仓代理链（RBAC device:bind）+ 设备列表操作列改绑弹窗；同日补充设备列表「租户」列名称映射显示
 - [business/2026-10-12-登录页默认用户名.md](business/2026-10-12-登录页默认用户名.md) — 登录页用户名不再默认填 admin；验证发现 28170/28180 被旧目录副本前后端口双占（本仓验证走独立端口 38180）
+- [business/2026-10-16-成员准入定时对账.md](business/2026-10-16-成员准入定时对账.md) — admission_reconcile 定时对账（*/5）：平台准入/解绑/管理员标记变更 ≤5 分钟自动回流，免手动「从平台同步成员」
+- [business/2026-10-16-超管成员保护-用户管理锁定.md](business/2026-10-16-超管成员保护-用户管理锁定.md) — 用户管理超管行锁定：is_super 标记下发 + 页面隐藏 + 本地哨兵 403（识别口径 2026-10-19 修订为 ID=1 硬锁定 + 标记双识别）
 - [business/2026-10-17-侧边栏滚动条优化.md](business/2026-10-17-侧边栏滚动条优化.md) — 管理端深壳侧栏滚动条改 6px 圆角细拇指 + 透明轨道 + 稳定槽位；修 macOS overlay 不绘制与溢出切换菜单横向跳动
+- [business/2026-10-19-用户列表准入刷新与超管ID1锁定.md](business/2026-10-19-用户列表准入刷新与超管ID1锁定.md) — 用户列表开/关准入后整表刷新（状态列以平台 admitted 为事实源）+ 超管 ID=1 本端硬锁定（守卫 + 列表归一化，不依赖平台标记下发）
 
 ## 经验记忆（lessons）
 
@@ -43,6 +46,7 @@
 - [lessons/2026-10-11-gui-smoke-admission-credential.md](lessons/2026-10-11-gui-smoke-admission-credential.md) — 管理端 GUI 冒烟凭据：admin 密码在平台 config（或播种日志）；「无权进入本系统」是准入 403 非密码错（已晋升至 development-workflow.md，冒烟改用 admitted=1 商户成员账号）
 - [lessons/2026-10-12-format-drift-no-mechanical-gate.md](lessons/2026-10-12-format-drift-no-mechanical-gate.md) — 格式化规则无机械闸门必漂移：formatDateTime 两轮漏网后晋升 rg 自查模式进 frontend-utils（promoted）
 - [lessons/2026-10-17-chromium-scrollbar-custom-style.md](lessons/2026-10-17-chromium-scrollbar-custom-style.md) — Chromium 自定义滚动条：`overflow-y: auto` 的 macOS overlay 不绘制；容器 `:hover` 改色不重绘，需拇指常驻 + 拇指自身 hover 增亮
+- [lessons/2026-10-19-remote-fact-source-no-local-writeback.md](lessons/2026-10-19-remote-fact-source-no-local-writeback.md) — 列显示值为平台/远端事实源时，操作成功后改本地投影字段不代表显示值；须整表 load() 刷新
 
 ## 维护说明
 

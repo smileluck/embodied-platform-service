@@ -290,3 +290,45 @@ func TestSyncFromPlatform_SuperFlagSnapshotted(t *testing.T) {
 		t.Fatalf("标记补齐后守卫应生效: %v", err)
 	}
 }
+
+// TestSuperAdmin_ID1HardLockedWithoutSnapshot ID=1 硬锁定：投影 is_super 快照缺失
+// （升级前存量/旧平台未下发标记）时三类操作同样本地拒绝，不依赖标记链路
+func TestSuperAdmin_ID1HardLockedWithoutSnapshot(t *testing.T) {
+	repo := newMemRepo(
+		&Projection{PlatformUserID: PlatformSuperAdminID, Username: "admin", Enabled: true}, // 无 is_super 快照
+	)
+	gw := &fakeMemberGateway{}
+	uc := NewUsecase(repo, gw, nil, nil)
+	ctx := context.Background()
+
+	if err := uc.SetEnabledByPlatformUser(ctx, PlatformSuperAdminID, false); !errors.Is(err, ErrPlatformSuperAdmin) {
+		t.Fatalf("关准入应拒绝: %v", err)
+	}
+	if err := uc.SetRolesByPlatformUser(ctx, PlatformSuperAdminID, []uint{3}); !errors.Is(err, ErrPlatformSuperAdmin) {
+		t.Fatalf("分配角色应拒绝: %v", err)
+	}
+	if err := uc.DeleteMember(ctx, PlatformSuperAdminID); !errors.Is(err, ErrPlatformSuperAdmin) {
+		t.Fatalf("移除成员应拒绝: %v", err)
+	}
+	if gw.setAdmissions != 0 || gw.unbinds != 0 {
+		t.Fatalf("ID 硬锁定应先于平台写回: setAdmissions=%d unbinds=%d", gw.setAdmissions, gw.unbinds)
+	}
+}
+
+// TestListFromPlatform_ID1MarkedSuperWithoutPlatformFlag 列表行归一化：平台未下发
+// is_super 标记（旧平台）时 ID=1 行仍标记为超管，页面据此隐藏操作按钮
+func TestListFromPlatform_ID1MarkedSuperWithoutPlatformFlag(t *testing.T) {
+	repo := newMemRepo()
+	uc := NewUsecase(repo, &fakeMemberGateway{members: []*PlatformAccount{
+		{ID: PlatformSuperAdminID, Username: "admin", Status: 1, Admitted: true}, // IsSuper 未下发
+		{ID: 7, Username: "member", Status: 1, Admitted: true},
+	}}, nil, nil)
+
+	rows, _, err := uc.ListFromPlatform(context.Background(), "", 1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2 || !rows[0].IsSuper || rows[1].IsSuper {
+		t.Fatalf("ID=1 行应归一化为超管: %+v", rows)
+	}
+}

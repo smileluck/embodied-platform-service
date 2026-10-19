@@ -1,5 +1,7 @@
-<!-- last-updated: 2026-10-16 -->
+<!-- last-updated: 2026-10-19 -->
 # 用户管理平台超管行锁定（消费 is_super 契约）
+
+> 2026-10-19 修订：备选「本地硬编码 ID=1」被 `2026-10-19-superadmin-id1-hard-lock.md` 推翻，识别口径改为 ID 硬锁定 + is_super 标记双识别。
 
 ## 问题
 
@@ -29,7 +31,7 @@
 
 | 备选 | 放弃理由 |
 |---|---|
-| 本地硬编码平台用户 ID=1 做守卫 | 把平台种子语义硬编码进 SDK 侧，契约变更（超管换 ID/多超管）即静默失效；走开放面标记，平台是唯一事实源 |
+| 本地硬编码平台用户 ID=1 做守卫 | ~~把平台种子语义硬编码进 SDK 侧，契约变更（超管换 ID/多超管）即静默失效；走开放面标记，平台是唯一事实源~~ **（2026-10-19 被 `2026-10-19-superadmin-id1-hard-lock.md` 推翻：标记链路在旧平台/快照未补齐组合下缺位，用户明确要求 ID=1 不可操作，本端改为 ID 硬锁定 + 标记双识别）** |
 | 只靠平台侧 403，本端不加哨兵 | 本地角色分配（`PUT /users/:id/roles`）是纯本地操作不经平台，平台守卫够不着；且平台写回失败前已有半提交窗口 |
 | 超管投影恒 Enabled=true 本地自愈 | 准入状态以平台为事实源（同步语义 `p.Enabled = a.Admitted`）；平台守卫后 `admitted` 不再可关，无需本地另立真相 |
 
@@ -51,6 +53,7 @@
 ## 交叉链接
 
 - 平台侧决策：`../embodied-platform/aiDoc/notes/implemented/feature/2026-10-16-openapi-superadmin-member-guard.md`
+- 后续修订：`2026-10-19-superadmin-id1-hard-lock.md`（ID=1 本端硬锁定 + 准入开关后刷新列表）
 - 契约事实：embodied-platform `aiDoc/contracts/boundary.md`「开放面用户域=商户成员」条目
 - 代码：`internal/biz/admission/{entity,usecase}.go`、`internal/data/admission/repo.go`、
   `internal/data/model/model.go`、`internal/server/handler_user.go`、`web/src/views/system/Users.vue`

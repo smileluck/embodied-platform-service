@@ -39,7 +39,7 @@ type MemberRow struct {
 	Username       string `json:"username"`
 	Nickname       string `json:"nickname"`
 	PlatformStatus int    `json:"platform_status"` // 平台侧账号状态（禁用=平台全局封禁）
-	IsSuper        bool   `json:"is_super"`        // 平台超级管理员标记（实时；该行成员操作锁定，页面隐藏+接口拒绝）
+	IsSuper        bool   `json:"is_super"`        // 平台超级管理员标记（平台实时标记或 ID=PlatformSuperAdminID 归一化；该行成员操作锁定，页面隐藏+接口拒绝）
 	IsAdmin        bool   `json:"is_admin"`        // 平台侧商户管理员标记（实时；本地角色2在其登录/同步后对齐）
 	Admitted       bool   `json:"admitted"`        // 业务端准入状态（平台侧实时事实源）
 	BoundAt        string `json:"bound_at"`        // 平台侧绑定时间（平台格式化文本）
@@ -50,8 +50,14 @@ type MemberRow struct {
 // ErrPlatformNotBound 平台侧该账号未绑定本商户（解绑幂等容忍：本地清理照常进行）
 var ErrPlatformNotBound = errors.New("平台侧该账号未关联本商户")
 
+// PlatformSuperAdminID 平台超级管理员固定用户 ID（与平台侧 SuperAdminID 同口径）。
+// 超管锁定在平台 is_super 标记之外按 ID 硬兜底：旧平台未下发标记（或快照未补齐）的
+// 部署组合下超管行仍不可操作（2026-10-19 用户明确要求 ID=1 不可操作）
+const PlatformSuperAdminID uint = 1
+
 // ErrPlatformSuperAdmin 平台超级管理员的成员行锁定：编辑类操作（开关准入/分配角色/移除）
-// 本地拒绝；平台侧开放面守卫同口径兜底（防绕过本端直调开放面）
+// 本地拒绝（命中条件=平台用户 ID 为 PlatformSuperAdminID 或投影 is_super 快照）；
+// 平台侧开放面守卫同口径兜底（防绕过本端直调开放面）
 var ErrPlatformSuperAdmin = errors.New("平台超级管理员账号受保护，不允许开关准入、分配角色或移除")
 
 // MemberGateway 平台商户成员网关（开放面 user:* 域，data 层经平台 SDK 实现）。
@@ -237,7 +243,7 @@ func (uc *Usecase) ListFromPlatform(ctx context.Context, keyword string, page, p
 	for _, a := range accounts {
 		rows = append(rows, &MemberRow{
 			PlatformUserID: a.ID, Username: a.Username, Nickname: a.Nickname,
-			PlatformStatus: a.Status, IsSuper: a.IsSuper, IsAdmin: a.IsAdmin, Admitted: a.Admitted, Projection: projections[a.ID],
+			PlatformStatus: a.Status, IsSuper: a.IsSuper || a.ID == PlatformSuperAdminID, IsAdmin: a.IsAdmin, Admitted: a.Admitted, Projection: projections[a.ID],
 		})
 	}
 	return rows, pagination.Page{Page: page, PageSize: pageSize, Total: total}, nil
@@ -275,7 +281,7 @@ func (uc *Usecase) DeleteMember(ctx context.Context, platformUserID uint) error 
 	if err != nil {
 		return err
 	}
-	if p != nil && p.IsSuper {
+	if platformUserID == PlatformSuperAdminID || (p != nil && p.IsSuper) {
 		return ErrPlatformSuperAdmin
 	}
 	if err := uc.platform.Unbind(ctx, platformUserID); err != nil && !errors.Is(err, ErrPlatformNotBound) {
@@ -305,13 +311,13 @@ func (uc *Usecase) resolveByPlatformUser(ctx context.Context, platformUserID uin
 
 // SetEnabledByPlatformUser 开/关准入（按平台用户 ID）。平台先行：准入状态先写回平台
 // （merchant_users 事实源，经开放面），失败整体失败；成功后本地投影跟随并即时吊销/恢复本地授权。
-// 平台超管行本地先拒绝（哨兵快照），平台侧开放面守卫兜底直调。
+// 平台超管行本地先拒绝（ID 硬锁定 + 哨兵快照），平台侧开放面守卫兜底直调。
 func (uc *Usecase) SetEnabledByPlatformUser(ctx context.Context, platformUserID uint, enabled bool) error {
 	p, err := uc.resolveByPlatformUser(ctx, platformUserID)
 	if err != nil {
 		return err
 	}
-	if p.IsSuper {
+	if platformUserID == PlatformSuperAdminID || p.IsSuper {
 		return ErrPlatformSuperAdmin
 	}
 	if err := uc.platform.SetAdmission(ctx, platformUserID, enabled); err != nil {
@@ -327,7 +333,7 @@ func (uc *Usecase) SetRolesByPlatformUser(ctx context.Context, platformUserID ui
 	if err != nil {
 		return err
 	}
-	if p.IsSuper {
+	if platformUserID == PlatformSuperAdminID || p.IsSuper {
 		return ErrPlatformSuperAdmin
 	}
 	return uc.SetRoles(ctx, p.ID, roleIDs)

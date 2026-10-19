@@ -217,8 +217,9 @@ async function saveAdd() {
 async function setAdmission(row: MemberRow, enabled: boolean) {
   try {
     await setUserAdmission(row.platform_user_id, enabled)
-    if (row.projection) row.projection.enabled = enabled
     message.success(enabled ? t('user.admitSuccess') : t('user.suspendSuccess'))
+    // 准入状态列以平台 admitted 为事实源，本地投影字段不代表显示值，须整表刷新
+    load()
   } catch (e: any) {
     message.error(e?.response?.data?.msg || t('common.failed'))
   }

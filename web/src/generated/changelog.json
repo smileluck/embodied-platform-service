@@ -1,6 +1,13 @@
 {
-  "generatedAt": "2026-10-17T08:33:34.605Z",
+  "generatedAt": "2026-10-19T02:50:15.200Z",
   "commits": [
+    {
+      "hash": "0737244eb",
+      "date": "2026-10-19",
+      "type": "feat",
+      "scope": "web",
+      "message": "优化管理端深壳侧栏滚动条样式"
+    },
     {
       "hash": "4d43e2d69",
       "date": "2026-10-16",
