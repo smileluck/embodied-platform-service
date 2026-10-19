@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-12 -->
+<!-- last-updated: 2026-10-17 -->
 # 项目记忆索引
 
 ## 长期记忆
@@ -22,6 +22,7 @@
 - [business/2026-10-12-全站时间格式统一.md](business/2026-10-12-全站时间格式统一.md) — 全站时间展示统一 yyyy-MM-dd HH:mm:ss：前端 12 文件收敛 formatDateTime + 后端 pkg/timex 单源；机器字段（RFC3339/unix 秒/图表轴）例外不动
 - [business/2026-10-12-设备列表绑定租户.md](business/2026-10-12-设备列表绑定租户.md) — 设备改绑租户：平台开放面 PUT /devices/:id/tenant（scope device:bind-tenant）+ 本仓代理链（RBAC device:bind）+ 设备列表操作列改绑弹窗；同日补充设备列表「租户」列名称映射显示
 - [business/2026-10-12-登录页默认用户名.md](business/2026-10-12-登录页默认用户名.md) — 登录页用户名不再默认填 admin；验证发现 28170/28180 被旧目录副本前后端口双占（本仓验证走独立端口 38180）
+- [business/2026-10-17-侧边栏滚动条优化.md](business/2026-10-17-侧边栏滚动条优化.md) — 管理端深壳侧栏滚动条改 6px 圆角细拇指 + 透明轨道 + 稳定槽位；修 macOS overlay 不绘制与溢出切换菜单横向跳动
 
 ## 经验记忆（lessons）
 
@@ -39,8 +40,9 @@
 - [lessons/2026-10-10-nselect-remote-no-preload.md](lessons/2026-10-10-nselect-remote-no-preload.md) — 远程搜索 n-select 不预载首屏选项，「打开即空」会被用户感知为无数据；字段可见时以空关键词预载一次
 - [lessons/2026-10-10-async-task-full-row-writeback.md](lessons/2026-10-10-async-task-full-row-writeback.md) — 异步任务收尾整行 Update 回写快照会覆盖执行期间并发的启停/编辑；只定向回写自己拥有的列
 - [lessons/2026-10-10-precedent-tradeoff-reuse.md](lessons/2026-10-10-precedent-tradeoff-reuse.md) — 沿用先例的「残留无害」结论要按新场景消费方重查：有计数/聚合消费的绑定残留即有形伤害，需级联清理
-- [lessons/2026-10-11-gui-smoke-admission-credential.md](lessons/2026-10-11-gui-smoke-admission-credential.md) — 管理端 GUI 冒烟凭据：admin 密码在平台 config（或播种日志）；「无权进入本系统」是准入 403 非密码错，阻塞时按 not-run 报告不反复试密
+- [lessons/2026-10-11-gui-smoke-admission-credential.md](lessons/2026-10-11-gui-smoke-admission-credential.md) — 管理端 GUI 冒烟凭据：admin 密码在平台 config（或播种日志）；「无权进入本系统」是准入 403 非密码错（已晋升至 development-workflow.md，冒烟改用 admitted=1 商户成员账号）
 - [lessons/2026-10-12-format-drift-no-mechanical-gate.md](lessons/2026-10-12-format-drift-no-mechanical-gate.md) — 格式化规则无机械闸门必漂移：formatDateTime 两轮漏网后晋升 rg 自查模式进 frontend-utils（promoted）
+- [lessons/2026-10-17-chromium-scrollbar-custom-style.md](lessons/2026-10-17-chromium-scrollbar-custom-style.md) — Chromium 自定义滚动条：`overflow-y: auto` 的 macOS overlay 不绘制；容器 `:hover` 改色不重绘，需拇指常驻 + 拇指自身 hover 增亮
 
 ## 维护说明
 

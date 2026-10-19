@@ -1,6 +1,34 @@
 {
-  "generatedAt": "2026-10-12T03:38:35.548Z",
+  "generatedAt": "2026-10-17T08:33:34.605Z",
   "commits": [
+    {
+      "hash": "4d43e2d69",
+      "date": "2026-10-16",
+      "type": "feat",
+      "scope": "job",
+      "message": "成员准入投影定时对账 admission_reconcile（*/5，免手动「从平台同步成员」）——平台准入/解绑/管理员标记变更 ≤5 分钟自动回流本地投影（新成员免手动同步即可登录），复用 SyncFromPlatform 全量对账（补建/刷新/角色2对账/孤儿回收），与 tenant_reconcile 同周期同模式。配套加固（无人值守前提）：①空结果护栏——平台拉取成功但成员集为空时跳过回收阶段（角色回收+孤儿删除不可逆，空结果无法区分「真无成员」与「接口异常返空」，与 tenant_reconcile 同口径）②Usecase.syncMu 互斥——手动同步与定时任务重叠串行（job 层互斥只覆盖同任务调度触发）。wire 绑定 AdmissionReconciler→admission.Usecase；种子任务幂等播种「成员准入投影对账」；手动同步按钮保留为即时入口。备选评估（登录即建投影：profile 不带 admitted 有误准入边缘；平台推送：无用户域推送契约且需双向新面）见决策记录。新增空结果护栏用例；gofmt 顺手对齐 entity/usecase 注释列。决策见 aiDoc/notes/implemented/feature/2026-10-16-admission-reconcile-job.md"
+    },
+    {
+      "hash": "010f06d35",
+      "date": "2026-10-16",
+      "type": "feat",
+      "scope": "admission",
+      "message": "用户管理平台超管行锁定——消费平台 is_super 契约（平台仓 1a0d42ba 先行），三层落地：①投影快照：platform_users 加 is_super 列（AutoMigrate），SyncFromPlatform 从开放面刷新（存量投影首次同步补齐），MemberRow.IsSuper 实时来自平台（页面锁定不依赖投影存在）②接口限制：ErrPlatformSuperAdmin（403）——SetEnabledByPlatformUser/SetRolesByPlatformUser/DeleteMember 命中超管一律拒绝且先于平台写回；SetEnabledByPlatformUser 顺带重排为本地解析先行（无投影行 404 发生在平台写入前，消除旧序「平台已改、本地 404」半提交）；无投影/未同步场景由平台开放面守卫兜底（平台 403 经 SDK 透传）③页面隐藏：Users.vue 超管行操作列不渲染（分配角色/开关准入/移除），角色列前置「平台超管」标签（zh/en）。本端成员管理无编辑资料操作（改昵称走本人 /auth/profile），锁定面=准入/角色/移除。新增用例：超管三类操作拒绝且零平台写回、同步快照 is_super 后守卫生效。决策见 aiDoc/notes/implemented/feature/2026-10-16-superadmin-member-lock.md"
+    },
+    {
+      "hash": "f91f21133",
+      "date": "2026-10-12",
+      "type": "fix",
+      "scope": "web",
+      "message": "登录页去除默认用户名 admin"
+    },
+    {
+      "hash": "b300ab322",
+      "date": "2026-10-12",
+      "type": "feat",
+      "scope": "device",
+      "message": "设备列表租户能力——改绑租户全链 + 租户列名称显示"
+    },
     {
       "hash": "ca8d8dd94",
       "date": "2026-10-12",

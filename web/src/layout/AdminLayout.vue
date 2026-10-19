@@ -1121,11 +1121,40 @@ onUnmounted(() => {
 .sider-menu {
   flex: 1;
   min-height: 0; /* 允许收缩，菜单区独立滚动，避免撑破容器 */
-  overflow-y: auto;
-  scrollbar-width: thin;
+  /* overflow-y 用 scroll 而非 auto：macOS 的 auto 走 overlay 滚动条，自定义拇指样式不绘制；
+     scroll 强制经典滚动条，配合透明轨道让滚动条不割裂深底 */
+  overflow-y: scroll;
+  overflow-x: hidden;
+  /* 预留滚动条槽位：展开/收起分组触发溢出状态切换时，菜单内容不横向跳动 */
+  scrollbar-gutter: stable;
   background: transparent !important;
   padding: 4px 8px;
   transition: padding .3s cubic-bezier(.4, 0, .2, 1);
+}
+/* 深壳滚动条：6px 圆角细条，轨道透明（不在石墨底上割出亮带）；
+   拇指常驻极淡暖白，指针悬停时增亮（色值见 variables.css 的 --sx-shell-scrollbar*） */
+.sider-menu::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.sider-menu::-webkit-scrollbar-track,
+.sider-menu::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.sider-menu::-webkit-scrollbar-thumb {
+  background-color: var(--sx-shell-scrollbar);
+  border-radius: 999px;
+}
+.sider-menu::-webkit-scrollbar-thumb:hover {
+  background-color: var(--sx-shell-scrollbar-hover);
+}
+/* Firefox 不支持 ::-webkit-scrollbar，用标准属性给等效的细条；
+   限定在 Gecko（Chrome 121+ 也认标准属性，会覆盖上面的 6px 宽度） */
+@supports (-moz-appearance: none) {
+  .sider-menu {
+    scrollbar-width: thin;
+    scrollbar-color: var(--sx-shell-scrollbar) transparent;
+  }
 }
 /* 收起态：清零水平内边距。naive-ui 按 collapsedWidth/2 - 图标宽/2 计算缩进居中图标，
    前提是菜单占满整个窄栏；保留 8px 内边距会让图标整体偏右 8px */

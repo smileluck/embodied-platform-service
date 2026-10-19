@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // 开发用根路径，打包产物部署在 /admin/ 子路径下
+  base: command === 'build' ? '/admin/' : '/',
   plugins: [vue()],
   server: {
     host: '0.0.0.0', // 监听全部网卡，局域网设备可通过本机 IP 访问（如 http://192.168.x.x:28170）
@@ -19,4 +21,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

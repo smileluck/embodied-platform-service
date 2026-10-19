@@ -50,7 +50,7 @@
 
 ## 交叉链接
 
-- 平台侧决策：embodied-platform `aiDoc/notes/implemented/feature/2026-10-16-openapi-superadmin-member-guard.md`
+- 平台侧决策：`../embodied-platform/aiDoc/notes/implemented/feature/2026-10-16-openapi-superadmin-member-guard.md`
 - 契约事实：embodied-platform `aiDoc/contracts/boundary.md`「开放面用户域=商户成员」条目
 - 代码：`internal/biz/admission/{entity,usecase}.go`、`internal/data/admission/repo.go`、
   `internal/data/model/model.go`、`internal/server/handler_user.go`、`web/src/views/system/Users.vue`

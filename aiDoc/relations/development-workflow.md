@@ -1,4 +1,4 @@
-<!-- last-updated: 2026-10-09 -->
+<!-- last-updated: 2026-10-17 -->
 # 开发流程（development workflow）
 
 > 开发顺序、协作方式、分支与提交规范、环境命令。命令必须来自真实配置文件，禁止编造。
@@ -26,6 +26,8 @@
 联调验证：`make dev` 同起后端(28180)与前端(28170)；平台相关功能需平台侧服务可用（默认 `http://localhost:27080`）。
 
 调试纪律（教训晋升，见 [../memory/lessons/2026-10-09-debug-server-port-occupancy.md](../memory/lessons/2026-10-09-debug-server-port-occupancy.md)）：「改了代码不生效」先核对端口监听者身份再怀疑代码——`lsof -iTCP:28170,28180 -sTCP:LISTEN` 确认进程路径是本仓库的 `web/`（vite）与 `bin/server`（air），而非调试残留实例或同机其他副本目录；手动验证用实例一律独立端口、验证完立即杀掉。
+
+界面冒烟凭据（教训晋升，见 [../memory/lessons/2026-10-11-gui-smoke-admission-credential.md](../memory/lessons/2026-10-11-gui-smoke-admission-credential.md)）：管理端登录代理平台，平台超管 `admin` 默认未准入本商户（`merchant_users.admitted=0`），会报「该账号无权进入本系统」（准入 403，不是密码错）。GUI 冒烟直接用 `merchant_users` 中 `admitted=1` 的成员账号（本机开发库有 `ego` / `ego-test`，密码按平台开发默认，见 `embodied-platform/configs/config.yaml`）；不要反复试密，凭据受限时按 not-run 如实报告。
 
 ## 分支策略
 
