@@ -27,7 +27,8 @@ dev:
 	@cd web && npm run dev
 else
 dev:
-	@trap 'kill 0' INT TERM EXIT; \
+	@trap 'kill 0' EXIT; \
+	trap 'exit 0' INT TERM; \
 	$(AIR) -c $(AIR_CONF) & \
 	cd web && npm run dev & \
 	wait
