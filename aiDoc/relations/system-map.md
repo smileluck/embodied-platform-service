@@ -87,7 +87,7 @@ web/src/locales/{zh-CN,en-US}（i18n 语言包，后端按 Accept-Language 同�
 
 | 文件 | 用途 |
 |---|---|
-| `configs/config.yaml` | 运行配置：server/db/cache/log/platform（开放面 appKey/appSecret、storage-gateway）等 |
+| `configs/config.yaml` | 运行配置：server/db/cache/log/platform（开放面 appKey/appSecret）/storage（storage-gateway 接入与本地降级）等 |
 | `.env.example` | 前端/部署环境变量样例 |
 | `Makefile` | 全部构建/开发/部署目标（Windows 兼容分支） |
 | `.air.toml` / `.air.windows.toml` | 后端热重载配置（端口 28180） |

@@ -27,9 +27,9 @@ func NewStorageClient(cfg *conf.Bootstrap) *StorageClient {
 		timeout = 15 * time.Second
 	}
 	return &StorageClient{
-		baseURL:   cfg.Platform.Storage.BaseURL,
-		apiKeyID:  cfg.Platform.Storage.APIKeyID,
-		apiSecret: cfg.Platform.Storage.APISecret,
+		baseURL:   cfg.Storage.Platform.BaseURL,
+		apiKeyID:  cfg.Storage.Platform.APIKeyID,
+		apiSecret: cfg.Storage.Platform.APISecret,
 		hc:        &http.Client{Timeout: timeout},
 	}
 }

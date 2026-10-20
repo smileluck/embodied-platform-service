@@ -89,7 +89,7 @@ func checkPlatform(cfg *conf.Bootstrap) {
 		logger.Warn("platform.appKey 未配置：设备管理/租户同步/型号管理不可用")
 	}
 
-	if sc := cfg.Platform.Storage; sc.BaseURL != "" && sc.APIKeyID != "" {
+	if sc := cfg.Storage.Platform; sc.BaseURL != "" && sc.APIKeyID != "" {
 		if err := platform.NewStorageClient(cfg).Ping(ctx); err != nil {
 			logger.Warn("platform storage-gateway 不可达（文件上传将失败）", zap.Error(err))
 		} else {

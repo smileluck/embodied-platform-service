@@ -64,18 +64,13 @@ cache:
 #   2. 平台 CORS 白名单（cors.allowedOrigins）登记本系统前端 Origin（租户端 app-auth 仍浏览器直调平台；
 #      管理端登录自 2026-10-08 起经本服务后端代理，不再依赖该白名单）
 #   3. NTP 校时（HMAC 时间戳偏差 ≤ 300s）
-#   4. （可选）storage 段：storage-gateway API Key（文件存储）；不配置时降级本地磁盘
+#   4. （可选）storage.platform 段：storage-gateway API Key（文件存储）；不配置时降级本地磁盘
 #   注：用户（成员）管理走开放面 user:*（列表=本商户绑定成员，新增=即建即绑，删除=解绑），
 #   管理面服务账号通道已于 2026-09-17 移除，无需配置 platform.admin
 platform:
   baseUrl: http://localhost:27080 # 平台主服务（/api/v1 与 /open-api/v1 同源）
   appKey: "mk_0e94e71768252d89" # 商户 AppKey（平台商户管理创建）
   appSecret: "51e2f6710de945c50fd3d0f92731ef746d00d5080a5c4c0b9349e0d5a7eea48c" # 商户 AppSecret 明文（仅创建时返回一次，妥善保管）
-  storage: # storage-gateway 直连（文件存储后端）
-    baseUrl: http://localhost:27091
-    apiKeyId: ""
-    apiSecret: ""
-    bucket: default
   timeoutSeconds: 15 # 平台无本地引导账号（准入唯一来源=平台商户成员绑定/商户管理员标记）
 
 agent: # 智能体模块（LLM 配置底座）
@@ -115,11 +110,16 @@ export:
     email: email
 
 storage:
-  # 存储后端：platform（embodied-platform storage-gateway，配置 platform.storage 后自动启用）
+  # 存储后端：platform（embodied-platform storage-gateway，配置下方 platform 段后自动启用）
   # 或 local（降级/历史存量读取）。driver 留空时自动选择：平台存储已配置 → platform，否则 local。
-  driver: ""
+  driver: "platform"
   maxSizeMB: 20 # 单文件上传大小上限
   signExpireMinutes: 15 # 预签名下载 URL 有效期（分钟）
   denyExts: [] # 禁止上传的扩展名（如 ["exe","sh"]），空则用内置黑名单
+  platform: # storage-gateway 直连（platform 后端的连接配置；API Key 由平台管理端 /api/v1/storage/api-keys 签发）
+    baseUrl: http://localhost:27091
+    apiKeyId: "sk_64b71b8e1960d445b74396bd"
+    apiSecret: "0125a8db25f1ff70e34a6a1fa307b2ff8d2cb472390ff5fd"
+    bucket: t-1-test
   local:
     dir: ./data/uploads # 本地存储根目录（平台存储未配置时的降级写入后端；历史存量文件读取）

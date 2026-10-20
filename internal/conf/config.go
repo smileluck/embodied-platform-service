@@ -99,20 +99,19 @@ type Cache struct {
 
 // Platform embodied-platform 平台接入配置。
 // 平台是唯一身份源（登录在本系统前端直调平台，本系统后端只做 token 自省 + 本地准入投影）；
-// 设备/型号走平台开放面（商户 HMAC）与管理面（服务账号 JWT）；文件存储走 storage-gateway。
+// 设备/型号走平台开放面（商户 HMAC）；文件存储走 storage-gateway，连接配置在 Storage.Platform。
 type Platform struct {
 	// BaseURL 平台主服务地址（/api/v1 与 /open-api/v1 同源），形如 http://host:27080
 	BaseURL string `mapstructure:"baseUrl"`
 	// AppKey / AppSecret 商户凭证（平台商户管理创建，AppSecret 明文仅创建时返回一次）
 	AppKey    string `mapstructure:"appKey"`
 	AppSecret string `mapstructure:"appSecret"`
-	// Storage storage-gateway 直连（文件存储后端；API Key 由平台管理端 /api/v1/storage/api-keys 签发）
-	Storage PlatformStorage `mapstructure:"storage"`
 	// TimeoutSeconds 调用平台的 HTTP 超时（秒）
 	TimeoutSeconds int `mapstructure:"timeoutSeconds"`
 }
 
-// PlatformStorage storage-gateway OpenAPI 接入（Bearer {apiKeyId}:{apiSecret}）
+// PlatformStorage storage-gateway OpenAPI 接入（Bearer {apiKeyId}:{apiSecret}；
+// API Key 由平台管理端 /api/v1/storage/api-keys 签发），挂载在 Storage.Platform
 type PlatformStorage struct {
 	// BaseURL 网关地址（前缀 /openapi/storage/v1 由客户端拼接），形如 http://host:27091
 	BaseURL   string `mapstructure:"baseUrl"`
@@ -175,11 +174,12 @@ type Export struct {
 // Storage 文件存储配置：driver 决定新上传写入的后端；
 // 读/删按文件记录落库时的 driver 解析对应后端，因此切换 driver 后旧文件仍可访问
 type Storage struct {
-	Driver            string       `mapstructure:"driver"` // platform | local（平台存储未配置时自动降级 local）
-	MaxSizeMB         int64        `mapstructure:"maxSizeMB"`
-	SignExpireMinutes int          `mapstructure:"signExpireMinutes"` // 预签名下载 URL 有效期（分钟）
-	DenyExts          []string     `mapstructure:"denyExts"`          // 禁止上传的扩展名（空则用内置黑名单）
-	Local             LocalStorage `mapstructure:"local"`
+	Driver            string          `mapstructure:"driver"` // platform | local（平台存储未配置时自动降级 local）
+	MaxSizeMB         int64           `mapstructure:"maxSizeMB"`
+	SignExpireMinutes int             `mapstructure:"signExpireMinutes"` // 预签名下载 URL 有效期（分钟）
+	DenyExts          []string        `mapstructure:"denyExts"`          // 禁止上传的扩展名（空则用内置黑名单）
+	Platform          PlatformStorage `mapstructure:"platform"`          // platform 后端连接配置（storage-gateway）
+	Local             LocalStorage    `mapstructure:"local"`
 }
 
 type LocalStorage struct {
@@ -217,7 +217,7 @@ func Load(path string) (*Bootstrap, error) {
 	v.SetDefault("storage.local.dir", "./data/uploads")
 	// 默认值：平台调用超时 15s；文件桶缺省 default
 	v.SetDefault("platform.timeoutSeconds", 15)
-	v.SetDefault("platform.storage.bucket", "default")
+	v.SetDefault("storage.platform.bucket", "default")
 	// 默认值：agent 用量流水保留 90 天
 	v.SetDefault("agent.usageRetentionDays", 90)
 	if err := v.ReadInConfig(); err != nil {

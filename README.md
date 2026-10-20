@@ -64,12 +64,12 @@ embodied-platform（平台 = 唯一身份源 + 设备/存储基础设施）
    `tenant:*`、`model:*`、`thing-model:read`、`user:*`、`app-user:*`、`tenant-user:*`、`tenant-role:*`
    （租户同步/型号管理/设备管理/成员管理/应用用户/租户用户管理全部走商户 HMAC 单一凭证；
    租户门户成员自治复用 `tenant-user:*`，漏配则管理页与门户成员管理 403）；
-2. （可选）平台管理端签发 **storage API Key**（`platform.storage`，目标桶读写 scope）；
+2. （可选）平台管理端签发 **storage API Key**（`storage.platform`，目标桶读写 scope）；
 3. （预留）平台 CORS 白名单（`cors.allowedOrigins`）——2026-10-08 起 B 端/租户门户登录均经本系统后端代理，
    浏览器不再直调平台，无强制 CORS 依赖；
 4. NTP 校时（HMAC 时间戳偏差 ≤ 300s）。
 
-以上凭证填入 `configs/config.yaml` 的 `platform` 段；启动时自动做连通性自检并打日志（失败不阻断启动）。
+以上凭证填入 `configs/config.yaml`（商户凭证在 `platform` 段、storage API Key 在 `storage.platform` 段）；启动时自动做连通性自检并打日志（失败不阻断启动）。
 注：用户（成员）管理走开放面 `user:*`——列表=平台本商户绑定成员，新增=平台无此账号则创建（初始密码在本系统
 添加用户时设置）有则绑定，删除=解除关联（平台账号保留）；`platform.admin` 管理面通道已移除，无需配置。
 
