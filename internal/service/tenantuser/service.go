@@ -43,7 +43,7 @@ type UserCreateRequest struct {
 	Nickname string `json:"nickname" binding:"max=64"`
 	Phone    string `json:"phone" binding:"max=32"`
 	Email    string `json:"email" binding:"omitempty,max=128,email"`
-	RoleIDs  []uint `json:"role_ids"`
+	RoleIDs  []uint `json:"role_ids" binding:"max=200"`
 }
 
 // UserUpdateRequest 更新入参（指针可选，省略即不修改；tenant_id 不可改）
@@ -61,12 +61,12 @@ type ResetPasswordRequest struct {
 
 // SetRolesRequest 角色全量替换入参（本地绑定；角色须与用户同租户）
 type SetRolesRequest struct {
-	RoleIDs []uint `json:"role_ids"`
+	RoleIDs []uint `json:"role_ids" binding:"max=200"`
 }
 
 // SetDeptsRequest 部门全量替换入参（本地绑定，多部门；部门须与用户同租户）
 type SetDeptsRequest struct {
-	DeptIDs []uint `json:"dept_ids"`
+	DeptIDs []uint `json:"dept_ids" binding:"max=200"`
 }
 
 // UserDeptItem 用户所属部门项（列表回填 dept_ids + 名称）
@@ -148,9 +148,12 @@ func (s *Service) ListUsers(ctx context.Context, q biztenantuser.UserListParams,
 	return out, pg, nil
 }
 
+// maxDeptFetchPages 部门筛选路径翻页上限（100 页×100/页=1 万平台用户，超出截断防请求风暴）
+const maxDeptFetchPages = 100
+
 // listUsersByDept 部门筛选路径：部门（含全部后代）成员绑定在本地，账号在平台且开放面
 // 不支持按 id 集合过滤——本地反查成员 user_ids 后，按部门租户翻页拉取平台全量做内存交集，
-// 再本地分页。已知限制：拉取按 100/页翻页，超大租户（万级用户）性能受限；平台侧支持
+// 再本地分页。拉取按 100/页、上限 100 页，超出截断（记 Warn）并以已拉取集合继续；平台侧支持
 // 部门维度过滤后应切换下推（见 aiDoc/contracts/boundary.md）
 func (s *Service) listUsersByDept(ctx context.Context, q biztenantuser.UserListParams, page, pageSize int) ([]*UserVO, pagination.Page, error) {
 	userIDs, deptTenantID, err := s.depts.UserIDsUnderDept(ctx, *q.DeptID)
@@ -169,6 +172,7 @@ func (s *Service) listUsersByDept(ctx context.Context, q biztenantuser.UserListP
 	}
 	var matched []*biztenantuser.TenantUserView
 	fetchQ := biztenantuser.UserListParams{Keyword: q.Keyword, Phone: q.Phone, Status: q.Status, TenantID: &deptTenantID}
+	truncated := false
 	for p := 1; ; p++ {
 		list, pg, err := s.gw.ListUsers(ctx, fetchQ, p, fetchSize)
 		if err != nil {
@@ -182,6 +186,16 @@ func (s *Service) listUsersByDept(ctx context.Context, q biztenantuser.UserListP
 		if int64(p*fetchSize) >= pg.Total || len(list) == 0 {
 			break
 		}
+		if p >= maxDeptFetchPages {
+			truncated = true
+			break
+		}
+	}
+	if truncated {
+		// 达到翻页上限：截断不报错，以已拉取集合继续交集
+		logger.Warn("listUsersByDept platform fetch truncated at page cap",
+			zap.Uint("dept_id", *q.DeptID), zap.Uint("tenant_id", deptTenantID),
+			zap.Int("fetched", maxDeptFetchPages*fetchSize), zap.Int("matched", len(matched)))
 	}
 	// 本地分页（保持平台返回顺序）
 	total := int64(len(matched))
@@ -336,19 +350,19 @@ type RoleCreateRequest struct {
 	Name      string   `json:"name" binding:"required,max=64"`
 	Code      string   `json:"code" binding:"required,min=2,max=64"`
 	Remark    string   `json:"remark" binding:"max=255"`
-	PermCodes []string `json:"perm_codes"`
+	PermCodes []string `json:"perm_codes" binding:"max=200"`
 }
 
 // RoleUpdateRequest 更新入参（code 不可改）
 type RoleUpdateRequest struct {
 	Name      *string   `json:"name" binding:"omitempty,max=64"`
 	Remark    *string   `json:"remark" binding:"omitempty,max=255"`
-	PermCodes *[]string `json:"perm_codes"`
+	PermCodes *[]string `json:"perm_codes" binding:"omitempty,max=200"`
 }
 
 // SetPermsRequest 权限点全量替换入参
 type SetPermsRequest struct {
-	PermCodes []string `json:"perm_codes"`
+	PermCodes []string `json:"perm_codes" binding:"max=200"`
 }
 
 // RoleVO 租户角色视图

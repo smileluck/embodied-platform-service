@@ -39,7 +39,7 @@ type DeptUpdateRequest struct {
 
 // SetUserDeptsRequest 用户部门全量替换入参（多部门；部门须与用户同租户）
 type SetUserDeptsRequest struct {
-	DeptIDs []uint `json:"dept_ids"`
+	DeptIDs []uint `json:"dept_ids" binding:"max=200"`
 }
 
 func (s *Service) ListDepts(ctx context.Context, tenantID uint) ([]*biztenantdept.DeptView, error) {

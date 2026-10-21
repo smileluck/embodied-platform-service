@@ -73,3 +73,4 @@ func Debug(msg string, fields ...zap.Field) { L.Debug(msg, fields...) }
 func Info(msg string, fields ...zap.Field)  { L.Info(msg, fields...) }
 func Warn(msg string, fields ...zap.Field)  { L.Warn(msg, fields...) }
 func Error(msg string, fields ...zap.Field) { L.Error(msg, fields...) }
+func Fatal(msg string, fields ...zap.Field) { L.Fatal(msg, fields...) }

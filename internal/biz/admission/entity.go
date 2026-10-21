@@ -38,6 +38,23 @@ func IsLockedRole(id uint) bool {
 	return id == MerchantAdminRoleID
 }
 
+// filterAssignableRoles 过滤锁定角色并去重（保持入参顺序），供手工分配入口统一调用
+func filterAssignableRoles(ids []uint) []uint {
+	out := make([]uint, 0, len(ids))
+	seen := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		if IsLockedRole(id) {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
+}
+
 // MerchantRef 本人已准入的商户引用（来自平台 /auth/profile 的 user.merchants；
 // IsAdmin 即平台的商户管理员标记——本系统据此把标记投影为本地商户管理员角色）
 type MerchantRef struct {

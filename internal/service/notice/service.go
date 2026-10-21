@@ -20,8 +20,8 @@ type CreateRequest struct {
 	Content   string `json:"content" binding:"required,max=8000"`
 	Level     string `json:"level" binding:"omitempty,oneof=info warning important"`
 	Scope     string `json:"scope" binding:"omitempty,oneof=all roles users"` // 空=all
-	RoleIDs   []uint `json:"role_ids"`                                        // scope=roles 时必填
-	UserIDs   []uint `json:"user_ids"`                                        // scope=users 时必填
+	RoleIDs   []uint `json:"role_ids" binding:"max=200"`                      // scope=roles 时必填
+	UserIDs   []uint `json:"user_ids" binding:"max=200"`                      // scope=users 时必填
 	PublishAt string `json:"publish_at"`                                      // RFC3339，空=立即
 	ExpireAt  string `json:"expire_at"`                                       // RFC3339，空=长期
 }

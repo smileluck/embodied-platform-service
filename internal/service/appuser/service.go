@@ -41,7 +41,7 @@ type CreateRequest struct {
 	Nickname  string `json:"nickname" binding:"max=64"`
 	Phone     string `json:"phone" binding:"max=32"`
 	Email     string `json:"email" binding:"omitempty,max=128,email"`
-	TenantIDs []uint `json:"tenant_ids"` // 平台租户 ID，须⊆本商户绑定租户集
+	TenantIDs []uint `json:"tenant_ids" binding:"max=200"` // 平台租户 ID，须⊆本商户绑定租户集
 }
 
 // UpdateRequest 更新应用用户入参（username 创建后不可改；tenant_ids 全量替换本商户范围内归属）。
@@ -51,7 +51,7 @@ type UpdateRequest struct {
 	Phone     *string `json:"phone" binding:"omitempty,max=32"`
 	Email     *string `json:"email" binding:"omitempty,max=128,email"`
 	Status    *int    `json:"status" binding:"omitempty,oneof=0 1"`
-	TenantIDs *[]uint `json:"tenant_ids"` // 平台租户 ID
+	TenantIDs *[]uint `json:"tenant_ids" binding:"omitempty,max=200"` // 平台租户 ID
 }
 
 // ResetPasswordRequest 重置密码入参

@@ -81,6 +81,7 @@ var messagesZh = map[string]string{
 	"common.invalid_params":   "请求参数不合法",
 	"security.invalid_chars":  "请求参数包含非法字符",
 	"security.param_too_long": "请求参数过长",
+	"security.body_too_large": "请求体过大",
 	"security.login_frequent": "登录尝试过于频繁，请稍后再试",
 	"security.rate_limited":   "请求过于频繁，请稍后再试",
 	"blacklist.ip_banned":     "该 IP 因连续登录失败已被临时封禁，请约 %d 分钟后再试",
@@ -105,6 +106,8 @@ var messagesZh = map[string]string{
 	"tenant.not_in_scope": "租户不在商户绑定范围内",
 	// 设备
 	"device.not_found": "设备不存在",
+	// 设备型号/物模型（透传平台开放面）
+	"devmodel.payload_too_large": "提交的数据结构过大",
 	// 应用用户
 	"appuser.not_found":             "应用用户不存在",
 	"appuser.cross_merchant_delete": "应用用户仍挂靠其他商户的租户，请先解除其在本商户外的归属",

@@ -8,6 +8,7 @@ import (
 	bizadmission "github.com/smilex/smilex-admin-gin/internal/biz/admission"
 	"github.com/smilex/smilex-admin-gin/internal/data"
 	"github.com/smilex/smilex-admin-gin/internal/data/model"
+	"github.com/smilex/smilex-admin-gin/pkg/security"
 	"gorm.io/gorm"
 )
 
@@ -125,7 +126,7 @@ func (r *repo) FindByPlatformUserIDs(ctx context.Context, platformUserIDs []uint
 func (r *repo) List(ctx context.Context, q bizadmission.Query, page, pageSize int) ([]*bizadmission.Projection, int64, error) {
 	tx := r.data.DB.WithContext(ctx).Model(&model.PlatformUserPO{})
 	if q.Username != "" {
-		tx = tx.Where("username LIKE ?", q.Username+"%")
+		tx = tx.Where("username LIKE ? ESCAPE '/'", security.EscapeLike(q.Username)+"%")
 	}
 	if q.Status != nil {
 		tx = tx.Where("enabled = ?", *q.Status == 1)

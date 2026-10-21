@@ -24,7 +24,7 @@ type UpdateRequest struct {
 }
 
 type SetPermissionsRequest struct {
-	PermissionIDs []uint `json:"permission_ids"`
+	PermissionIDs []uint `json:"permission_ids" binding:"max=200"`
 }
 
 func (s *Service) Create(ctx context.Context, req CreateRequest) (*bizrole.Role, error) {

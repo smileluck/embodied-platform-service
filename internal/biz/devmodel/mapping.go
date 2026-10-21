@@ -13,14 +13,14 @@ import (
 // Mapping 单条数据映射规则（镜像平台 Mapping；source_topic → 数据分类 + 字段提取/触发，
 // source_topic 支持设备占位符 {sn}/{device_id}/{name}/{model_id}）
 type Mapping struct {
-	SourceTopic  string            `json:"source_topic"`          // 通道内主题（socket 帧 topic / MQTT topic）
-	TopicMatch   string            `json:"topic_match,omitempty"` // exact（默认）| glob（预留）
-	DataCategory string            `json:"data_category"`         // shadow | telemetry | event | alarm | media
-	DataType     string            `json:"data_type"`             // shadow=物模型属性名；event=物模型事件名；telemetry/alarm=自定义
+	SourceTopic  string            `json:"source_topic" binding:"max=256"`          // 通道内主题（socket 帧 topic / MQTT topic）
+	TopicMatch   string            `json:"topic_match,omitempty" binding:"max=256"` // exact（默认）| glob（预留）
+	DataCategory string            `json:"data_category" binding:"max=256"`         // shadow | telemetry | event | alarm | media
+	DataType     string            `json:"data_type" binding:"max=256"`             // shadow=物模型属性名；event=物模型事件名；telemetry/alarm=自定义
 	SampleRateHz float64           `json:"sample_rate_hz,omitempty"`
 	FieldExtract map[string]string `json:"field_extract,omitempty"`
-	Fields       []string          `json:"fields,omitempty"`
-	Trigger      string            `json:"trigger,omitempty"`
+	Fields       []string          `json:"fields,omitempty" binding:"max=100,dive,max=128"`
+	Trigger      string            `json:"trigger,omitempty" binding:"max=256"`
 }
 
 // MappingDef 数据映射资源（MerchantID 0=通用 / >0=商户独立归属）
@@ -57,19 +57,19 @@ type MappingCreateResult struct {
 type MappingCreate struct {
 	Name     string    `json:"name" binding:"required,max=64"`
 	Label    string    `json:"label" binding:"max=64"`
-	Mappings []Mapping `json:"mappings" binding:"required,min=1,dive"`
+	Mappings []Mapping `json:"mappings" binding:"required,min=1,max=500,dive"`
 }
 
 // MappingDraft 资源下新建草稿入参（单草稿制：已有草稿平台返回 409）
 type MappingDraft struct {
 	Label    string    `json:"label" binding:"max=64"`
-	Mappings []Mapping `json:"mappings" binding:"required,min=1,dive"`
+	Mappings []Mapping `json:"mappings" binding:"required,min=1,max=500,dive"`
 }
 
 // MappingDraftUpdate 更新草稿入参（Label 指针可选，nil=不修改；仅 draft 可改）
 type MappingDraftUpdate struct {
 	Label    *string   `json:"label" binding:"omitempty,max=64"`
-	Mappings []Mapping `json:"mappings" binding:"required,min=1,dive"`
+	Mappings []Mapping `json:"mappings" binding:"required,min=1,max=500,dive"`
 }
 
 // MappingBind 绑定型号入参（目标型号须对本商户可见；商户一致性由平台校验，违反 409）
@@ -118,6 +118,9 @@ func (uc *MappingUsecase) Get(ctx context.Context, id uint) (*MappingDef, error)
 }
 
 func (uc *MappingUsecase) Create(ctx context.Context, req MappingCreate) (*MappingCreateResult, error) {
+	if err := checkPayloadSize(req.Mappings); err != nil {
+		return nil, err
+	}
 	return uc.gw.CreateMapping(ctx, req)
 }
 
@@ -130,6 +133,9 @@ func (uc *MappingUsecase) Versions(ctx context.Context, defID uint) ([]*MappingV
 }
 
 func (uc *MappingUsecase) CreateDraft(ctx context.Context, defID uint, req MappingDraft) (*MappingVersion, error) {
+	if err := checkPayloadSize(req.Mappings); err != nil {
+		return nil, err
+	}
 	return uc.gw.CreateMappingDraft(ctx, defID, req)
 }
 
@@ -138,6 +144,9 @@ func (uc *MappingUsecase) GetVersion(ctx context.Context, versionID uint) (*Mapp
 }
 
 func (uc *MappingUsecase) UpdateDraft(ctx context.Context, versionID uint, req MappingDraftUpdate) error {
+	if err := checkPayloadSize(req.Mappings); err != nil {
+		return err
+	}
 	return uc.gw.UpdateMappingDraft(ctx, versionID, req)
 }
 

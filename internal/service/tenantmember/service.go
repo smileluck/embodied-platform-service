@@ -46,7 +46,7 @@ type CreateRequest struct {
 	Nickname string `json:"nickname" binding:"max=64"`
 	Phone    string `json:"phone" binding:"max=32"`
 	Email    string `json:"email" binding:"omitempty,max=128,email"`
-	RoleIDs  []uint `json:"role_ids"`
+	RoleIDs  []uint `json:"role_ids" binding:"max=200"`
 }
 
 // UpdateRequest 成员资料更新入参（tenant_id 不可改：跨租户归属是商户管理端职责）
@@ -68,7 +68,7 @@ type ResetPasswordRequest struct {
 
 // SetRolesRequest 角色全量替换入参
 type SetRolesRequest struct {
-	RoleIDs []uint `json:"role_ids"`
+	RoleIDs []uint `json:"role_ids" binding:"max=200"`
 }
 
 // VO 成员视图（id/role_ids 均为平台/本地口径；tenant_id 为平台租户 ID）

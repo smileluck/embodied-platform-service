@@ -25,9 +25,10 @@ type CreateRequest struct {
 
 type UpdateRequest = CreateRequest
 
-// StatusRequest 启停入参
+// StatusRequest 启停入参（1 启用 0 停用；指针接收避免 required 拒绝零值，
+// 同时保证空 body 不会零值漏过 oneof 被静默当作「停用」）
 type StatusRequest struct {
-	Status int `json:"status" binding:"oneof=0 1"`
+	Status *int `json:"status" binding:"required,oneof=0 1"`
 }
 
 func (s *Service) Create(ctx context.Context, req CreateRequest) (*bizjob.Job, error) {

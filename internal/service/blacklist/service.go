@@ -32,7 +32,7 @@ type BlacklistVO struct {
 // CreateRequest 新增黑名单请求
 type CreateRequest struct {
 	IP       string `json:"ip" binding:"required"`
-	Reason   string `json:"reason"`
+	Reason   string `json:"reason" binding:"max=255"`
 	ExpireAt *int64 `json:"expire_at"` // unix 秒，nil 为永久
 }
 

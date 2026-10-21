@@ -75,11 +75,11 @@ func (s *HTTPServer) setJobStatus(c *gin.Context) {
 		return
 	}
 	var req jobsvc.StatusRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil || req.Status == nil {
 		response.BadRequest(c, i18n.T(c.Request.Context(), "common.invalid_params"))
 		return
 	}
-	if err := s.job.SetStatus(c.Request.Context(), id, req.Status); err != nil {
+	if err := s.job.SetStatus(c.Request.Context(), id, *req.Status); err != nil {
 		response.FailI18n(c, http.StatusBadRequest, response.CodeErr, err)
 		return
 	}

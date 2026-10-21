@@ -35,8 +35,6 @@ const (
 	LoginFailThreshold = 5                // 计数窗口内失败次数阈值
 	LoginFailWindow    = 10 * time.Minute // 失败计数窗口
 	TempBanDuration    = 10 * time.Minute // 临时封禁时长
-	LoginRateWindow    = time.Minute      // 登录限流窗口
-	LoginRateMax       = 5                // 窗口内最大登录尝试次数
 )
 
 type errorString string

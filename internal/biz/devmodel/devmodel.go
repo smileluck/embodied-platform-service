@@ -38,7 +38,7 @@ type ModelCreate struct {
 	Name         string `json:"name" binding:"required,max=64"`
 	TMNodeID     uint   `json:"tm_node_id" binding:"required"`
 	TMVersionID  uint   `json:"tm_version_id" binding:"required"`
-	Manufacturer string `json:"manufacturer"`
+	Manufacturer string `json:"manufacturer" binding:"max=128"`
 	Description  string `json:"description" binding:"max=255"`
 	Transport    string `json:"transport" binding:"omitempty,oneof=socket mqtt"`
 }
@@ -48,7 +48,7 @@ type ModelUpdate struct {
 	Name         string `json:"name" binding:"required,max=64"`
 	TMVersionID  uint   `json:"tm_version_id"`
 	Status       int    `json:"status" binding:"required,oneof=1 2"`
-	Manufacturer string `json:"manufacturer"`
+	Manufacturer string `json:"manufacturer" binding:"max=128"`
 	Description  string `json:"description" binding:"max=255"`
 	Transport    string `json:"transport" binding:"omitempty,oneof=socket mqtt"`
 }

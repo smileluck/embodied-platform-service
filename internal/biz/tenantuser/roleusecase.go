@@ -77,15 +77,25 @@ func (uc *RoleUsecase) checkRolesInTenant(ctx context.Context, tenantID uint, ro
 	if len(roleIDs) == 0 {
 		return nil
 	}
-	byID := make(map[uint]*TenantRole, len(roleIDs))
+	// 去重（保序），避免重复 ID 逐条 repo.Get
+	seen := make(map[uint]struct{}, len(roleIDs))
+	ids := make([]uint, 0, len(roleIDs))
 	for _, id := range roleIDs {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	byID := make(map[uint]*TenantRole, len(ids))
+	for _, id := range ids {
 		r, err := uc.roles.Get(ctx, id)
 		if err != nil {
 			return err
 		}
 		byID[id] = r
 	}
-	for _, id := range roleIDs {
+	for _, id := range ids {
 		if r := byID[id]; r.TenantID != tenantID {
 			return ErrTenantRoleNotFound
 		}

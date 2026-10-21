@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	bizlog "github.com/smilex/smilex-admin-gin/internal/biz/log"
@@ -232,7 +233,7 @@ func maskParams(c *gin.Context, body []byte) string {
 		s = c.Request.URL.RawQuery
 	}
 	if len(s) > opLogParamsMax {
-		s = s[:opLogParamsMax] + "…（截断）"
+		s = truncateStr(s, opLogParamsMax) + "…（截断）"
 	}
 	return s
 }
@@ -260,10 +261,13 @@ func maskValue(v interface{}) interface{} {
 	}
 }
 
-// truncateStr 按字节长度截断（防超长存储）
+// truncateStr 按字节长度截断（防超长存储）；回退到 rune 边界，不切断 UTF-8 多字节序列
 func truncateStr(s string, n int) string {
 	if len(s) <= n {
 		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
 	}
 	return s[:n]
 }

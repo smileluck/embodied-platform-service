@@ -1,4 +1,4 @@
-// 安全类中间件：安全响应头、XSS 输入清洗、SQL 注入特征拦截。
+// 安全类中间件：安全响应头、XSS 输入清洗、SQL 注入特征拦截、请求体大小上限。
 // 登录/通用限流见 ratelimit.go。
 package middleware
 
@@ -92,6 +92,35 @@ func sanitizeValue(v interface{}) interface{} {
 		return x
 	default:
 		return v
+	}
+}
+
+// BodyLimit 请求体大小上限：JSON 等非 multipart 请求按 maxBytes 限制（入口 XSSFilter
+// 会整体读入内存清洗，无上限时公开登录面单连接即可内存 DoS）；multipart 上传按
+// uploadBytes（单文件上限 + 表单开销）限制——精确大小校验仍在 handler/biz（fh.Size vs
+// storage.maxSizeMB），这里只挡「超大 body 先被 gin 写满临时目录」。Content-Length 已超限
+// 直接 400；未声明/虚报长度的由 MaxBytesReader 在读取时兜底（下游绑定随之报错 400）。
+func BodyLimit(maxBytes, uploadBytes int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Body == nil {
+			c.Next()
+			return
+		}
+		limit := maxBytes
+		if strings.HasPrefix(c.GetHeader("Content-Type"), "multipart/") {
+			limit = uploadBytes
+		}
+		if limit <= 0 {
+			c.Next()
+			return
+		}
+		if c.Request.ContentLength > limit {
+			response.BadRequest(c, i18n.T(c.Request.Context(), "security.body_too_large"))
+			c.Abort()
+			return
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
+		c.Next()
 	}
 }
 

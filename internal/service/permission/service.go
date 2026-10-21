@@ -28,9 +28,9 @@ type UpdateRequest struct {
 	Name     string  `json:"name" binding:"omitempty,max=20"` // 空=保持原名
 	Method   string  `json:"method" binding:"omitempty,max=16"`
 	Path     string  `json:"path" binding:"omitempty,max=255"`
-	Icon     *string `json:"icon"`      // 指针：区分未传与清空
-	Sort     *int    `json:"sort"`      // 指针：区分未传与归零
-	ParentID *uint   `json:"parent_id"` // 指针：区分未传与挪到顶级(0)
+	Icon     *string `json:"icon" binding:"omitempty,max=512"` // 指针：区分未传与清空
+	Sort     *int    `json:"sort"`                             // 指针：区分未传与归零
+	ParentID *uint   `json:"parent_id"`                        // 指针：区分未传与挪到顶级(0)
 }
 
 func (s *Service) Create(ctx context.Context, req CreateRequest) (*bizperm.Permission, error) {

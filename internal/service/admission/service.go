@@ -40,7 +40,7 @@ type AddRequest struct {
 	Password string `json:"password" binding:"max=64"`
 	// Enabled 准入开关（缺省 true：添加即准入）
 	Enabled *bool  `json:"enabled"`
-	RoleIDs []uint `json:"role_ids"`
+	RoleIDs []uint `json:"role_ids" binding:"max=200"`
 }
 
 // Add 新增成员；返回（投影, 平台侧账号是否已存在仅绑定）
@@ -64,7 +64,7 @@ func (s *Service) SetEnabled(ctx context.Context, platformUserID uint, enabled b
 
 // SetRolesRequest 角色绑定
 type SetRolesRequest struct {
-	RoleIDs []uint `json:"role_ids"`
+	RoleIDs []uint `json:"role_ids" binding:"max=200"`
 }
 
 // SetRoles 调整本地角色

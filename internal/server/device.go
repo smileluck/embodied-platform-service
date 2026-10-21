@@ -154,7 +154,14 @@ func (s *HTTPServer) listDeviceDataEvents(c *gin.Context) {
 		return
 	}
 	sinceID, _ := strconv.ParseUint(c.Query("since_id"), 10, 64)
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
+	// limit 未传/解析失败/<1 回落默认 50；>500 夹取，防负数/超大值透传平台
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if err != nil || limit < 1 {
+		limit = 50
+	}
+	if limit > 500 {
+		limit = 500
+	}
 	events, err := s.device.DataEvents(c.Request.Context(), id, uint(sinceID), limit)
 	if err != nil {
 		s.deviceErr(c, err)

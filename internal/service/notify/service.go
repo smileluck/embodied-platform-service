@@ -17,13 +17,13 @@ func NewService(uc *biznotify.Usecase) *Service { return &Service{uc: uc} }
 type ChannelRequest struct {
 	Name          string   `json:"name" binding:"required,max=20"`
 	Type          string   `json:"type" binding:"required,oneof=email webhook wecom dingtalk feishu"`
-	Status        int      `json:"status"`
+	Status        int      `json:"status" binding:"oneof=0 1"`
 	SMTPHost      string   `json:"smtp_host" binding:"max=128"`
 	SMTPPort      int      `json:"smtp_port"`
 	SMTPUser      string   `json:"smtp_user" binding:"max=128"`
 	SMTPPassword  string   `json:"smtp_password" binding:"max=128"`
 	SMTPFrom      string   `json:"smtp_from" binding:"max=128"`
-	Recipients    []string `json:"recipients"`
+	Recipients    []string `json:"recipients" binding:"max=100,dive,max=320"`
 	WebhookURL    string   `json:"webhook_url" binding:"max=512"`
 	WebhookSecret string   `json:"webhook_secret" binding:"max=128"`
 }
@@ -43,9 +43,9 @@ type RuleRequest struct {
 	Source          string  `json:"source" binding:"required,oneof=job_failed monitor ip_autoban"`
 	Metric          string  `json:"metric" binding:"omitempty,oneof=cpu mem swap"`
 	Threshold       float64 `json:"threshold"`
-	ChannelIDs      []uint  `json:"channel_ids"`
+	ChannelIDs      []uint  `json:"channel_ids" binding:"max=200"`
 	CooldownSeconds int     `json:"cooldown_seconds"`
-	Status          int     `json:"status"`
+	Status          int     `json:"status" binding:"oneof=0 1"`
 	Remark          string  `json:"remark" binding:"max=200"`
 }
 

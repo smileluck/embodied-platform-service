@@ -81,6 +81,7 @@ var messagesEn = map[string]string{
 	"common.invalid_params":   "Invalid request parameters",
 	"security.invalid_chars":  "Request parameters contain illegal characters",
 	"security.param_too_long": "Request parameter is too long",
+	"security.body_too_large": "Request body is too large",
 	"security.login_frequent": "Too many login attempts, please try again later",
 	"security.rate_limited":   "Too many requests, please try again later",
 	"blacklist.ip_banned":     "This IP has been temporarily banned due to repeated login failures; please try again in about %d minutes",
@@ -105,6 +106,8 @@ var messagesEn = map[string]string{
 	"tenant.not_in_scope": "Tenant is outside the merchant bound tenant set",
 	// Device
 	"device.not_found": "Device not found",
+	// Device model / thing model (proxied to the platform open API)
+	"devmodel.payload_too_large": "Submitted data structure is too large",
 	// App user
 	"appuser.not_found":             "App user not found",
 	"appuser.cross_merchant_delete": "The app user is still attached to tenants of another merchant; detach those first",

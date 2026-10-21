@@ -85,7 +85,13 @@ func (uc *Usecase) checkDeptsInTenant(ctx context.Context, tenantID uint, deptID
 	if len(deptIDs) == 0 {
 		return nil
 	}
+	// 去重（保序），避免重复 ID 逐条 repo.Get
+	seen := make(map[uint]struct{}, len(deptIDs))
 	for _, id := range deptIDs {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
 		d, err := uc.depts.Get(ctx, id)
 		if err != nil {
 			return err

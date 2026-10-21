@@ -73,7 +73,7 @@ func (s *Service) Shadow(ctx context.Context, id uint) (*platformsdk.Shadow, err
 
 // IssueCommandRequest 命令下发入参（priority 必填：0 急停 / 1 运维 / 2 Agent / 3 业务）
 type IssueCommandRequest struct {
-	CommandType    string          `json:"command_type" binding:"required"`
+	CommandType    string          `json:"command_type" binding:"required,max=64"`
 	Params         json.RawMessage `json:"params"`
 	Priority       *int            `json:"priority" binding:"required,min=0,max=3"`
 	IdempotencyKey string          `json:"idempotency_key" binding:"max=64"`
@@ -109,6 +109,19 @@ type TelemetryRequest struct {
 }
 
 func (s *Service) Telemetry(ctx context.Context, deviceID uint, req TelemetryRequest) (*platformsdk.TelemetryHistory, error) {
+	// 聚合粒度与条数为客户端可控数值，透传平台前夹取，防无界拉取
+	if req.IntervalSeconds < 0 {
+		req.IntervalSeconds = 0
+	}
+	if req.IntervalSeconds > 86400 {
+		req.IntervalSeconds = 86400
+	}
+	if req.Limit < 0 {
+		req.Limit = 0
+	}
+	if req.Limit > 1000 {
+		req.Limit = 1000
+	}
 	q := platformsdk.TelemetryQuery{
 		Metric: req.Metric, IntervalSeconds: req.IntervalSeconds,
 		Marker: req.Marker, Limit: req.Limit,

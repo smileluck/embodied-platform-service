@@ -16,6 +16,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
@@ -387,10 +388,14 @@ func genObjectKey() string {
 	return "exports/" + time.Now().Format("2006/01") + "/" + hex.EncodeToString(b) + ".csv"
 }
 
-// truncate 按字节长度截断（失败原因入库用）
+// truncate 按字节预算截断并回退到 rune 边界（失败原因入库用；
+// 直接 s[:n] 会切断多字节字符产生非法 UTF-8，utf8mb4 严格模式写入失败）
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
 	}
 	return s[:n]
 }

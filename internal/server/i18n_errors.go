@@ -8,6 +8,7 @@ import (
 	bizappuser "github.com/smilex/smilex-admin-gin/internal/biz/appuser"
 	bizauth "github.com/smilex/smilex-admin-gin/internal/biz/auth"
 	bizblacklist "github.com/smilex/smilex-admin-gin/internal/biz/blacklist"
+	bizdevmodel "github.com/smilex/smilex-admin-gin/internal/biz/devmodel"
 	bizdict "github.com/smilex/smilex-admin-gin/internal/biz/dict"
 	bizexport "github.com/smilex/smilex-admin-gin/internal/biz/export"
 	bizfile "github.com/smilex/smilex-admin-gin/internal/biz/file"
@@ -101,6 +102,8 @@ var errKeys = []struct {
 	{biztenantdept.ErrDeptHasChildren, "tenant_dept.has_children"},
 	{biztenantdept.ErrParentInvalid, "tenant_dept.parent_invalid"},
 	{errDeviceNotInTenant, "tenant_member.device_not_in_tenant"},
+	// 设备型号/物模型（透传平台开放面）
+	{bizdevmodel.ErrPayloadTooLarge, "devmodel.payload_too_large"},
 	// 服务器监控
 	{bizmonitor.ErrCollectFailed, "monitor.collect_failed"},
 	// 智能体（LLM 配置底座）

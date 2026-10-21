@@ -252,6 +252,9 @@ func (uc *Usecase) ListFromPlatform(ctx context.Context, keyword string, page, p
 // AddMember 新增成员：先推平台（无此账号则创建并绑定本商户，有则仅绑定），
 // 再建本地准入投影（默认开启准入）。账号已在本系统时拒绝（用启用/角色管理）。
 func (uc *Usecase) AddMember(ctx context.Context, username, nickname, password string, enabled bool, roleIDs []uint) (*Projection, bool, error) {
+	// 手工分配不得包含内置锁定角色（与 SetRoles 同口径：商户管理员=平台标记驱动，
+	// 不接受手工增删）——不过滤则「新增成员」权限可直接绑商户管理员角色提权
+	roleIDs = filterAssignableRoles(roleIDs)
 	pid, existed, err := uc.platform.CreateOrBind(ctx, username, nickname, password)
 	if err != nil {
 		return nil, false, err

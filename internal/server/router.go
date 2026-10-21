@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -113,12 +114,26 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 	rbacCache *data.RBACCache, rdb *redis.Client) *HTTPServer {
 	gin.SetMode(cfg.Server.Mode)
 	e := gin.New()
+	// 可信代理：空列表 = 不信任任何代理头（直连部署安全默认），X-Forwarded-For 不参与
+	// ClientIP 解析——否则登录限流/IP 封禁/审计 IP 全部可被请求头伪造绕过
+	if err := e.SetTrustedProxies(cfg.Server.TrustedProxies); err != nil {
+		logger.Fatal("invalid server.trustedProxies", zap.Error(err))
+	}
 	// multipart 表单内存上限保持较小值（超出部分落临时文件）；上传大小由 handler 显式校验
 	e.MaxMultipartMemory = 8 << 20
+	bodyLimit := int64(cfg.Server.MaxBodyMB) << 20
+	if bodyLimit <= 0 {
+		bodyLimit = 4 << 20
+	}
+	uploadLimit := (cfg.Storage.MaxSizeMB + 1) << 20 // 单文件上限 + 表单字段开销
+	if uploadLimit <= 1<<20 {
+		uploadLimit = 21 << 20
+	}
 	e.Use(gin.Recovery(),
 		middleware.I18n(),
 		middleware.SecurityHeaders(),
 		middleware.CORS(cfg.Server.CORSOrigins),
+		middleware.BodyLimit(bodyLimit, uploadLimit),
 		middleware.XSSFilter(),
 		middleware.SQLInjectionGuard(),
 	)
@@ -156,11 +171,23 @@ func NewHTTPServer(cfg *conf.Bootstrap, auth *authsvc.Service, admission *admiss
 		logger.Error("job scheduler start failed", zap.Error(err))
 	}
 
+	// 读侧超时防慢速连接耗尽（Slowloris）；不设 WriteTimeout——Agent 调试对话为
+	// SSE 流式长响应，全局写超时会误杀正常流（慢消费者由读超时+连接生命周期兜底）
 	s.srv = &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.Server.Port),
-		Handler: e,
+		Addr:              fmt.Sprintf(":%d", cfg.Server.Port),
+		Handler:           e,
+		ReadHeaderTimeout: time.Duration(intDefault(cfg.Server.ReadHeaderTimeoutSeconds, 10)) * time.Second,
+		ReadTimeout:       time.Duration(intDefault(cfg.Server.ReadTimeoutSeconds, 30)) * time.Second,
+		IdleTimeout:       time.Duration(intDefault(cfg.Server.IdleTimeoutSeconds, 120)) * time.Second,
 	}
 	return s
+}
+
+func intDefault(v, def int) int {
+	if v <= 0 {
+		return def
+	}
+	return v
 }
 
 func (s *HTTPServer) registerRoutes() {
@@ -769,20 +796,26 @@ func (s *HTTPServer) Stop(ctx context.Context) error {
 
 // pageParams 解析分页参数：类型/最小值校验由 SQLInjectionGuard 中间件全局前置完成
 // （非整数、page<1、page_size<0 直接 400），此处仅做兜底规范化与上限夹取；
-// 单页上限取运行时参数 page.sizeMax（系统参数页可调，未配置回退 100）
+// 单页上限取运行时参数 page.sizeMax（系统参数页可调，未配置回退 100），
+// 显式 page_size=0 的「全量」约定按 page.fullMax（默认 1000）夹取
 func (s *HTTPServer) pageParams(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 	if page < 1 {
 		page = 1
 	}
-	// 未传或负数回落默认 10；显式传 0 = 全量（引用数据整表拉取，仓储层识别）
+	// 未传或负数回落默认 10；显式传 0 = 全量（引用数据整表拉取，下方按 fullMax 夹取）
 	if size < 0 || (size == 0 && c.Query("page_size") == "") {
 		size = 10
 	}
 	max := s.syscfg.IntDefault(c.Request.Context(), "page.sizeMax", 100)
 	if size > max {
 		size = max // 运行时上限夹取（page.sizeMax 可调）
+	}
+	// 显式 0 = 全量约定（引用数据整表拉取），同样按 page.fullMax 夹取——
+	// 否则任何有列表权限的用户可对日志/文件等大表一键整表导出（内存与响应无界）
+	if size == 0 {
+		size = s.syscfg.IntDefault(c.Request.Context(), "page.fullMax", 1000)
 	}
 	return page, size
 }
@@ -796,10 +829,13 @@ func idParam(c *gin.Context) (uint, bool) {
 	return uint(id), true
 }
 
-// truncate 按字节长度截断（UA 摘要存储用）
+// truncate 按字节长度截断（UA 摘要存储用）；回退到 rune 边界，不切断 UTF-8 多字节序列
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
 	}
 	return s[:n]
 }

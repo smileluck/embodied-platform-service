@@ -36,7 +36,15 @@
 { "list": [], "page": { "page": 1, "page_size": 20, "total": 100 } }
 ```
 
-定义位置：`internal/server/handler_user.go:listResult`、`pkg/pagination/page.go:Page`。参数由 `pageParams` 统一解析（`internal/server/router.go:566`），`page_size=0` 表示全量（运行时有上限夹取）。
+定义位置：`internal/server/handler_user.go:listResult`、`pkg/pagination/page.go:Page`。参数由 `pageParams` 统一解析（`internal/server/router.go:pageParams`），`page_size=0` 表示全量——同样有运行时上限夹取：单页上限 `page.sizeMax`（默认 100），全量上限 `page.fullMax`（默认 1000，均为系统参数页可调），超限行数被截断而非报错。超出全量上限的导出需求走异步导出通道。
+
+### 输入边界约定（2026-10-21 起）
+
+- 非 multipart 请求体上限 `server.maxBodyMB`（默认 4MB），超限 400 `security.body_too_large`；multipart 上传按 `storage.maxSizeMB`（handler/biz 双层校验，精确到文件）
+- 批量 ID 类列表入参统一上限 200 条（notice/admission/tenantuser/tenantmember/role/tenantdept/appuser 各绑定替换接口、notify ChannelIDs）；notify Recipients 上限 100 条、单条 320 字符；数据映射 Mappings 上限 500 条
+- 物模型 Schema 与数据映射透传前做序列化字节上限校验（256KB），超限哨兵错误 `devmodel.payload_too_large`
+- 启停类接口（job/tenant/tenant-user/member）status 必填 + `oneof=0 1`，空 body 400（前端恒传 status）
+- 服务读侧超时 10/30/120s（读头/读/空闲，可配置）；审计与限流 IP 以 `server.trustedProxies` 为准，空 = 不信任任何代理头
 
 ### 字段命名规范
 
@@ -78,7 +86,7 @@
 - **鉴权**：权限码由本地三表 JOIN（binds→roles→role_perms）在缓存装载时解析（变更 ≤60s 生效），`RequireTenantPerm` 精确匹配（成员自治 `member:*`、设备只读 `device:list`、日志只读 `log:list`）；`GET /profile`、`PUT /profile/password` 为本人数据不校验权限码
 - **响应信封/分页/snake_case** 与管理端一致（同一 `pkg/response`/`pkg/pagination`）
 - **成员语义**：`/members/*` 经平台开放面 tid 锁定操作本租户 tenant_users；`DELETE /members/:id` = 移出租户（不删账号）；守卫：本人不可自操作、最后一名成员管理员不可失格（biz 层哨兵）
-- **租户部门（2026-10-10 起，本地域）**：管理端 `/api/v1/tenant-depts` GET/POST、`/:id` PUT/DELETE（protected+RBAC，种子 `menu:tenantDept` + `tenantDept:{list,create,update,delete}`）+ `/api/v1/tenant-users/:id/depts` PUT（全量替换多部门归属，`tenantUser:setDepts`）。部门平表全量返回（含**直属**成员数，树形组装在前端；「成员」查询与 `dept_id` 筛选为**含子部门去重**口径，两者数字天然不同——多部门用户各计 1）；(tenant_id, code) 唯一、软删墓碑；删除有子部门拒绝、成员绑定级联解除；tenant_id=平台租户 ID、user_id=平台 tenant_user ID（无外键，对齐 tenant_roles 下沉先例）。`GET /tenant-users` 增可选 `dept_id`（本地部门筛选，含子部门成员；服务端本地交集路径：binds 反查 → 平台按租户翻页全量 → 内存交集 → 本地分页，已知限制：超大租户性能受限，平台侧支持部门维度后下推）；UserVO 回填 `depts [{id,name}]`。**用户删号（管理端 `DELETE /tenant-users/:id` 与门户 `DELETE /tenant-api/v1/members/:id`）级联清理本地部门绑定**（成员计数依赖 binds，残留会虚增 member_count；清理失败仅告警不阻断）——平台侧直接删号无回调通道，残留为已知边界；角色绑定残留无害（仅影响回填）不做清理。设备级按部门隔离留待平台侧部门域（二期）。决策记录：`aiDoc/notes/implemented/architecture/2026-10-10-tenant-dept-local-domain.md`
+- **租户部门（2026-10-10 起，本地域）**：管理端 `/api/v1/tenant-depts` GET/POST、`/:id` PUT/DELETE（protected+RBAC，种子 `menu:tenantDept` + `tenantDept:{list,create,update,delete}`）+ `/api/v1/tenant-users/:id/depts` PUT（全量替换多部门归属，`tenantUser:setDepts`）。部门平表全量返回（含**直属**成员数，树形组装在前端；「成员」查询与 `dept_id` 筛选为**含子部门去重**口径，两者数字天然不同——多部门用户各计 1）；(tenant_id, code) 唯一、软删墓碑；删除有子部门拒绝、成员绑定级联解除；tenant_id=平台租户 ID、user_id=平台 tenant_user ID（无外键，对齐 tenant_roles 下沉先例）。`GET /tenant-users` 增可选 `dept_id`（本地部门筛选，含子部门成员；服务端本地交集路径：binds 反查 → 平台按租户翻页全量 → 内存交集 → 本地分页，已知限制：超大租户性能受限，翻页上限 100 页（=1 万平台用户，超限截断并记告警日志），平台侧支持部门维度后下推）；UserVO 回填 `depts [{id,name}]`。**用户删号（管理端 `DELETE /tenant-users/:id` 与门户 `DELETE /tenant-api/v1/members/:id`）级联清理本地部门绑定**（成员计数依赖 binds，残留会虚增 member_count；清理失败仅告警不阻断）——平台侧直接删号无回调通道，残留为已知边界；角色绑定残留无害（仅影响回填）不做清理。设备级按部门隔离留待平台侧部门域（二期）。决策记录：`aiDoc/notes/implemented/architecture/2026-10-10-tenant-dept-local-domain.md`
 - **审计日志**（2026-10-09 起）：登录成功/失败落 `tenant_login_logs`（成功自省补 tid，失败 tid=0）；写请求经 `TenantOpLog` 落 `tenant_operation_logs`（tid/操作人取自 TenantAuth，password 类路由 body 整体脱敏）。`GET /logs/login`、`GET /logs/operation` 只读查询（`log:list`，tid 强制 = token tid，登录失败行 tid=0 门户不可见）；保留期随 `log.retentionDays`，门户无清空/导出。管理端镜像：`GET/DELETE /api/v1/tenant-login-logs`、`GET/DELETE /api/v1/tenant-operation-logs`（protected+RBAC，种子 `menu:tenantLog` + `log:tenant{Login,Op}:{list,clear}`；GET 支持 `tenant_id` 精确筛选，清空为全租户口径）
 - 前端独立 axios 实例（`web/src/api/tenant.ts`，baseURL `/tenant-api/v1`，token 独立存储键 `tenant_access_token`/`tenant_refresh_token`，401 单飞刷新走本服务 `/tenant-api/v1/auth/refresh`）
 - 决策记录：`aiDoc/notes/implemented/architecture/2026-10-08-tenant-user-system.md`

@@ -37,6 +37,14 @@ type Server struct {
 	// 可被请求头伪造绕过。直连部署留空；反向代理（nginx 等）后配置代理机地址，
 	// 如 ["127.0.0.1"]。环境变量 APP_SERVER_TRUSTEDPROXIES（逗号分隔）
 	TrustedProxies []string `mapstructure:"trustedProxies"`
+	// HTTP 读侧超时（秒）：防慢速连接耗尽（Slowloris）。不设 WriteTimeout——
+	// Agent 调试对话为 SSE 长连接流式响应，全局写超时会误杀正常流
+	ReadHeaderTimeoutSeconds int `mapstructure:"readHeaderTimeoutSeconds"`
+	ReadTimeoutSeconds       int `mapstructure:"readTimeoutSeconds"`
+	IdleTimeoutSeconds       int `mapstructure:"idleTimeoutSeconds"`
+	// MaxBodyMB 非 multipart 请求体上限（MB，默认 4）：JSON body 会被入口中间件整体读入
+	// 内存清洗，无上限时公开登录面单连接即可耗尽内存。multipart 上传按 storage.maxSizeMB 单独限制
+	MaxBodyMB int `mapstructure:"maxBodyMB"`
 }
 
 type DB struct {

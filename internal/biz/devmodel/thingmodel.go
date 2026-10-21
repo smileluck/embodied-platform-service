@@ -13,7 +13,7 @@ type TMProperty struct {
 	DataType    string   `json:"data_type"` // int / float / bool / string / enum / json
 	Unit        string   `json:"unit,omitempty"`
 	Writable    bool     `json:"writable"`
-	Enum        []string `json:"enum,omitempty"`
+	Enum        []string `json:"enum,omitempty" binding:"max=100,dive,max=128"`
 	Min         *float64 `json:"min,omitempty"`
 	Max         *float64 `json:"max,omitempty"`
 	Description string   `json:"description,omitempty"`
@@ -23,7 +23,7 @@ type TMProperty struct {
 type TMParam struct {
 	DataType    string   `json:"data_type"`
 	Required    bool     `json:"required,omitempty"`
-	Enum        []string `json:"enum,omitempty"`
+	Enum        []string `json:"enum,omitempty" binding:"max=100,dive,max=128"`
 	Description string   `json:"description,omitempty"`
 }
 
@@ -120,6 +120,9 @@ func (uc *Usecase) CreateTMDraft(ctx context.Context, nodeID uint) (*TMVersion, 
 }
 
 func (uc *Usecase) UpdateTMDraft(ctx context.Context, versionID uint, schema *TMSchema) error {
+	if err := checkPayloadSize(schema); err != nil {
+		return err
+	}
 	return uc.gw.UpdateTMDraft(ctx, versionID, schema)
 }
 
