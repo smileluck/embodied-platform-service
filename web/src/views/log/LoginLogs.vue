@@ -24,7 +24,7 @@
 
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NCard, NDataTable, NDatePicker, NEllipsis, NInput, NSelect, NTag, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
+import { NButton, NCard, NDataTable, NDatePicker, NInput, NSelect, NTag, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import SearchCard from '../../components/SearchCard.vue'
 import { clearLoginLogs, createExport, listLoginLogs } from '../../api'
@@ -140,14 +140,18 @@ const columns = computed<DataTableColumns<LoginLogInfo>>(() => [
     render: (row) => (row.device ? h(NTag, { type: row.device === 'app' ? 'success' : 'info', size: 'small' }, { default: () => deviceLabel(row.device) }) : '—'),
   },
   {
-    title: t('loginLog.browser'), key: 'user_agent',
-    render: (row) => h(NEllipsis, { style: 'max-width: 200px', tooltip: true }, { default: () => row.user_agent || '—' }),
+    title: t('loginLog.browser'), key: 'user_agent', minWidth: 180, ellipsis: { tooltip: true },
+    render: (row) => row.user_agent || '—',
   },
   {
     title: t('loginLog.result'), key: 'status', width: 80,
     render: (row) => h(NTag, { type: row.status === 1 ? 'success' : 'error', size: 'small' }, { default: () => (row.status === 1 ? t('loginLog.success') : t('loginLog.failed')) }),
   },
-  { title: t('loginLog.msg'), key: 'msg', render: (row) => row.msg || '—' },
+  // 说明列 minWidth + 省略：内容随筛选在「—」与长文本间变化，不定宽会导致列宽随筛选跳动
+  {
+    title: t('loginLog.msg'), key: 'msg', minWidth: 140, ellipsis: { tooltip: true },
+    render: (row) => row.msg || '—',
+  },
   { title: t('loginLog.time'), key: 'created_at', width: 170 },
 ])
 

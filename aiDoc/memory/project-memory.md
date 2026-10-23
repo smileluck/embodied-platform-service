@@ -27,6 +27,7 @@
 - [business/2026-10-17-侧边栏滚动条优化.md](business/2026-10-17-侧边栏滚动条优化.md) — 管理端深壳侧栏滚动条改 6px 圆角细拇指 + 透明轨道 + 稳定槽位；修 macOS overlay 不绘制与溢出切换菜单横向跳动
 - [business/2026-10-19-用户列表准入刷新与超管ID1锁定.md](business/2026-10-19-用户列表准入刷新与超管ID1锁定.md) — 用户列表开/关准入后整表刷新（状态列以平台 admitted 为事实源）+ 超管 ID=1 本端硬锁定（守卫 + 列表归一化，不依赖平台标记下发）
 - [business/2026-10-21-接口校验与数据边界加固.md](business/2026-10-21-接口校验与数据边界加固.md) — 无上限输入收口：trustedProxies 生效/http 读超时/BodyLimit/page.fullMax 夹取/AddMember 锁定角色提权修复/批量 ID max=200/物模型 256KB 上限等（决策记录 notes bug-fix 同名）
+- [business/2026-10-23-登录日志列宽跳动修复.md](business/2026-10-23-登录日志列宽跳动修复.md) — 登录日志筛选成功/失败列位置跳动：弹性列改 minWidth+ellipsis（Dicts remark 列惯例）
 
 ## 经验记忆（lessons）
 
