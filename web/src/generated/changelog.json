@@ -1,6 +1,41 @@
 {
-  "generatedAt": "2026-10-19T02:50:15.200Z",
+  "generatedAt": "2026-10-23T03:49:19.425Z",
   "commits": [
+    {
+      "hash": "206b1ad2f",
+      "date": "2026-10-23",
+      "type": "fix",
+      "scope": "web",
+      "message": "登录日志筛选成功/失败时列宽跳动——浏览器/终端与说明两列由内容自适应改为 minWidth+ellipsis（对齐 Dicts remark 列惯例），列位置不随筛选内容变化，长文本省略号+悬浮提示。浏览器实测三种筛选状态列位置一致、无横向溢出；npm run build（含 vue-tsc）通过。决策见 aiDoc/notes/implemented/bug-fix/2026-10-23-login-logs-column-width-jump.md"
+    },
+    {
+      "hash": "1ce1a7bf6",
+      "date": "2026-10-21",
+      "type": "fix",
+      "scope": "server",
+      "message": "输入校验与数据边界加固——收口无上限输入与入口防护失效"
+    },
+    {
+      "hash": "04c12f09a",
+      "date": "2026-10-20",
+      "type": "refactor",
+      "scope": "",
+      "message": "合并存储配置 platform.storage 并入 storage.platform"
+    },
+    {
+      "hash": "d321aabb8",
+      "date": "2026-10-20",
+      "type": "build",
+      "scope": "",
+      "message": "修复 Makefile 中开发命令的信号处理问题"
+    },
+    {
+      "hash": "acb17c923",
+      "date": "2026-10-19",
+      "type": "fix",
+      "scope": "web, backend",
+      "message": "修复用户管理页超管锁定与准入状态刷新问题"
+    },
     {
       "hash": "0737244eb",
       "date": "2026-10-19",
